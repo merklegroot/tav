@@ -301,20 +301,17 @@ internal sealed class App : IApp
 
     private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
     {
-        ClearConsole();
         var monster = monsters[_random.Next(monsters.Count)];
         int monsterHp = monster.HitPoints;
-
-        Console.WriteLine("== Fight ==");
-        Console.WriteLine();
-        Console.WriteLine($"Something stirs — a {monster.Name}! {monster.Blurb}");
-        Console.WriteLine();
+        var portraitLines = MonsterImageStore.Lines(monster.Id).ToList();
+        var battleLog = new List<string>();
+        bool showIntro = true;
 
         while (monsterHp > 0 && state.HitPoints > 0)
         {
-            Console.WriteLine($"You: {state.HitPoints}/{state.MaxHitPoints} HP    {monster.Name}: {monsterHp} HP");
-            Console.WriteLine("(A)ttack  (F)lee");
-            Console.WriteLine();
+            ClearConsole();
+            var left = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro);
+            RenderFightScreen(left, portraitLines);
 
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'f')
@@ -328,14 +325,23 @@ internal sealed class App : IApp
             if (key != 'a')
                 continue;
 
+            showIntro = false;
+
             int playerDamage = _random.Next(1, 4) + state.Strength / 6;
             monsterHp -= playerDamage;
-            Console.WriteLine();
-            Console.WriteLine($"You strike for {playerDamage} damage.");
+            AppendBattleLog(battleLog, $"You strike for {playerDamage} damage.");
 
             if (monsterHp <= 0)
             {
-                Console.WriteLine($"The {monster.Name} falls.");
+                ClearConsole();
+                var victoryLeft = new List<string>
+                {
+                    "== Fight ==",
+                    "",
+                    $"The {monster.Name} falls.",
+                    "",
+                };
+                RenderFightScreen(victoryLeft, portraitLines);
                 Console.WriteLine();
                 PauseForContinue();
                 return;
@@ -343,11 +349,19 @@ internal sealed class App : IApp
 
             int enemyDamage = _random.Next(1, monster.MaxDamage + 1);
             state.HitPoints = Math.Max(0, state.HitPoints - enemyDamage);
-            Console.WriteLine($"It strikes back for {enemyDamage} damage.");
-            Console.WriteLine();
+            AppendBattleLog(battleLog, $"It strikes back for {enemyDamage} damage.");
 
             if (state.HitPoints <= 0)
             {
+                ClearConsole();
+                var defeatLeft = new List<string> { "== Fight ==", "" };
+                defeatLeft.AddRange(battleLog);
+                if (battleLog.Count > 0)
+                    defeatLeft.Add("");
+                defeatLeft.Add($"You: 0/{state.MaxHitPoints} HP    {monster.Name}: {monsterHp} HP");
+                defeatLeft.Add("");
+                RenderFightScreen(defeatLeft, portraitLines);
+                Console.WriteLine();
                 Console.WriteLine("Everything goes dark…");
                 Console.WriteLine("You wake later, bruised and alone. Someone dragged you clear.");
                 state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
@@ -355,6 +369,75 @@ internal sealed class App : IApp
                 PauseForContinue();
                 return;
             }
+        }
+    }
+
+    private const int FightBattleLogMaxLines = 12;
+
+    private static List<string> BuildFightLeftColumn(
+        Monster monster,
+        int monsterHp,
+        GameState state,
+        List<string> battleLog,
+        bool showIntro)
+    {
+        var left = new List<string> { "== Fight ==", "" };
+        if (showIntro)
+        {
+            left.Add($"Something stirs — a {monster.Name}! {monster.Blurb}");
+            left.Add("");
+        }
+
+        left.AddRange(battleLog);
+        if (battleLog.Count > 0)
+            left.Add("");
+        left.Add($"You: {state.HitPoints}/{state.MaxHitPoints} HP    {monster.Name}: {monsterHp} HP");
+        left.Add("(A)ttack  (F)lee");
+        left.Add("");
+        return left;
+    }
+
+    private static void AppendBattleLog(List<string> battleLog, string line)
+    {
+        battleLog.Add(line);
+        while (battleLog.Count > FightBattleLogMaxLines)
+            battleLog.RemoveAt(0);
+    }
+
+    /// <summary>Left column text with portrait on the right. Uses two columns whenever stdout is a TTY.</summary>
+    private void RenderFightScreen(IReadOnlyList<string> leftLines, IReadOnlyList<string> portraitLines)
+    {
+        const int gap = 2;
+        const int minLeftWidth = 46;
+
+        if (portraitLines.Count == 0)
+        {
+            foreach (var line in leftLines)
+                Console.WriteLine(line);
+            return;
+        }
+
+        // Stacked layout only when redirected (e.g. piped); interactive always side-by-side so the image stays on the right.
+        if (Console.IsOutputRedirected)
+        {
+            foreach (var line in leftLines)
+                Console.WriteLine(line);
+            Console.WriteLine();
+            foreach (var line in portraitLines)
+                Console.WriteLine(line);
+            return;
+        }
+
+        int leftW = leftLines.Count == 0
+            ? minLeftWidth
+            : Math.Max(minLeftWidth, leftLines.Max(l => l.Length));
+
+        int rows = Math.Max(leftLines.Count, portraitLines.Count);
+        for (int i = 0; i < rows; i++)
+        {
+            string left = i < leftLines.Count ? leftLines[i] : "";
+            string right = i < portraitLines.Count ? portraitLines[i] : "";
+            Console.WriteLine(PadRightVisual(left, leftW) + new string(' ', gap) + right);
         }
     }
 
@@ -458,5 +541,28 @@ internal static class MonsterStore
             ?? throw new InvalidOperationException("Missing embedded resource monsters.json");
         return JsonSerializer.Deserialize<List<Monster>>(stream, JsonOptions)
             ?? throw new InvalidOperationException("monsters.json was empty or invalid");
+    }
+}
+
+internal static class MonsterImageStore
+{
+    /// <summary>Lines of the portrait file, or empty when missing.</summary>
+    public static IEnumerable<string> Lines(string monsterId)
+    {
+        var assembly = typeof(MonsterImageStore).Assembly;
+        var suffix = $"{monsterId}.img.txt";
+        var name = assembly.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+        if (name is null)
+            yield break;
+
+        using var stream = assembly.GetManifestResourceStream(name);
+        if (stream is null)
+            yield break;
+
+        using var reader = new StreamReader(stream);
+        string? line;
+        while ((line = reader.ReadLine()) is not null)
+            yield return line;
     }
 }
