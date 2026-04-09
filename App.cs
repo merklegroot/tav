@@ -180,7 +180,7 @@ public class App(GameState state) : IApp
             Terminal.Muted("On the ground: ")
             + string.Join(
                 ", ",
-                state.GroundItemsInCurrentRoom.Select(KnownManipulativeIds.DisplayName)));
+                state.GroundItemsInCurrentRoom.Select(ManipulativeDisplayStore.DisplayName)));
         return leftLines;
     }
 
@@ -509,7 +509,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {KnownManipulativeIds.DisplayName(state.Inventory[i])}",
+                    $"({num}) {ManipulativeDisplayStore.DisplayName(state.Inventory[i])}",
                     key);
             }
             Console.WriteLine();
@@ -538,7 +538,7 @@ public class App(GameState state) : IApp
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
-            Console.WriteLine(Terminal.Accent($"Selected: {KnownManipulativeIds.DisplayName(id)}"));
+            Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeDisplayStore.DisplayName(id)}"));
             Console.WriteLine();
             if (Console.IsInputRedirected)
                 Console.WriteLine(
@@ -554,7 +554,7 @@ public class App(GameState state) : IApp
                 var dropped = state.DropItemAt(index);
                 Console.WriteLine();
                 Console.WriteLine(
-                    Terminal.Muted($"You drop the {KnownManipulativeIds.DisplayName(dropped)}."));
+                    Terminal.Muted($"You drop the {ManipulativeDisplayStore.DisplayName(dropped)}."));
                 PauseForContinue();
                 return;
             }
@@ -703,7 +703,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {KnownManipulativeIds.DisplayName(state.GroundItemsInCurrentRoom[i])}",
+                    $"({num}) {ManipulativeDisplayStore.DisplayName(state.GroundItemsInCurrentRoom[i])}",
                     key);
             }
             Console.WriteLine();
@@ -731,7 +731,7 @@ public class App(GameState state) : IApp
         ClearConsole();
         WritePlayerStatusHeader("== Pick up ==", state, includeGold: false);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {KnownManipulativeIds.DisplayName(id)}"));
+        Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeDisplayStore.DisplayName(id)}"));
         Console.WriteLine();
         if (Console.IsInputRedirected)
             Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter / esc to go back"));
@@ -747,7 +747,7 @@ public class App(GameState state) : IApp
             return;
         Console.WriteLine();
         Console.WriteLine(
-            Terminal.Muted($"You pick up the {KnownManipulativeIds.DisplayName(taken)}."));
+            Terminal.Muted($"You pick up the {ManipulativeDisplayStore.DisplayName(taken)}."));
         PauseForContinue();
     }
 

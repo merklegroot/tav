@@ -10,6 +10,7 @@
   <ItemGroup>
     <EmbeddedResource Include="res/rooms.json" />
     <EmbeddedResource Include="res/monsters.json" />
+    <EmbeddedResource Include="res/manipulatives.json" />
     <EmbeddedResource Include="res/**/*.img.txt" />
   </ItemGroup>
   <ItemGroup>
