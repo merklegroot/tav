@@ -131,6 +131,9 @@ internal sealed class App : IApp
 
         var oldRows = PadPanelRows(oldPanel, panelOuter);
         var newRows = PadPanelRows(newPanel, panelOuter);
+        // East/west sliding uses Substring on a concatenation; indices must match visible columns, not raw bytes (ANSI breaks alignment).
+        var oldRowsPlain = PadPanelRows(oldPanel.Select(Terminal.StripAnsi).ToArray(), panelOuter);
+        var newRowsPlain = PadPanelRows(newPanel.Select(Terminal.StripAnsi).ToArray(), panelOuter);
 
         const int frames = 22;
         for (int f = 0; f < frames; f++)
@@ -156,8 +159,11 @@ internal sealed class App : IApp
                     }
 
                     string left = r < newLeft.Count ? PadRightVisual(newLeft[r], leftColWidth) : new string(' ', leftColWidth);
-                    string combined = east ? oldRows[r] + newRows[r] : newRows[r] + oldRows[r];
-                    string right = combined.Substring(offset, panelOuter);
+                    string combined = east
+                        ? oldRowsPlain[r] + newRowsPlain[r]
+                        : newRowsPlain[r] + oldRowsPlain[r];
+                    string rightPlain = combined.Substring(offset, panelOuter);
+                    string right = Terminal.Border(rightPlain);
                     Console.WriteLine(left + new string(' ', gap) + right);
                 }
             }

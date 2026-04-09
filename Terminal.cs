@@ -87,6 +87,32 @@ internal static class Terminal
         return len;
     }
 
+    /// <summary>Removes ANSI SGR sequences so string indices match terminal columns (for slice/substring layout).</summary>
+    public static string StripAnsi(string s)
+    {
+        if (string.IsNullOrEmpty(s) || !s.Contains('\x1b', StringComparison.Ordinal))
+            return s;
+
+        var sb = new StringBuilder(s.Length);
+        for (int i = 0; i < s.Length;)
+        {
+            if (s[i] == '\x1b' && i + 1 < s.Length && s[i + 1] == '[')
+            {
+                i += 2;
+                while (i < s.Length && s[i] != 'm')
+                    i++;
+                if (i < s.Length)
+                    i++;
+                continue;
+            }
+
+            sb.Append(s[i]);
+            i++;
+        }
+
+        return sb.ToString();
+    }
+
     /// <summary>Truncates to a maximum visible (on-screen) length, preserving leading ANSI sequences.</summary>
     public static string TruncateVisible(string s, int maxVisible)
     {
