@@ -338,7 +338,7 @@ internal sealed class App : IApp
         return left + paddedBody + right;
     }
 
-    private static string[] BuildRoomPanel(Room room, int outerWidth)
+    private static string[] BuildRoomPanel(Room room, int outerWidth, bool showPlayerMarker = true)
     {
         int inner = outerWidth - 2;
 
@@ -355,7 +355,7 @@ internal sealed class App : IApp
         string blankInner = new string(' ', inner);
         string blank = BuildSideWallLine(blankInner, inner, w, e, useWestEastMarkers: false);
         string titleRow = BuildSideWallLine(PadInner(title, inner), inner, w, e, useWestEastMarkers: true);
-        string playerRow = BuildSideWallLine(PadInner("●", inner), inner, w, e, useWestEastMarkers: false);
+        string playerRow = BuildSideWallLine(PadInner(showPlayerMarker ? "●" : " ", inner), inner, w, e, useWestEastMarkers: false);
 
         return
         [
@@ -693,8 +693,124 @@ internal sealed class App : IApp
         Console.WriteLine(Terminal.Muted("Move with compass keys shown in the menu."));
         Console.WriteLine(Terminal.Muted("(I)nventory: select an item, then Use, Drop, or Esc to go back."));
         Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
+        Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
         Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield coins; sometimes a find."));
         Console.WriteLine(Terminal.Muted("Apples can be eaten from the inventory (Use)."));
+        Console.WriteLine();
+        PauseForContinue();
+    }
+
+    private void PrintMapScreen(GameState state)
+    {
+        ClearConsole();
+        Console.WriteLine(Terminal.Title("== Map =="));
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Muted("Rough layout of the grounds. ● marks where you stand."));
+        Console.WriteLine();
+
+        // Map overview: a 3×3 window centered on the current room, drawn using the same room box as the right panel.
+        // Coordinates: (0,0) is current. North is y=-1, south is y=+1.
+        var allRooms = RoomStore.LoadAll();
+        var roomsById = allRooms.ToDictionary(r => r.Id.ToLowerInvariant());
+
+        int outerW = AdventureLayout.MapPanelOuterWidth;
+        int outerH = BuildRoomPanel(state.CurrentRoom, outerW).Length;
+        const int maxRadius = 1; // 3×3
+        const int gap = 2;
+        const int indent = 2;
+
+        var placed = new Dictionary<(int x, int y), Room>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var q = new Queue<(Room room, int x, int y)>();
+
+        q.Enqueue((state.CurrentRoom, 0, 0));
+        seen.Add(state.CurrentRoom.Id);
+
+        while (q.Count > 0)
+        {
+            var (room, x, y) = q.Dequeue();
+            if (Math.Abs(x) > maxRadius || Math.Abs(y) > maxRadius)
+                continue;
+
+            if (!placed.ContainsKey((x, y)))
+                placed[(x, y)] = room;
+
+            if (room.Exits is null)
+                continue;
+
+            foreach (var kv in room.Exits)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value))
+                    continue;
+
+                char dir = char.ToLowerInvariant(kv.Key.Trim()[0]);
+                (int dx, int dy) = dir switch
+                {
+                    'n' => (0, -1),
+                    'e' => (1, 0),
+                    's' => (0, 1),
+                    'w' => (-1, 0),
+                    _ => (0, 0),
+                };
+                if (dx == 0 && dy == 0)
+                    continue;
+
+                string destId = kv.Value.ToLowerInvariant();
+                if (!roomsById.TryGetValue(destId, out var dest))
+                    continue;
+
+                int nx = x + dx;
+                int ny = y + dy;
+                if (Math.Abs(nx) > maxRadius || Math.Abs(ny) > maxRadius)
+                    continue;
+
+                if (seen.Add(dest.Id))
+                    q.Enqueue((dest, nx, ny));
+            }
+        }
+
+        string[] BlankPanel()
+        {
+            string blankLine = new string(' ', outerW);
+            var p = new string[outerH];
+            for (int i = 0; i < outerH; i++)
+                p[i] = blankLine;
+            return p;
+        }
+
+        string[] BoxFor((int x, int y) cell)
+        {
+            if (!placed.TryGetValue(cell, out var room))
+                return BlankPanel();
+            bool isCurrent = room.Id.Equals(state.CurrentRoom.Id, StringComparison.OrdinalIgnoreCase);
+            return BuildRoomPanel(room, outerW, showPlayerMarker: isCurrent);
+        }
+
+        // Render rows y=-1..1 (north to south), columns x=-1..1 (west to east).
+        for (int y = -maxRadius; y <= maxRadius; y++)
+        {
+            var rowPanels = new[]
+            {
+                BoxFor((-maxRadius, y)),
+                BoxFor((0, y)),
+                BoxFor((maxRadius, y)),
+            };
+
+            for (int line = 0; line < outerH; line++)
+            {
+                Console.Write(new string(' ', indent));
+                Console.Write(rowPanels[0][line]);
+                Console.Write(new string(' ', gap));
+                Console.Write(rowPanels[1][line]);
+                Console.Write(new string(' ', gap));
+                Console.Write(rowPanels[2][line]);
+                Console.WriteLine();
+            }
+
+            if (y != maxRadius)
+                Console.WriteLine();
+        }
+
         Console.WriteLine();
         PauseForContinue();
     }
@@ -735,6 +851,7 @@ internal sealed class App : IApp
 
         items.Add(new MenuItem("(I)nventory", 'i', () => RunInventoryScreen(state)));
         items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
+        items.Add(new MenuItem("(M)ap", 'm', () => PrintMapScreen(state)));
         items.Add(new MenuItem("(F)ight", 'f', () => RunFightEncounter(state, monsters)));
         items.Add(new MenuItem("(H)elp", 'h', () => PrintHelp()));
         items.Add(new MenuItem("e(X)it", 'x', exit));
