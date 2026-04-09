@@ -378,26 +378,27 @@ public class App(GameState state) : IApp
     private static bool HasExit(Room room, char dir) =>
         room.Exits?.ContainsKey(dir.ToString()) == true;
 
-    /// <summary>Horizontal wall; optional centered " for north (top) or south (bottom) exit.</summary>
+    /// <summary>Horizontal wall; optional centered <c>| |</c> for north (top) or south (bottom) exit (see README).</summary>
     private static string BuildHorizontalWall(
         char leftCorner,
         char rightCorner,
         int innerWidth,
-        bool doorQuoteInWall)
+        bool hasNorthSouthDoor)
     {
-        if (!doorQuoteInWall || innerWidth < 1)
+        if (!hasNorthSouthDoor || innerWidth < 3)
             return leftCorner + new string('─', innerWidth) + rightCorner;
-        int rest = innerWidth - 1;
-        int leftDashes = rest / 2;
-        int rightDashes = rest - leftDashes;
+
+        int dashTotal = innerWidth - 3;
+        int leftDashes = dashTotal / 2;
+        int rightDashes = dashTotal - leftDashes;
         return leftCorner
             + new string('─', leftDashes)
-            + '"'
+            + "| |"
             + new string('─', rightDashes)
             + rightCorner;
     }
 
-    /// <summary>Inner rows: │ walls; = only on the title row for west/east.</summary>
+    /// <summary>Inner rows: │ walls; <c>=</c> on the first title row when west/east exit (see README).</summary>
     private static string BuildSideWallLine(
         string paddedBody,
         int inner,
@@ -429,8 +430,8 @@ public class App(GameState state) : IApp
         for (int i = 0; i < titleLines.Count; i++)
             titleLines[i] = Truncate(titleLines[i], Math.Max(1, inner));
 
-        string top = BuildHorizontalWall('┌', '┐', inner, doorQuoteInWall: n);
-        string bottom = BuildHorizontalWall('└', '┘', inner, doorQuoteInWall: s);
+        string top = BuildHorizontalWall('┌', '┐', inner, hasNorthSouthDoor: n);
+        string bottom = BuildHorizontalWall('└', '┘', inner, hasNorthSouthDoor: s);
 
         // Height spec: 5 total rows: top, 3 inner, bottom.
         // Vertically center title within the 3 inner rows.

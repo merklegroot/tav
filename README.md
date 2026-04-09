@@ -26,8 +26,8 @@ Rooms should be drawn using text characters like this
 ┌─────────────┐
 │             │
 =    Dining   │
-│    Hall     │
-└──────"──────┘
+│     Hall    │
+└─────| |─────┘
 ```
 
 Width: 16 chars
@@ -41,7 +41,8 @@ When that's not enough, it can be split into three lines.
 
 An = charater represents a door going East or West.
 
-A " character represents a door going North or South.
+Two pipes with a space between them represent a door going North or South.
+| |
 
 ## Manipulatives
 
