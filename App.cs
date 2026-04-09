@@ -76,6 +76,9 @@ internal sealed class App : IApp
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         int screenWidth = AdventureLayout.ScreenWidth;
 
+        // Layout spec: a single title bar line with game title + basic stats, then two panels beneath.
+        string titleBar = BuildTitleBar(state, screenWidth);
+
         var leftLines = BuildLeftColumnLines(state, leftColWidth);
 
         var panel = BuildRoomPanel(state.CurrentRoom, panelOuter);
@@ -84,6 +87,7 @@ internal sealed class App : IApp
         if (!forceWide && !CanUseWideLayout(minWidth))
         {
             var stacked = new List<string>();
+            stacked.Add(titleBar);
             foreach (var line in leftLines)
                 stacked.Add(line);
             stacked.Add("");
@@ -94,6 +98,7 @@ internal sealed class App : IApp
         }
 
         var lines = new List<string>();
+        lines.Add(titleBar);
         for (int i = 0; i < panel.Length; i++)
         {
             string left = i < leftLines.Count ? leftLines[i] : "";
@@ -108,14 +113,24 @@ internal sealed class App : IApp
         return lines;
     }
 
+    private static string BuildTitleBar(GameState state, int screenWidth)
+    {
+        string left = Terminal.Title("== Adventure Game ==");
+        string right = Terminal.HpStatus(state.HitPoints, state.MaxHitPoints)
+                       + Terminal.Muted("  Gold: ")
+                       + Terminal.Accent(state.Gold.ToString());
+
+        // Keep the title on the left; right-align the basic stats.
+        int leftV = Terminal.VisibleLength(left);
+        int rightV = Terminal.VisibleLength(right);
+        int spaces = Math.Max(1, screenWidth - leftV - rightV);
+        return PadRightVisual(left + new string(' ', spaces) + right, screenWidth);
+    }
+
     private static List<string> BuildLeftColumnLines(GameState state, int leftColWidth)
     {
         var leftLines = new List<string>
         {
-            Terminal.Title("== Adventure Game =="),
-            Terminal.HpStatus(state.HitPoints, state.MaxHitPoints),
-            Terminal.Muted($"Coins: {state.Gold}"),
-            "",
             Terminal.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
         };
         leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
@@ -148,6 +163,8 @@ internal sealed class App : IApp
         int panelRows = oldPanel.Length;
         int H = Math.Max(newLeft.Count, panelRows);
 
+        string titleBar = BuildTitleBar(afterNavigate, screenWidth);
+
         var oldRows = PadPanelRows(oldPanel, panelOuter);
         var newRows = PadPanelRows(newPanel, panelOuter);
         // East/west sliding uses Substring on a concatenation; indices must match visible columns, not raw bytes (ANSI breaks alignment).
@@ -159,6 +176,7 @@ internal sealed class App : IApp
         {
             double t = frames <= 1 ? 1 : f / (double)(frames - 1);
             ClearConsole();
+            Console.WriteLine(titleBar);
 
             if (direction is 'e' or 'w')
             {

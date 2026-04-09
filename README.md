@@ -2,6 +2,11 @@
 
 ![screenshot](img/2026-04-09-01-07-59.png)
 
+## Layout
+
+Most screens in the game should consist of a title bar with a left and right panel below it.  
+The Title bar should include the game's title alone with the most basic of stats, such as HP and Gold.
+
 ## Rooms
 
 Rooms should be drawn using text characters like this 
