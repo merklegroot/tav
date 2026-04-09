@@ -97,14 +97,14 @@ internal sealed class App : IApp
         var lines = new List<string>();
         lines.Add(titleBar);
         lines.Add("");
-        int H = Math.Max(leftLines.Count, panel.Length);
-        int topPad = Math.Max(0, (H - panel.Length) / 2);
+        const int rightPanelTopOffset = 5; // fixed: room starts 5 lines below the title bar
+        int H = Math.Max(leftLines.Count, rightPanelTopOffset + panel.Length);
         string blankPanelRow = new string(' ', panelOuter);
 
         for (int i = 0; i < H; i++)
         {
             string left = i < leftLines.Count ? leftLines[i] : "";
-            int pi = i - topPad;
+            int pi = i - rightPanelTopOffset;
             string right = pi >= 0 && pi < panel.Length ? panel[pi] : blankPanelRow;
             right = PadRightVisual(right, panelOuter);
 
@@ -198,9 +198,11 @@ internal sealed class App : IApp
 
         var newLeft = BuildLeftColumnLines(afterNavigate, leftColWidth);
         int panelRows = oldPanel.Length;
-        int H = Math.Max(newLeft.Count, panelRows);
+        const int rightPanelTopOffset = 5; // fixed: match main view
+        int H = Math.Max(newLeft.Count, rightPanelTopOffset + panelRows);
 
         string titleBar = BuildTitleBar(afterNavigate, screenWidth);
+        string blankRight = new string(' ', panelOuter);
 
         var oldRows = PadPanelRows(oldPanel, panelOuter);
         var newRows = PadPanelRows(newPanel, panelOuter);
@@ -226,19 +228,25 @@ internal sealed class App : IApp
                     : (int)Math.Round((1 - t) * panelOuter);
                 for (int r = 0; r < H; r++)
                 {
-                    if (r >= panelRows)
+                    string left = r < newLeft.Count
+                        ? PadRightVisual(newLeft[r], leftColWidth)
+                        : new string(' ', leftColWidth);
+
+                    int pi = r - rightPanelTopOffset;
+                    string right;
+                    if (pi < 0 || pi >= panelRows)
                     {
-                        if (r < newLeft.Count)
-                            Console.WriteLine(PadRightVisual(newLeft[r], screenWidth));
-                        continue;
+                        right = blankRight;
+                    }
+                    else
+                    {
+                        string combined = east
+                            ? oldRowsPlain[pi] + newRowsPlain[pi]
+                            : newRowsPlain[pi] + oldRowsPlain[pi];
+                        string rightPlain = combined.Substring(offset, panelOuter);
+                        right = Terminal.Border(rightPlain);
                     }
 
-                    string left = r < newLeft.Count ? PadRightVisual(newLeft[r], leftColWidth) : new string(' ', leftColWidth);
-                    string combined = east
-                        ? oldRowsPlain[r] + newRowsPlain[r]
-                        : newRowsPlain[r] + oldRowsPlain[r];
-                    string rightPlain = combined.Substring(offset, panelOuter);
-                    string right = Terminal.Border(rightPlain);
                     Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
                 }
             }
@@ -255,16 +263,22 @@ internal sealed class App : IApp
 
                 for (int r = 0; r < H; r++)
                 {
-                    if (r >= panelRows)
+                    string left = r < newLeft.Count
+                        ? PadRightVisual(newLeft[r], leftColWidth)
+                        : new string(' ', leftColWidth);
+
+                    int pi = r - rightPanelTopOffset;
+                    string right;
+                    if (pi < 0 || pi >= panelRows)
                     {
-                        if (r < newLeft.Count)
-                            Console.WriteLine(PadRightVisual(newLeft[r], screenWidth));
-                        continue;
+                        right = blankRight;
+                    }
+                    else
+                    {
+                        int idx = scroll + pi;
+                        right = strip[idx];
                     }
 
-                    string left = r < newLeft.Count ? PadRightVisual(newLeft[r], leftColWidth) : new string(' ', leftColWidth);
-                    int idx = scroll + r;
-                    string right = strip[idx];
                     Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
                 }
             }
