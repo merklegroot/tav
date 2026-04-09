@@ -5,14 +5,6 @@ namespace Tav;
 
 internal sealed class App : IApp
 {
-    private static class AdventureLayout
-    {
-        public const int Gap = 2;
-        public const int LeftColumnWidth = 46;
-        public const int MapPanelOuterWidth = 24;
-        public const int ScreenWidth = LeftColumnWidth + Gap + MapPanelOuterWidth;
-    }
-
     private readonly Random _random = new();
 
     public void Run()
@@ -61,6 +53,20 @@ internal sealed class App : IApp
         ClearConsole();
         foreach (var line in BuildScreenLines(state))
             Console.WriteLine(line);
+    }
+
+    private void PauseForContinue()
+    {
+        if (!Console.IsInputRedirected)
+        {
+            Console.WriteLine("Press any key to continue...");
+            Console.ReadKey(intercept: true);
+        }
+        else
+        {
+            Console.WriteLine("(press Enter to continue)");
+            _ = Console.ReadLine();
+        }
     }
 
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
@@ -371,20 +377,6 @@ internal sealed class App : IApp
         int pad = innerWidth - content.Length;
         int left = pad / 2;
         return new string(' ', left) + content + new string(' ', pad - left);
-    }
-
-    private void PauseForContinue()
-    {
-        if (!Console.IsInputRedirected)
-        {
-            Console.WriteLine("Press any key to continue...");
-            Console.ReadKey(intercept: true);
-        }
-        else
-        {
-            Console.WriteLine("(press Enter to continue)");
-            _ = Console.ReadLine();
-        }
     }
 
     private static void WritePlayerStatusHeader(string screenTitle, GameState state, bool includeCoins = true)
@@ -1010,114 +1002,5 @@ internal sealed class App : IApp
             if (line.Length > 0)
                 return line[0];
         }
-    }
-
-    private sealed class GameState
-    {
-        public Room CurrentRoom { get; set; }
-        public bool ShouldExit { get; set; }
-        public int HitPoints { get; set; }
-        public int MaxHitPoints { get; }
-        public int Strength { get; set; }
-        public int Dexterity { get; set; }
-        public int Gold { get; set; }
-        public List<string> Inventory { get; } = ["Torch", "Apple"];
-
-        /// <summary>Items on the floor, keyed by lowercase room id.</summary>
-        public Dictionary<string, List<string>> GroundItemsByRoomId { get; } =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        public IReadOnlyList<string> GroundItemsInCurrentRoom
-        {
-            get
-            {
-                var id = CurrentRoom.Id.ToLowerInvariant();
-                return GroundItemsByRoomId.TryGetValue(id, out var list)
-                    ? list
-                    : Array.Empty<string>();
-            }
-        }
-
-        public GameState(Room start)
-        {
-            CurrentRoom = start;
-            MaxHitPoints = 20;
-            HitPoints = MaxHitPoints;
-            Strength = 12;
-            Dexterity = 14;
-        }
-
-        /// <summary>Removes the item from inventory and places it in the current room. Returns the item name.</summary>
-        public string DropItemAt(int index)
-        {
-            string name = Inventory[index];
-            Inventory.RemoveAt(index);
-            var roomId = CurrentRoom.Id.ToLowerInvariant();
-            if (!GroundItemsByRoomId.TryGetValue(roomId, out var ground))
-            {
-                ground = [];
-                GroundItemsByRoomId[roomId] = ground;
-            }
-            ground.Add(name);
-            return name;
-        }
-
-        /// <summary>Removes the item from the current room’s ground and adds it to inventory. Returns null if the slot is invalid.</summary>
-        public string? PickUpGroundItemAt(int index)
-        {
-            var roomId = CurrentRoom.Id.ToLowerInvariant();
-            if (!GroundItemsByRoomId.TryGetValue(roomId, out var ground))
-                return null;
-            if (index < 0 || index >= ground.Count)
-                return null;
-
-            string name = ground[index];
-            ground.RemoveAt(index);
-            if (ground.Count == 0)
-                GroundItemsByRoomId.Remove(roomId);
-            Inventory.Add(name);
-            return name;
-        }
-    }
-}
-
-internal sealed record Room(string Id, string Name, string Description, Dictionary<string, string>? Exits);
-
-internal sealed record Monster(string Id, string Name, string Blurb, int HitPoints, int MaxDamage);
-
-internal sealed record MenuItem(string Text, char Key, Action Action);
-
-internal static class RoomStore
-{
-    public static List<Room> LoadAll() =>
-        EmbeddedJsonResource.DeserializeList<Room>("rooms.json", "rooms.json");
-}
-
-internal static class MonsterStore
-{
-    public static List<Monster> LoadAll() =>
-        EmbeddedJsonResource.DeserializeList<Monster>("monsters.json", "monsters.json");
-}
-
-internal static class MonsterImageStore
-{
-    /// <summary>Lines of the portrait file, or empty when missing.</summary>
-    public static IEnumerable<string> Lines(string monsterId)
-    {
-        var assembly = typeof(MonsterImageStore).Assembly;
-        var suffix = $"{monsterId}.img.txt";
-        var name = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
-        if (name is null)
-            yield break;
-
-        using var stream = assembly.GetManifestResourceStream(name);
-        if (stream is null)
-            yield break;
-
-        using var reader = new StreamReader(stream);
-        string? line;
-        while ((line = reader.ReadLine()) is not null)
-            yield return line;
     }
 }
