@@ -1,0 +1,49 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+
+# Legacy (removed Kotlin/Gradle)
+.gradle/
+build/
+.kotlin/
+out/
+
+# IDE / Editor files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code / Cursor (recommended to ignore the whole folder)
+.vscode/
+
+# Keep only specific shared config files if you want (uncomment if needed)
+# !.vscode/launch.json
+# !.vscode/tasks.json
+# !.vscode/extensions.json
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Local properties
+local.properties
+
+# Gradle wrapper local changes (rarely needed)
+gradle/wrapper/gradle-wrapper.properties
+
+# Generated documentation (if you ever add it)
+docs/

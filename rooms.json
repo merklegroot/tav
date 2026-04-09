@@ -1,0 +1,18 @@
+[
+  {
+    "id": "castle_entrance",
+    "name": "Castle Entrance",
+    "description": "Cold stone towers over you as the heavy gate stands ajar. The air smells of rain and iron.",
+    "exits": {
+      "e": "courtyard"
+    }
+  },
+  {
+    "id": "courtyard",
+    "name": "Courtyard",
+    "description": "An open yard of slick cobblestones. A dry fountain sits at the center, and torchlight flickers along the walls.",
+    "exits": {
+      "w": "castle_entrance"
+    }
+  }
+]
