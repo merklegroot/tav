@@ -514,13 +514,7 @@ public class App(GameState state) : IApp
                     key);
             }
             Console.WriteLine();
-            if (n <= 9 && !Console.IsInputRedirected)
-                Console.WriteLine(Terminal.EscBackHint());
-            else
-            {
-                Console.WriteLine(Terminal.Muted($"Type item number (1-{n}) to select."));
-                Console.WriteLine(Terminal.EscBackHint());
-            }
+            Console.WriteLine(Terminal.EscBackHint());
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -647,6 +641,7 @@ public class App(GameState state) : IApp
         UseOrEat,
     }
 
+    // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
     private static InventoryItemDetailAction ReadInventoryItemDetailAction(bool offerEat)
     {
         if (Console.IsInputRedirected)
@@ -654,8 +649,11 @@ public class App(GameState state) : IApp
             while (true)
             {
                 var line = Console.ReadLine();
-                if (line is null || string.IsNullOrWhiteSpace(line))
+                if (line is null)
                     return InventoryItemDetailAction.BackToList;
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
                 string t = line.Trim().ToLowerInvariant();
                 if (t is "esc" or "escape")
                     return InventoryItemDetailAction.BackToList;
@@ -663,14 +661,6 @@ public class App(GameState state) : IApp
                     return InventoryItemDetailAction.Drop;
                 if (offerEat && (t is "e" or "eat"))
                     return InventoryItemDetailAction.UseOrEat;
-                if (offerEat)
-                {
-                    Console.WriteLine(
-                        Terminal.Muted("Try e, eat, d, drop, Enter, or esc to go back."));
-                    continue;
-                }
-
-                Console.WriteLine(Terminal.Muted("Try d / drop, Enter, or esc to go back."));
             }
         }
 
@@ -698,14 +688,16 @@ public class App(GameState state) : IApp
             while (true)
             {
                 var line = Console.ReadLine();
-                if (line is null || string.IsNullOrWhiteSpace(line))
+                if (line is null)
                     return null;
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
                 string t = line.Trim().ToLowerInvariant();
                 if (t is "esc" or "escape")
                     return null;
                 if (int.TryParse(line.Trim(), out int num) && num >= 1 && num <= itemCount)
                     return num - 1;
-                Console.WriteLine(Terminal.Muted("Try a number from the list, or Enter / esc to go back."));
             }
         }
 
@@ -747,13 +739,7 @@ public class App(GameState state) : IApp
                     key);
             }
             Console.WriteLine();
-            if (n <= 9 && !Console.IsInputRedirected)
-                Console.WriteLine(Terminal.EscBackHint());
-            else
-            {
-                Console.WriteLine(Terminal.Muted($"Type item number (1-{n}) to select."));
-                Console.WriteLine(Terminal.EscBackHint());
-            }
+            Console.WriteLine(Terminal.EscBackHint());
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -775,10 +761,9 @@ public class App(GameState state) : IApp
         Console.WriteLine();
         Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.DisplayName(id)}"));
         Console.WriteLine();
-        if (Console.IsInputRedirected)
-            Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter / esc to go back"));
-        else
-            Console.WriteLine(Terminal.Muted("(T)ake  Esc = back to list"));
+        Terminal.WriteMenuLine("(T)ake", 't');
+        Console.WriteLine();
+        Console.WriteLine(Terminal.EscBackHint());
 
         var action = ReadSelectedGroundItemAction();
         if (action == SelectedGroundItemAction.BackToList)
@@ -806,14 +791,16 @@ public class App(GameState state) : IApp
             while (true)
             {
                 var line = Console.ReadLine();
-                if (line is null || string.IsNullOrWhiteSpace(line))
+                if (line is null)
                     return SelectedGroundItemAction.BackToList;
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
                 string t = line.Trim().ToLowerInvariant();
                 if (t is "esc" or "escape")
                     return SelectedGroundItemAction.BackToList;
                 if (t is "t" or "take")
                     return SelectedGroundItemAction.Take;
-                Console.WriteLine(Terminal.Muted("Try t or take, or Enter / esc to go back."));
             }
         }
 
@@ -1264,6 +1251,7 @@ public class App(GameState state) : IApp
             _ => $"({char.ToUpperInvariant(direction)}) - {destinationName}",
         };
 
+    // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
     private static char ReadInputChar()
     {
         if (Console.IsInputRedirected)
