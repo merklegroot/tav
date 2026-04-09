@@ -7,15 +7,9 @@ public interface IApp
     void Run();
 }
 
-internal class App : IApp
+public class App(GameState state) : IApp
 {
     private readonly Random _random = new();
-    private readonly GameState _state;
-
-    public App(GameState state)
-    {
-        _state = state;
-    }
 
     public void Run()
     {
@@ -23,17 +17,17 @@ internal class App : IApp
         var roomsById = rooms.ToDictionary(r => r.Id.ToLowerInvariant());
         var monsters = MonsterStore.LoadAll();
 
-        while (!_state.ShouldExit)
+        while (!state.ShouldExit)
         {
             var menuItems = BuildMenuItems(
-                _state.CurrentRoom,
+                state.CurrentRoom,
                 roomsById,
                 monsters,
-                _state,
-                r => _state.CurrentRoom = r,
-                () => _state.ShouldExit = true);
+                state,
+                r => state.CurrentRoom = r,
+                () => state.ShouldExit = true);
 
-            PrintScreen(_state, menuItems);
+            PrintScreen(state, menuItems);
 
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);
@@ -43,13 +37,13 @@ internal class App : IApp
 
     private void ClearConsole()
     {
-        if (Console.IsOutputRedirected == false)
-        {
-            Console.Write("\u001b[H\u001b[2J");
-            if (Terminal.UseAnsi)
-                Console.Write(Terminal.Reset);
-            Console.Out.Flush();
-        }
+        if (Console.IsOutputRedirected)
+            return;
+
+        Console.Write("\u001b[H\u001b[2J");
+        if (Terminal.UseAnsi)
+            Console.Write(Terminal.Reset);
+        Console.Out.Flush();
     }
 
     private void PrintScreen(GameState state, IReadOnlyList<MenuItem> menuItems)
@@ -61,16 +55,15 @@ internal class App : IApp
 
     private void PauseForContinue()
     {
-        if (!Console.IsInputRedirected)
-        {
-            Console.WriteLine("Press any key to continue...");
-            Console.ReadKey(intercept: true);
-        }
-        else
+        if (Console.IsInputRedirected)
         {
             Console.WriteLine("(press Enter to continue)");
             _ = Console.ReadLine();
+            return;
         }
+
+        Console.WriteLine("Press any key to continue...");
+        Console.ReadKey(intercept: true);
     }
 
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
@@ -88,40 +81,40 @@ internal class App : IApp
         var panel = BuildRoomPanel(state.CurrentRoom, panelOuter);
 
         int minWidth = screenWidth;
-        if (!forceWide && !CanUseWideLayout(minWidth))
+        if (forceWide || CanUseWideLayout(minWidth))
         {
-            var stacked = new List<string>();
-            stacked.Add(titleBar);
-            stacked.Add("");
-            foreach (var line in leftLines)
-                stacked.Add(line);
-            stacked.Add("");
-            foreach (var line in panel)
-                stacked.Add(line);
-            stacked.Add("");
-            return stacked;
+            var lines = new List<string>();
+            lines.Add(titleBar);
+            lines.Add("");
+            const int rightPanelTopOffset = 5; // fixed: room starts 5 lines below the title bar
+            int H = Math.Max(leftLines.Count, rightPanelTopOffset + panel.Length);
+            string blankPanelRow = new string(' ', panelOuter);
+
+            for (int i = 0; i < H; i++)
+            {
+                string left = i < leftLines.Count ? leftLines[i] : "";
+                int pi = i - rightPanelTopOffset;
+                string right = pi >= 0 && pi < panel.Length ? panel[pi] : blankPanelRow;
+                right = PadRightVisual(right, panelOuter);
+
+                string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
+                lines.Add(PadRightVisual(row, screenWidth));
+            }
+
+            lines.Add(new string(' ', screenWidth));
+            return lines;
         }
 
-        var lines = new List<string>();
-        lines.Add(titleBar);
-        lines.Add("");
-        const int rightPanelTopOffset = 5; // fixed: room starts 5 lines below the title bar
-        int H = Math.Max(leftLines.Count, rightPanelTopOffset + panel.Length);
-        string blankPanelRow = new string(' ', panelOuter);
-
-        for (int i = 0; i < H; i++)
-        {
-            string left = i < leftLines.Count ? leftLines[i] : "";
-            int pi = i - rightPanelTopOffset;
-            string right = pi >= 0 && pi < panel.Length ? panel[pi] : blankPanelRow;
-            right = PadRightVisual(right, panelOuter);
-
-            string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
-            lines.Add(PadRightVisual(row, screenWidth));
-        }
-
-        lines.Add(new string(' ', screenWidth));
-        return lines;
+        var stacked = new List<string>();
+        stacked.Add(titleBar);
+        stacked.Add("");
+        foreach (var line in leftLines)
+            stacked.Add(line);
+        stacked.Add("");
+        foreach (var line in panel)
+            stacked.Add(line);
+        stacked.Add("");
+        return stacked;
     }
 
     private static List<string> BuildMainViewLeftPanelLines(
@@ -130,12 +123,12 @@ internal class App : IApp
         int leftColWidth)
     {
         var lines = BuildLeftColumnLines(state, leftColWidth);
-        if (menuItems.Count > 0)
-        {
-            lines.Add("");
-            foreach (var item in menuItems)
-                lines.Add(FormatMenuLine(item.Text, item.Key, leftColWidth));
-        }
+        if (menuItems.Count == 0)
+            return lines;
+
+        lines.Add("");
+        foreach (var item in menuItems)
+            lines.Add(FormatMenuLine(item.Text, item.Key, leftColWidth));
         return lines;
     }
 
@@ -179,13 +172,13 @@ internal class App : IApp
         };
         leftLines.Add("");
         leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
-        if (state.GroundItemsInCurrentRoom.Count > 0)
-        {
-            leftLines.Add("");
-            leftLines.Add(
-                Terminal.Muted("On the ground: ")
-                + string.Join(", ", state.GroundItemsInCurrentRoom));
-        }
+        if (state.GroundItemsInCurrentRoom.Count == 0)
+            return leftLines;
+
+        leftLines.Add("");
+        leftLines.Add(
+            Terminal.Muted("On the ground: ")
+            + string.Join(", ", state.GroundItemsInCurrentRoom));
         return leftLines;
     }
 
@@ -226,41 +219,9 @@ internal class App : IApp
             Console.WriteLine(titleBar);
             Console.WriteLine();
 
-            if (direction is 'e' or 'w')
+            // North: new map above old in the strip; scroll down. South: old above new; scroll down.
+            if (direction is not 'e' and not 'w')
             {
-                // East: [old|new], window slides right (offset ↑) — old leaves left, new enters from the right.
-                // West: [new|old], window slides left (offset ↓) — old leaves right, new enters from the left.
-                bool east = direction == 'e';
-                int offset = east
-                    ? (int)Math.Round(t * panelOuter)
-                    : (int)Math.Round((1 - t) * panelOuter);
-                for (int r = 0; r < H; r++)
-                {
-                    string left = r < newLeft.Count
-                        ? PadRightVisual(newLeft[r], leftColWidth)
-                        : new string(' ', leftColWidth);
-
-                    int pi = r - rightPanelTopOffset;
-                    string right;
-                    if (pi < 0 || pi >= panelRows)
-                    {
-                        right = blankRight;
-                    }
-                    else
-                    {
-                        string combined = east
-                            ? oldRowsPlain[pi] + newRowsPlain[pi]
-                            : newRowsPlain[pi] + oldRowsPlain[pi];
-                        string rightPlain = combined.Substring(offset, panelOuter);
-                        right = Terminal.Border(rightPlain);
-                    }
-
-                    Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
-                }
-            }
-            else
-            {
-                // North: new map above old in the strip; scroll down. South: old above new; scroll down.
                 var strip = direction == 'n'
                     ? BuildVerticalStrip(newRows, oldRows)
                     : BuildVerticalStrip(oldRows, newRows);
@@ -276,15 +237,37 @@ internal class App : IApp
                         : new string(' ', leftColWidth);
 
                     int pi = r - rightPanelTopOffset;
-                    string right;
-                    if (pi < 0 || pi >= panelRows)
+                    string right = blankRight;
+                    if (pi >= 0 && pi < panelRows)
+                        right = strip[scroll + pi];
+
+                    Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
+                }
+            }
+
+            // East: [old|new], window slides right (offset ↑) — old leaves left, new enters from the right.
+            // West: [new|old], window slides left (offset ↓) — old leaves right, new enters from the left.
+            if (direction is 'e' or 'w')
+            {
+                bool east = direction == 'e';
+                int offset = east
+                    ? (int)Math.Round(t * panelOuter)
+                    : (int)Math.Round((1 - t) * panelOuter);
+                for (int r = 0; r < H; r++)
+                {
+                    string left = r < newLeft.Count
+                        ? PadRightVisual(newLeft[r], leftColWidth)
+                        : new string(' ', leftColWidth);
+
+                    int pi = r - rightPanelTopOffset;
+                    string right = blankRight;
+                    if (pi >= 0 && pi < panelRows)
                     {
-                        right = blankRight;
-                    }
-                    else
-                    {
-                        int idx = scroll + pi;
-                        right = strip[idx];
+                        string combined = east
+                            ? oldRowsPlain[pi] + newRowsPlain[pi]
+                            : newRowsPlain[pi] + oldRowsPlain[pi];
+                        string rightPlain = combined.Substring(offset, panelOuter);
+                        right = Terminal.Border(rightPlain);
                     }
 
                     Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
@@ -360,19 +343,28 @@ internal class App : IApp
             foreach (var word in words)
             {
                 if (current.Length == 0)
-                    current.Append(word);
-                else if (current.Length + 1 + word.Length <= width)
-                    current.Append(' ').Append(word);
-                else
                 {
-                    lines.Add(current.ToString());
-                    current.Clear().Append(word);
+                    current.Append(word);
+                    continue;
                 }
+
+                if (current.Length + 1 + word.Length <= width)
+                {
+                    current.Append(' ').Append(word);
+                    continue;
+                }
+
+                lines.Add(current.ToString());
+                current.Clear().Append(word);
             }
 
             if (current.Length > 0)
+            {
                 lines.Add(current.ToString());
-            else if (words.Length == 0)
+                continue;
+            }
+
+            if (words.Length == 0)
                 lines.Add("");
         }
 
@@ -469,11 +461,10 @@ internal class App : IApp
             Terminal.Border(bottom),
         };
 
-        if (!isCurrentRoom)
-            return panel;
+        if (isCurrentRoom)
+            return panel.Select(Terminal.Accent).ToArray();
 
-        // Indicate current room without changing geometry.
-        return panel.Select(Terminal.Accent).ToArray();
+        return panel;
     }
 
     private static string PadInner(string content, int innerWidth)
@@ -489,8 +480,10 @@ internal class App : IApp
     {
         Console.WriteLine(Terminal.Title(screenTitle));
         Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-        if (includeCoins)
-            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
+        if (!includeCoins)
+            return;
+
+        Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
     }
 
     private void RunInventoryScreen(GameState state)
@@ -543,11 +536,11 @@ internal class App : IApp
             Console.WriteLine();
             Console.WriteLine(Terminal.Accent($"Selected: {name}"));
             Console.WriteLine();
-            if (!Console.IsInputRedirected)
-                Console.WriteLine(Terminal.Muted("(U)se  (D)rop  Esc = back to list"));
-            else
+            if (Console.IsInputRedirected)
                 Console.WriteLine(
                     Terminal.Muted("u / use / eat · d / drop · Enter or esc = back to list"));
+            else
+                Console.WriteLine(Terminal.Muted("(U)se  (D)rop  Esc = back to list"));
 
             var action = ReadInventoryItemDetailAction();
             if (action == InventoryItemDetailAction.BackToList)
@@ -618,34 +611,34 @@ internal class App : IApp
 
     private static InventoryItemDetailAction ReadInventoryItemDetailAction()
     {
-        if (!Console.IsInputRedirected)
+        if (Console.IsInputRedirected)
         {
             while (true)
             {
-                var key = Console.ReadKey(intercept: true);
-                if (key.Key == ConsoleKey.Escape)
+                var line = Console.ReadLine();
+                if (line is null || string.IsNullOrWhiteSpace(line))
                     return InventoryItemDetailAction.BackToList;
-                char c = char.ToLowerInvariant(key.KeyChar);
-                if (c == 'd')
+                string t = line.Trim().ToLowerInvariant();
+                if (t is "esc" or "escape")
+                    return InventoryItemDetailAction.BackToList;
+                if (t is "d" or "drop")
                     return InventoryItemDetailAction.Drop;
-                if (c == 'u')
+                if (t is "u" or "use" or "eat")
                     return InventoryItemDetailAction.Use;
+                Console.WriteLine(Terminal.Muted("Try u, d, Enter, or esc to go back."));
             }
         }
 
         while (true)
         {
-            var line = Console.ReadLine();
-            if (line is null || string.IsNullOrWhiteSpace(line))
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Escape)
                 return InventoryItemDetailAction.BackToList;
-            string t = line.Trim().ToLowerInvariant();
-            if (t is "esc" or "escape")
-                return InventoryItemDetailAction.BackToList;
-            if (t is "d" or "drop")
+            char c = char.ToLowerInvariant(key.KeyChar);
+            if (c == 'd')
                 return InventoryItemDetailAction.Drop;
-            if (t is "u" or "use" or "eat")
+            if (c == 'u')
                 return InventoryItemDetailAction.Use;
-            Console.WriteLine(Terminal.Muted("Try u, d, Enter, or esc to go back."));
         }
     }
 
@@ -655,30 +648,30 @@ internal class App : IApp
         if (itemCount <= 0)
             return null;
 
-        if (!Console.IsInputRedirected)
+        if (Console.IsInputRedirected)
         {
             while (true)
             {
-                var key = Console.ReadKey(intercept: true);
-                if (key.Key == ConsoleKey.Escape)
+                var line = Console.ReadLine();
+                if (line is null || string.IsNullOrWhiteSpace(line))
                     return null;
-                char c = char.ToLowerInvariant(key.KeyChar);
-                if (c >= '1' && c <= '0' + itemCount)
-                    return c - '1';
+                string t = line.Trim().ToLowerInvariant();
+                if (t is "esc" or "escape")
+                    return null;
+                if (int.TryParse(line.Trim(), out int num) && num >= 1 && num <= itemCount)
+                    return num - 1;
+                Console.WriteLine(Terminal.Muted("Try a number from the list, or Enter / esc to go back."));
             }
         }
 
         while (true)
         {
-            var line = Console.ReadLine();
-            if (line is null || string.IsNullOrWhiteSpace(line))
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Escape)
                 return null;
-            string t = line.Trim().ToLowerInvariant();
-            if (t is "esc" or "escape")
-                return null;
-            if (int.TryParse(line.Trim(), out int num) && num >= 1 && num <= itemCount)
-                return num - 1;
-            Console.WriteLine(Terminal.Muted("Try a number from the list, or Enter / esc to go back."));
+            char c = char.ToLowerInvariant(key.KeyChar);
+            if (c >= '1' && c <= '0' + itemCount)
+                return c - '1';
         }
     }
 
@@ -733,10 +726,10 @@ internal class App : IApp
         Console.WriteLine();
         Console.WriteLine(Terminal.Accent($"Selected: {name}"));
         Console.WriteLine();
-        if (!Console.IsInputRedirected)
-            Console.WriteLine(Terminal.Muted("(T)ake  Esc = back to list"));
-        else
+        if (Console.IsInputRedirected)
             Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter / esc to go back"));
+        else
+            Console.WriteLine(Terminal.Muted("(T)ake  Esc = back to list"));
 
         var action = ReadSelectedGroundItemAction();
         if (action == SelectedGroundItemAction.BackToList)
@@ -758,30 +751,30 @@ internal class App : IApp
 
     private static SelectedGroundItemAction ReadSelectedGroundItemAction()
     {
-        if (!Console.IsInputRedirected)
+        if (Console.IsInputRedirected)
         {
             while (true)
             {
-                var key = Console.ReadKey(intercept: true);
-                if (key.Key == ConsoleKey.Escape)
+                var line = Console.ReadLine();
+                if (line is null || string.IsNullOrWhiteSpace(line))
                     return SelectedGroundItemAction.BackToList;
-                char c = char.ToLowerInvariant(key.KeyChar);
-                if (c == 't')
+                string t = line.Trim().ToLowerInvariant();
+                if (t is "esc" or "escape")
+                    return SelectedGroundItemAction.BackToList;
+                if (t is "t" or "take")
                     return SelectedGroundItemAction.Take;
+                Console.WriteLine(Terminal.Muted("Try t or take, or Enter / esc to go back."));
             }
         }
 
         while (true)
         {
-            var line = Console.ReadLine();
-            if (line is null || string.IsNullOrWhiteSpace(line))
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Escape)
                 return SelectedGroundItemAction.BackToList;
-            string t = line.Trim().ToLowerInvariant();
-            if (t is "esc" or "escape")
-                return SelectedGroundItemAction.BackToList;
-            if (t is "t" or "take")
+            char c = char.ToLowerInvariant(key.KeyChar);
+            if (c == 't')
                 return SelectedGroundItemAction.Take;
-            Console.WriteLine(Terminal.Muted("Try t or take, or Enter / esc to go back."));
         }
     }
 
@@ -1222,23 +1215,23 @@ internal class App : IApp
 
     private static char ReadInputChar()
     {
-        if (!Console.IsInputRedirected)
+        if (Console.IsInputRedirected)
         {
             while (true)
             {
-                var key = Console.ReadKey(intercept: true);
-                if (key.KeyChar != '\0' && !char.IsWhiteSpace(key.KeyChar))
-                    return key.KeyChar;
+                var line = Console.ReadLine();
+                if (line is null)
+                    return 'x';
+                if (line.Length > 0)
+                    return line[0];
             }
         }
 
         while (true)
         {
-            var line = Console.ReadLine();
-            if (line is null)
-                return 'x';
-            if (line.Length > 0)
-                return line[0];
+            var key = Console.ReadKey(intercept: true);
+            if (key.KeyChar != '\0' && !char.IsWhiteSpace(key.KeyChar))
+                return key.KeyChar;
         }
     }
 }
