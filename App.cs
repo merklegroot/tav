@@ -686,7 +686,7 @@ internal sealed class App : IApp
         Console.WriteLine(Terminal.Muted("Move with compass keys shown in the menu."));
         Console.WriteLine(Terminal.Muted("(I)nventory: select an item, then Use, Drop, or Back."));
         Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
-        Console.WriteLine(Terminal.Muted("(F)ight: Attack or Flee. Wins yield coins; sometimes a find."));
+        Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield coins; sometimes a find."));
         Console.WriteLine(Terminal.Muted("Apples can be eaten from the inventory (Use)."));
         Console.WriteLine();
         PauseForContinue();
@@ -749,7 +749,7 @@ internal sealed class App : IApp
             RenderFightScreen(left, portraitLines);
 
             var key = char.ToLowerInvariant(ReadInputChar());
-            if (key == 'f')
+            if (key == 'r')
             {
                 Console.WriteLine();
                 Console.WriteLine(Terminal.Muted("You slip away and put distance between you and the creature."));
@@ -852,7 +852,7 @@ internal sealed class App : IApp
         left.Add(
             Terminal.Warn($"You: {state.HitPoints}/{state.MaxHitPoints} HP    ")
             + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
-        left.Add(Terminal.Muted("(A)ttack  (F)lee"));
+        left.Add(Terminal.Muted("(A)ttack  (R)un"));
         left.Add("");
         return left;
     }
