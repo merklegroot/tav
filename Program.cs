@@ -155,37 +155,56 @@ internal static class Program
     private static bool HasExit(Room room, char dir) =>
         room.Exits?.ContainsKey(dir.ToString()) == true;
 
+    private static string BuildHorizontalWall(char leftCorner, char rightCorner, int innerWidth) =>
+        leftCorner + new string('─', innerWidth) + rightCorner;
+
+    /// <summary>Inner rows: │ walls; = only on the title row for west/east.</summary>
+    private static string BuildSideWallLine(
+        string paddedBody,
+        int inner,
+        bool openWest,
+        bool openEast,
+        bool useWestEastMarkers)
+    {
+        char left = openWest && useWestEastMarkers ? '=' : '│';
+        char right = openEast && useWestEastMarkers ? '=' : '│';
+        return left + paddedBody + right;
+    }
+
     private static string[] BuildRoomPanel(Room room, int outerWidth)
     {
         int inner = outerWidth - 2;
-        string title = Truncate(room.Name, Math.Max(1, inner - 4));
-        string start = "─ " + title + " ";
-        if (start.Length > inner)
-            start = start[..inner];
-        string top = "┌" + start + new string('─', inner - start.Length) + "┐";
 
         bool n = HasExit(room, 'n');
         bool e = HasExit(room, 'e');
         bool s = HasExit(room, 's');
         bool w = HasExit(room, 'w');
 
-        string rowN = PadInner(n ? "N" : "·", inner);
-        string rowMid = PadInner($"{(w ? "W" : "·")}   ●   {(e ? "E" : "·")}", inner);
-        string rowS = PadInner(s ? "S" : "·", inner);
+        string title = Truncate(room.Name, Math.Max(1, inner));
 
-        string blank = "│" + new string(' ', inner) + "│";
-        string bottom = "└" + new string('─', inner) + "┘";
+        string top = BuildHorizontalWall('┌', '┐', inner);
+        string bottom = BuildHorizontalWall('└', '┘', inner);
+
+        string blankInner = new string(' ', inner);
+        // North/south: one " on the inner row next to that wall, not in the border line.
+        string rowBelowNorth = n ? PadInner("\"", inner) : blankInner;
+        string rowAboveSouth = s ? PadInner("\"", inner) : blankInner;
+
+        string blank = BuildSideWallLine(blankInner, inner, w, e, useWestEastMarkers: false);
+        string underNorth = BuildSideWallLine(rowBelowNorth, inner, w, e, useWestEastMarkers: false);
+        string titleRow = BuildSideWallLine(PadInner(title, inner), inner, w, e, useWestEastMarkers: true);
+        string playerRow = BuildSideWallLine(PadInner("●", inner), inner, w, e, useWestEastMarkers: false);
+        string overSouth = BuildSideWallLine(rowAboveSouth, inner, w, e, useWestEastMarkers: false);
 
         return
         [
             top,
+            underNorth,
             blank,
-            "│" + rowN + "│",
+            titleRow,
+            playerRow,
             blank,
-            "│" + rowMid + "│",
-            blank,
-            "│" + rowS + "│",
-            blank,
+            overSouth,
             bottom,
         ];
     }
