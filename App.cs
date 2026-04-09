@@ -407,10 +407,10 @@ internal sealed class App : IApp
                 Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.Inventory[i]}"));
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
-                Console.WriteLine(Terminal.Muted("(1-9) Select item  (B)ack"));
+                Console.WriteLine(Terminal.Muted("(1-9) Select item  Esc = back"));
             else
                 Console.WriteLine(
-                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter to go back"));
+                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter / esc to go back"));
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -434,10 +434,10 @@ internal sealed class App : IApp
             Console.WriteLine(Terminal.Accent($"Selected: {name}"));
             Console.WriteLine();
             if (!Console.IsInputRedirected)
-                Console.WriteLine(Terminal.Muted("(U)se  (D)rop  (B)ack to list"));
+                Console.WriteLine(Terminal.Muted("(U)se  (D)rop  Esc = back to list"));
             else
                 Console.WriteLine(
-                    Terminal.Muted("u / use / eat · d / drop · Enter = back to list"));
+                    Terminal.Muted("u / use / eat · d / drop · Enter or esc = back to list"));
 
             var action = ReadInventoryItemDetailAction();
             if (action == InventoryItemDetailAction.BackToList)
@@ -513,9 +513,9 @@ internal sealed class App : IApp
             while (true)
             {
                 var key = Console.ReadKey(intercept: true);
-                char c = char.ToLowerInvariant(key.KeyChar);
-                if (c == 'b')
+                if (key.Key == ConsoleKey.Escape)
                     return InventoryItemDetailAction.BackToList;
+                char c = char.ToLowerInvariant(key.KeyChar);
                 if (c == 'd')
                     return InventoryItemDetailAction.Drop;
                 if (c == 'u')
@@ -529,11 +529,13 @@ internal sealed class App : IApp
             if (line is null || string.IsNullOrWhiteSpace(line))
                 return InventoryItemDetailAction.BackToList;
             string t = line.Trim().ToLowerInvariant();
+            if (t is "esc" or "escape")
+                return InventoryItemDetailAction.BackToList;
             if (t is "d" or "drop")
                 return InventoryItemDetailAction.Drop;
             if (t is "u" or "use" or "eat")
                 return InventoryItemDetailAction.Use;
-            Console.WriteLine(Terminal.Muted("Try u, d, or Enter to go back."));
+            Console.WriteLine(Terminal.Muted("Try u, d, Enter, or esc to go back."));
         }
     }
 
@@ -548,9 +550,9 @@ internal sealed class App : IApp
             while (true)
             {
                 var key = Console.ReadKey(intercept: true);
-                char c = char.ToLowerInvariant(key.KeyChar);
-                if (c == 'b')
+                if (key.Key == ConsoleKey.Escape)
                     return null;
+                char c = char.ToLowerInvariant(key.KeyChar);
                 if (c >= '1' && c <= '0' + itemCount)
                     return c - '1';
             }
@@ -561,9 +563,12 @@ internal sealed class App : IApp
             var line = Console.ReadLine();
             if (line is null || string.IsNullOrWhiteSpace(line))
                 return null;
+            string t = line.Trim().ToLowerInvariant();
+            if (t is "esc" or "escape")
+                return null;
             if (int.TryParse(line.Trim(), out int num) && num >= 1 && num <= itemCount)
                 return num - 1;
-            Console.WriteLine(Terminal.Muted("Try a number from the list, or Enter to go back."));
+            Console.WriteLine(Terminal.Muted("Try a number from the list, or Enter / esc to go back."));
         }
     }
 
@@ -589,10 +594,10 @@ internal sealed class App : IApp
                 Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.GroundItemsInCurrentRoom[i]}"));
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
-                Console.WriteLine(Terminal.Muted("(1-9) Select item  (B)ack"));
+                Console.WriteLine(Terminal.Muted("(1-9) Select item  Esc = back"));
             else
                 Console.WriteLine(
-                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter to go back"));
+                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter / esc to go back"));
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -615,9 +620,9 @@ internal sealed class App : IApp
         Console.WriteLine(Terminal.Accent($"Selected: {name}"));
         Console.WriteLine();
         if (!Console.IsInputRedirected)
-            Console.WriteLine(Terminal.Muted("(T)ake  (B)ack to list"));
+            Console.WriteLine(Terminal.Muted("(T)ake  Esc = back to list"));
         else
-            Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter to go back"));
+            Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter / esc to go back"));
 
         var action = ReadSelectedGroundItemAction();
         if (action == SelectedGroundItemAction.BackToList)
@@ -644,9 +649,9 @@ internal sealed class App : IApp
             while (true)
             {
                 var key = Console.ReadKey(intercept: true);
-                char c = char.ToLowerInvariant(key.KeyChar);
-                if (c == 'b')
+                if (key.Key == ConsoleKey.Escape)
                     return SelectedGroundItemAction.BackToList;
+                char c = char.ToLowerInvariant(key.KeyChar);
                 if (c == 't')
                     return SelectedGroundItemAction.Take;
             }
@@ -658,9 +663,11 @@ internal sealed class App : IApp
             if (line is null || string.IsNullOrWhiteSpace(line))
                 return SelectedGroundItemAction.BackToList;
             string t = line.Trim().ToLowerInvariant();
+            if (t is "esc" or "escape")
+                return SelectedGroundItemAction.BackToList;
             if (t is "t" or "take")
                 return SelectedGroundItemAction.Take;
-            Console.WriteLine(Terminal.Muted("Try t or take, or Enter to go back."));
+            Console.WriteLine(Terminal.Muted("Try t or take, or Enter / esc to go back."));
         }
     }
 
@@ -684,7 +691,7 @@ internal sealed class App : IApp
         Console.WriteLine(Terminal.Title("== Help =="));
         Console.WriteLine();
         Console.WriteLine(Terminal.Muted("Move with compass keys shown in the menu."));
-        Console.WriteLine(Terminal.Muted("(I)nventory: select an item, then Use, Drop, or Back."));
+        Console.WriteLine(Terminal.Muted("(I)nventory: select an item, then Use, Drop, or Esc to go back."));
         Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
         Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield coins; sometimes a find."));
         Console.WriteLine(Terminal.Muted("Apples can be eaten from the inventory (Use)."));
