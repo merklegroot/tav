@@ -5,6 +5,15 @@ namespace Tav;
 
 internal sealed class App : IApp
 {
+    private readonly Random _random = new();
+
+    private static readonly Monster[] Monsters =
+    [
+        new("rot hound", "Its breath reeks of the grave.", 10, 4),
+        new("gargoyle bat", "Stone dust flakes from its wings.", 6, 3),
+        new("castle drudge", "A shambling figure in rusted chain.", 14, 5),
+    ];
+
     public void Run()
     {
         var rooms = RoomStore.LoadAll();
@@ -289,9 +298,71 @@ internal sealed class App : IApp
 
         items.Add(new MenuItem("(I)nventory", 'i', () => PrintInventory(state)));
         items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
+        items.Add(new MenuItem("(F)ight", 'f', () => RunFightEncounter(state)));
         items.Add(new MenuItem("e(X)it", 'x', exit));
         return items;
     }
+
+    private void RunFightEncounter(GameState state)
+    {
+        ClearConsole();
+        var monster = Monsters[_random.Next(Monsters.Length)];
+        int monsterHp = monster.HitPoints;
+
+        Console.WriteLine("== Fight ==");
+        Console.WriteLine();
+        Console.WriteLine($"Something stirs — a {monster.Name}! {monster.Blurb}");
+        Console.WriteLine();
+
+        while (monsterHp > 0 && state.HitPoints > 0)
+        {
+            Console.WriteLine($"You: {state.HitPoints}/{state.MaxHitPoints} HP    {monster.Name}: {monsterHp} HP");
+            Console.WriteLine("(A)ttack  (F)lee");
+            Console.WriteLine();
+
+            var key = char.ToLowerInvariant(ReadInputChar());
+            if (key == 'f')
+            {
+                Console.WriteLine();
+                Console.WriteLine("You slip away and put distance between you and the creature.");
+                PauseForContinue();
+                return;
+            }
+
+            if (key != 'a')
+                continue;
+
+            int playerDamage = _random.Next(1, 4) + state.Strength / 6;
+            monsterHp -= playerDamage;
+            Console.WriteLine();
+            Console.WriteLine($"You strike for {playerDamage} damage.");
+
+            if (monsterHp <= 0)
+            {
+                Console.WriteLine($"The {monster.Name} falls.");
+                Console.WriteLine();
+                PauseForContinue();
+                return;
+            }
+
+            int enemyDamage = _random.Next(1, monster.MaxDamage + 1);
+            state.HitPoints = Math.Max(0, state.HitPoints - enemyDamage);
+            Console.WriteLine($"It strikes back for {enemyDamage} damage.");
+            Console.WriteLine();
+
+            if (state.HitPoints <= 0)
+            {
+                Console.WriteLine("Everything goes dark…");
+                Console.WriteLine("You wake later, bruised and alone. Someone dragged you clear.");
+                state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
+                Console.WriteLine();
+                PauseForContinue();
+                return;
+            }
+        }
+    }
+
+    private sealed record Monster(string Name, string Blurb, int HitPoints, int MaxDamage);
 
     private static string FormatDirectionOption(char direction, string destinationName) =>
         direction switch
