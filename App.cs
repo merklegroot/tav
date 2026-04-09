@@ -338,7 +338,7 @@ internal sealed class App : IApp
         return left + paddedBody + right;
     }
 
-    private static string[] BuildRoomPanel(Room room, int outerWidth, bool showPlayerMarker = true)
+    private static string[] BuildRoomPanel(Room room, int outerWidth, bool isCurrentRoom = false)
     {
         int inner = outerWidth - 2;
 
@@ -347,27 +347,53 @@ internal sealed class App : IApp
         bool s = HasExit(room, 's');
         bool w = HasExit(room, 'w');
 
-        string title = Truncate(room.Name, Math.Max(1, inner));
+        // Title wrapping: center, up to 3 lines (spec in README).
+        var titleLines = WrapText(room.Name, Math.Max(1, inner));
+        if (titleLines.Count > 3)
+        {
+            titleLines = titleLines.Take(3).ToList();
+            titleLines[2] = Truncate(titleLines[2], Math.Max(1, inner));
+        }
+        for (int i = 0; i < titleLines.Count; i++)
+            titleLines[i] = Truncate(titleLines[i], Math.Max(1, inner));
 
         string top = BuildHorizontalWall('┌', '┐', inner, doorQuoteInWall: n);
         string bottom = BuildHorizontalWall('└', '┘', inner, doorQuoteInWall: s);
 
+        // Height spec: 5 total rows: top, 3 inner, bottom.
+        // Vertically center title within the 3 inner rows.
         string blankInner = new string(' ', inner);
-        string blank = BuildSideWallLine(blankInner, inner, w, e, useWestEastMarkers: false);
-        string titleRow = BuildSideWallLine(PadInner(title, inner), inner, w, e, useWestEastMarkers: true);
-        string playerRow = BuildSideWallLine(PadInner(showPlayerMarker ? "●" : " ", inner), inner, w, e, useWestEastMarkers: false);
+        var innerRows = new List<string>(capacity: 3);
 
-        return
-        [
+        int titleCount = Math.Clamp(titleLines.Count, 1, 3);
+        int startRow = (3 - titleCount) / 2;
+        int titleLineIndex = 0;
+        for (int r = 0; r < 3; r++)
+        {
+            bool isTitleRow = r >= startRow && r < startRow + titleCount;
+            string body = isTitleRow
+                ? PadInner(titleLines[titleLineIndex++], inner)
+                : blankInner;
+
+            // East/West door marker: '=' replaces the wall character on the first title row (matches example).
+            bool useMarkers = r == startRow;
+            innerRows.Add(BuildSideWallLine(body, inner, w, e, useWestEastMarkers: useMarkers));
+        }
+
+        var panel = new[]
+        {
             Terminal.Border(top),
-            Terminal.Border(blank),
-            Terminal.Border(blank),
-            Terminal.Border(titleRow),
-            Terminal.Border(playerRow),
-            Terminal.Border(blank),
-            Terminal.Border(blank),
+            Terminal.Border(innerRows[0]),
+            Terminal.Border(innerRows[1]),
+            Terminal.Border(innerRows[2]),
             Terminal.Border(bottom),
-        ];
+        };
+
+        if (!isCurrentRoom)
+            return panel;
+
+        // Indicate current room without changing geometry.
+        return panel.Select(Terminal.Accent).ToArray();
     }
 
     private static string PadInner(string content, int innerWidth)
@@ -705,7 +731,7 @@ internal sealed class App : IApp
         ClearConsole();
         Console.WriteLine(Terminal.Title("== Map =="));
         Console.WriteLine();
-        Console.WriteLine(Terminal.Muted("Rough layout of the grounds. ● marks where you stand."));
+        Console.WriteLine(Terminal.Muted("Rough layout of the grounds. Highlighted room is where you stand."));
         Console.WriteLine();
 
         // Map overview: a 3×3 window centered on the current room, drawn using the same room box as the right panel.
@@ -714,7 +740,7 @@ internal sealed class App : IApp
         var roomsById = allRooms.ToDictionary(r => r.Id.ToLowerInvariant());
 
         int outerW = AdventureLayout.MapPanelOuterWidth;
-        int outerH = BuildRoomPanel(state.CurrentRoom, outerW).Length;
+        int outerH = BuildRoomPanel(state.CurrentRoom, outerW, isCurrentRoom: true).Length;
         const int maxRadius = 1; // 3×3
         const int gap = 2;
         const int indent = 2;
@@ -783,7 +809,7 @@ internal sealed class App : IApp
             if (!placed.TryGetValue(cell, out var room))
                 return BlankPanel();
             bool isCurrent = room.Id.Equals(state.CurrentRoom.Id, StringComparison.OrdinalIgnoreCase);
-            return BuildRoomPanel(room, outerW, showPlayerMarker: isCurrent);
+            return BuildRoomPanel(room, outerW, isCurrentRoom: isCurrent);
         }
 
         // Render rows y=-1..1 (north to south), columns x=-1..1 (west to east).
@@ -836,11 +862,11 @@ internal sealed class App : IApp
                 dir,
                 () =>
                 {
-                    var oldPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth);
+                    var oldPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
                     navigateTo(destRoom);
                     AnimateRoomSlide(
                         oldPanel,
-                        BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth),
+                        BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
                         state,
                         dir);
                 }));
