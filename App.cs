@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 
 namespace Tav;
 
@@ -327,8 +328,12 @@ internal sealed class App : IApp
 
             showIntro = false;
 
+            var leftBeforeStrike = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro);
             int playerDamage = _random.Next(1, 4) + state.Strength / 6;
             monsterHp -= playerDamage;
+
+            AnimatePlayerHit(leftBeforeStrike, portraitLines, playerDamage);
+
             AppendBattleLog(battleLog, $"You strike for {playerDamage} damage.");
 
             if (monsterHp <= 0)
@@ -402,6 +407,81 @@ internal sealed class App : IApp
         battleLog.Add(line);
         while (battleLog.Count > FightBattleLogMaxLines)
             battleLog.RemoveAt(0);
+    }
+
+    /// <summary>Short multi-frame “impact” on the portrait: shake, flash, sparks, damage number.</summary>
+    private void AnimatePlayerHit(
+        IReadOnlyList<string> leftColumn,
+        IReadOnlyList<string> portraitLines,
+        int damage)
+    {
+        if (portraitLines.Count == 0 || Console.IsOutputRedirected)
+            return;
+
+        const int frameCount = 12;
+        for (int frame = 0; frame < frameCount; frame++)
+        {
+            ClearConsole();
+            var framePortrait = BuildPlayerHitFrame(portraitLines, frame, damage);
+            RenderFightScreen(leftColumn, framePortrait);
+            Thread.Sleep(frame is 4 or 5 ? 95 : frame >= 9 ? 140 : 55);
+        }
+    }
+
+    private static List<string> BuildPlayerHitFrame(IReadOnlyList<string> basePortrait, int frame, int damage)
+    {
+        // Horizontal shake (pixels as spaces)
+        int shake = frame switch
+        {
+            0 => 0,
+            1 => 2,
+            2 => 5,
+            3 => 3,
+            4 => 6,
+            5 => 2,
+            6 => 4,
+            7 => 1,
+            _ => 0,
+        };
+        string pad = new(' ', shake);
+        var lines = basePortrait.Select(line => pad + line).ToList();
+
+        if (lines.Count > 0 && frame <= 4)
+        {
+            // Strike motion toward the head (first line), symbols only
+            string swing = frame switch
+            {
+                0 => "   ·-->>·",
+                1 => "     ·->",
+                2 => "      ×·",
+                3 => "     ∿∿∿",
+                _ => "",
+            };
+            lines[0] += swing;
+        }
+
+        // “Flash” — swap key glyphs for a beat
+        if (frame is >= 3 and <= 7)
+        {
+            lines = lines
+                .Select(l => l.Replace("@", "*", StringComparison.Ordinal).Replace("▼", "▽", StringComparison.Ordinal))
+                .ToList();
+        }
+
+        // Falling sparks / debris under the art
+        if (frame is >= 4 and <= 9)
+        {
+            string sparks = (frame & 1) == 0 ? "   · * · ▪ · * ·" : "   ▪ · · * · ▪ ·";
+            lines.Add(sparks);
+        }
+
+        // Floating damage readout (ANSI yellow; terminals that don’t support it still show the text)
+        if (frame >= 8)
+        {
+            lines.Add($"\x1b[93m\x1b[1m     -{damage}\x1b[0m");
+        }
+
+        return lines;
     }
 
     /// <summary>Left column text with portrait on the right. Uses two columns whenever stdout is a TTY.</summary>
