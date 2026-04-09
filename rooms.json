@@ -4,7 +4,16 @@
     "name": "Castle Entrance",
     "description": "Cold stone towers over you as the heavy gate stands ajar. The air smells of rain and iron.",
     "exits": {
+      "n": "cobble_approach",
       "e": "courtyard"
+    }
+  },
+  {
+    "id": "cobble_approach",
+    "name": "Cobble Approach",
+    "description": "Worn steps lead up from the gate. Moss fills the cracks between the stones, and you hear the wind in the parapets above.",
+    "exits": {
+      "s": "castle_entrance"
     }
   },
   {

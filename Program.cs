@@ -155,8 +155,24 @@ internal static class Program
     private static bool HasExit(Room room, char dir) =>
         room.Exits?.ContainsKey(dir.ToString()) == true;
 
-    private static string BuildHorizontalWall(char leftCorner, char rightCorner, int innerWidth) =>
-        leftCorner + new string('─', innerWidth) + rightCorner;
+    /// <summary>Horizontal wall; optional centered " for north (top) or south (bottom) exit.</summary>
+    private static string BuildHorizontalWall(
+        char leftCorner,
+        char rightCorner,
+        int innerWidth,
+        bool doorQuoteInWall)
+    {
+        if (!doorQuoteInWall || innerWidth < 1)
+            return leftCorner + new string('─', innerWidth) + rightCorner;
+        int rest = innerWidth - 1;
+        int leftDashes = rest / 2;
+        int rightDashes = rest - leftDashes;
+        return leftCorner
+            + new string('─', leftDashes)
+            + '"'
+            + new string('─', rightDashes)
+            + rightCorner;
+    }
 
     /// <summary>Inner rows: │ walls; = only on the title row for west/east.</summary>
     private static string BuildSideWallLine(
@@ -182,29 +198,23 @@ internal static class Program
 
         string title = Truncate(room.Name, Math.Max(1, inner));
 
-        string top = BuildHorizontalWall('┌', '┐', inner);
-        string bottom = BuildHorizontalWall('└', '┘', inner);
+        string top = BuildHorizontalWall('┌', '┐', inner, doorQuoteInWall: n);
+        string bottom = BuildHorizontalWall('└', '┘', inner, doorQuoteInWall: s);
 
         string blankInner = new string(' ', inner);
-        // North/south: one " on the inner row next to that wall, not in the border line.
-        string rowBelowNorth = n ? PadInner("\"", inner) : blankInner;
-        string rowAboveSouth = s ? PadInner("\"", inner) : blankInner;
-
         string blank = BuildSideWallLine(blankInner, inner, w, e, useWestEastMarkers: false);
-        string underNorth = BuildSideWallLine(rowBelowNorth, inner, w, e, useWestEastMarkers: false);
         string titleRow = BuildSideWallLine(PadInner(title, inner), inner, w, e, useWestEastMarkers: true);
         string playerRow = BuildSideWallLine(PadInner("●", inner), inner, w, e, useWestEastMarkers: false);
-        string overSouth = BuildSideWallLine(rowAboveSouth, inner, w, e, useWestEastMarkers: false);
 
         return
         [
             top,
-            underNorth,
+            blank,
             blank,
             titleRow,
             playerRow,
             blank,
-            overSouth,
+            blank,
             bottom,
         ];
     }
