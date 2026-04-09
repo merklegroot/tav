@@ -178,7 +178,9 @@ public class App(GameState state) : IApp
         leftLines.Add("");
         leftLines.Add(
             Terminal.Muted("On the ground: ")
-            + string.Join(", ", state.GroundItemsInCurrentRoom));
+            + string.Join(
+                ", ",
+                state.GroundItemsInCurrentRoom.Select(KnownManipulativeIds.DisplayName)));
         return leftLines;
     }
 
@@ -506,7 +508,9 @@ public class App(GameState state) : IApp
             {
                 int num = i + 1;
                 char key = (char)('0' + num);
-                Terminal.WriteMenuLine($"({num}) {state.Inventory[i]}", key);
+                Terminal.WriteMenuLine(
+                    $"({num}) {KnownManipulativeIds.DisplayName(state.Inventory[i])}",
+                    key);
             }
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
@@ -530,11 +534,11 @@ public class App(GameState state) : IApp
             if (index < 0 || index >= state.Inventory.Count)
                 return;
 
-            string name = state.Inventory[index];
+            string id = state.Inventory[index];
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
-            Console.WriteLine(Terminal.Accent($"Selected: {name}"));
+            Console.WriteLine(Terminal.Accent($"Selected: {KnownManipulativeIds.DisplayName(id)}"));
             Console.WriteLine();
             if (Console.IsInputRedirected)
                 Console.WriteLine(
@@ -549,7 +553,8 @@ public class App(GameState state) : IApp
             {
                 var dropped = state.DropItemAt(index);
                 Console.WriteLine();
-                Console.WriteLine(Terminal.Muted($"You drop the {dropped}."));
+                Console.WriteLine(
+                    Terminal.Muted($"You drop the {KnownManipulativeIds.DisplayName(dropped)}."));
                 PauseForContinue();
                 return;
             }
@@ -568,8 +573,8 @@ public class App(GameState state) : IApp
     {
         consumed = false;
         message = "";
-        string name = state.Inventory[index];
-        if (name.Equals("Apple", StringComparison.OrdinalIgnoreCase))
+        string id = state.Inventory[index];
+        if (string.Equals(id, KnownManipulativeIds.Apple, StringComparison.OrdinalIgnoreCase))
         {
             if (state.HitPoints >= state.MaxHitPoints)
             {
@@ -587,13 +592,13 @@ public class App(GameState state) : IApp
             return;
         }
 
-        if (name.Equals("Torch", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(id, KnownManipulativeIds.Torch, StringComparison.OrdinalIgnoreCase))
         {
             message = "You lift the torch. The flame steadies; the shadows lean away.";
             return;
         }
 
-        if (name.Equals("Bone shard", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(id, KnownManipulativeIds.BoneShard, StringComparison.OrdinalIgnoreCase))
         {
             message = "The shard is jagged and cold. Not much use unless something needs cutting.";
             return;
@@ -697,7 +702,9 @@ public class App(GameState state) : IApp
             {
                 int num = i + 1;
                 char key = (char)('0' + num);
-                Terminal.WriteMenuLine($"({num}) {state.GroundItemsInCurrentRoom[i]}", key);
+                Terminal.WriteMenuLine(
+                    $"({num}) {KnownManipulativeIds.DisplayName(state.GroundItemsInCurrentRoom[i])}",
+                    key);
             }
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
@@ -720,11 +727,11 @@ public class App(GameState state) : IApp
         if (index < 0 || index >= ground.Count)
             return;
 
-        string name = ground[index];
+        string id = ground[index];
         ClearConsole();
         WritePlayerStatusHeader("== Pick up ==", state, includeGold: false);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {name}"));
+        Console.WriteLine(Terminal.Accent($"Selected: {KnownManipulativeIds.DisplayName(id)}"));
         Console.WriteLine();
         if (Console.IsInputRedirected)
             Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter / esc to go back"));
@@ -739,7 +746,8 @@ public class App(GameState state) : IApp
         if (taken is null)
             return;
         Console.WriteLine();
-        Console.WriteLine(Terminal.Muted($"You pick up the {taken}."));
+        Console.WriteLine(
+            Terminal.Muted($"You pick up the {KnownManipulativeIds.DisplayName(taken)}."));
         PauseForContinue();
     }
 
@@ -1016,7 +1024,7 @@ public class App(GameState state) : IApp
                 };
                 if (_random.NextDouble() < 0.35)
                 {
-                    state.Inventory.Add("Bone shard");
+                    state.Inventory.Add(KnownManipulativeIds.BoneShard);
                     victoryLeft.Add(Terminal.Ok("Something worth taking: a sharp bone shard."));
                 }
                 victoryLeft.Add("");

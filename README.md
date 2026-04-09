@@ -41,4 +41,10 @@ When that's not enough, it can be split into three lines.
 
 An = charater represents a door going East or West.
 
-A " character represents a door going North or South.#
+A " character represents a door going North or South.
+
+## Manipulatives
+
+A manipulative is an item in the game, such as a torch, an axe, or an apple.
+
+Manipulatives with special uses have their IDs maintained in ```KnownManipulativeIds```.
