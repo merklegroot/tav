@@ -62,14 +62,7 @@ internal sealed class App : IApp
         const int panelOuter = 24;
         int screenWidth = leftColWidth + gap + panelOuter;
 
-        var leftLines = new List<string>
-        {
-            "== Adventure Game ==",
-            $"HP: {state.HitPoints}/{state.MaxHitPoints}",
-            "",
-            Truncate(state.CurrentRoom.Name, leftColWidth),
-        };
-        leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth));
+        var leftLines = BuildLeftColumnLines(state, leftColWidth);
 
         var panel = BuildRoomPanel(state.CurrentRoom, panelOuter);
 
@@ -101,11 +94,23 @@ internal sealed class App : IApp
         return lines;
     }
 
+    private static List<string> BuildLeftColumnLines(GameState state, int leftColWidth)
+    {
+        var leftLines = new List<string>
+        {
+            "== Adventure Game ==",
+            $"HP: {state.HitPoints}/{state.MaxHitPoints}",
+            "",
+            Truncate(state.CurrentRoom.Name, leftColWidth),
+        };
+        leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth));
+        return leftLines;
+    }
+
     /// <summary>
-    /// Slides the rendered screen: east = old room shifts left, new room enters from the right (column window moves across old|new).
-    /// North/south use a vertical strip the same way.
+    /// Slides only the map panel (right column); left column shows the new room’s text immediately.
     /// </summary>
-    private void AnimateRoomSlide(IReadOnlyList<string> oldLines, IReadOnlyList<string> newLines, char direction)
+    private void AnimateRoomSlide(string[] oldPanel, string[] newPanel, GameState afterNavigate, char direction)
     {
         if (Console.IsOutputRedirected)
             return;
@@ -118,9 +123,12 @@ internal sealed class App : IApp
         if (!CanUseWideLayout(screenWidth))
             return;
 
-        int H = Math.Max(oldLines.Count, newLines.Count);
-        var oldP = PadScreenToRect(oldLines, screenWidth, H);
-        var newP = PadScreenToRect(newLines, screenWidth, H);
+        var newLeft = BuildLeftColumnLines(afterNavigate, leftColWidth);
+        int panelRows = oldPanel.Length;
+        int H = Math.Max(newLeft.Count, panelRows);
+
+        var oldRows = PadPanelRows(oldPanel, panelOuter);
+        var newRows = PadPanelRows(newPanel, panelOuter);
 
         const int frames = 22;
         for (int f = 0; f < frames; f++)
@@ -130,28 +138,46 @@ internal sealed class App : IApp
 
             if (direction is 'e' or 'w')
             {
-                // Window slides right across each row: [ old | new ] — old exits left, new enters from the right.
-                int offset = (int)Math.Round(t * screenWidth);
+                int offset = (int)Math.Round(t * panelOuter);
                 for (int r = 0; r < H; r++)
                 {
-                    string combined = oldP[r] + newP[r];
-                    Console.WriteLine(combined.Substring(offset, screenWidth));
+                    if (r >= panelRows)
+                    {
+                        if (r < newLeft.Count)
+                            Console.WriteLine(PadRightVisual(newLeft[r], screenWidth));
+                        continue;
+                    }
+
+                    string left = r < newLeft.Count ? PadRightVisual(newLeft[r], leftColWidth) : new string(' ', leftColWidth);
+                    string combined = oldRows[r] + newRows[r];
+                    string right = combined.Substring(offset, panelOuter);
+                    Console.WriteLine(left + new string(' ', gap) + right);
                 }
             }
             else
             {
-                // North: new room above; scroll downward through [new][old]. South: [old][new], scroll down.
+                // North: new map above old in the strip; scroll down. South: old above new; scroll down.
                 var strip = direction == 'n'
-                    ? BuildVerticalStrip(newP, oldP)
-                    : BuildVerticalStrip(oldP, newP);
+                    ? BuildVerticalStrip(newRows, oldRows)
+                    : BuildVerticalStrip(oldRows, newRows);
                 int scroll = direction == 'n'
-                    ? (int)Math.Round((1 - t) * H)
-                    : (int)Math.Round(t * H);
-                scroll = Math.Clamp(scroll, 0, H);
+                    ? (int)Math.Round((1 - t) * panelRows)
+                    : (int)Math.Round(t * panelRows);
+                scroll = Math.Clamp(scroll, 0, panelRows);
+
                 for (int r = 0; r < H; r++)
                 {
+                    if (r >= panelRows)
+                    {
+                        if (r < newLeft.Count)
+                            Console.WriteLine(PadRightVisual(newLeft[r], screenWidth));
+                        continue;
+                    }
+
+                    string left = r < newLeft.Count ? PadRightVisual(newLeft[r], leftColWidth) : new string(' ', leftColWidth);
                     int idx = scroll + r;
-                    Console.WriteLine(idx < strip.Count ? strip[idx] : new string(' ', screenWidth));
+                    string right = strip[idx];
+                    Console.WriteLine(left + new string(' ', gap) + right);
                 }
             }
 
@@ -159,14 +185,11 @@ internal sealed class App : IApp
         }
     }
 
-    private static List<string> PadScreenToRect(IReadOnlyList<string> lines, int width, int height)
+    private static List<string> PadPanelRows(string[] panel, int panelOuter)
     {
-        var list = new List<string>(height);
-        for (int i = 0; i < height; i++)
-        {
-            string s = i < lines.Count ? lines[i] : "";
-            list.Add(PadRightVisual(s, width));
-        }
+        var list = new List<string>(panel.Length);
+        foreach (string line in panel)
+            list.Add(PadRightVisual(line, panelOuter));
         return list;
     }
 
@@ -383,10 +406,9 @@ internal sealed class App : IApp
                 dir,
                 () =>
                 {
-                    var oldScreen = BuildScreenLines(state, forceWide: true);
+                    var oldPanel = BuildRoomPanel(state.CurrentRoom, 24);
                     navigateTo(destRoom);
-                    var newScreen = BuildScreenLines(state, forceWide: true);
-                    AnimateRoomSlide(oldScreen, newScreen, dir);
+                    AnimateRoomSlide(oldPanel, BuildRoomPanel(state.CurrentRoom, 24), state, dir);
                 }));
         }
 
