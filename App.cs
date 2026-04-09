@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Tav;
 
-internal sealed class App
+internal sealed class App : IApp
 {
     public void Run()
     {
