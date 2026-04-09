@@ -72,6 +72,17 @@ public static class Terminal
         Console.WriteLine();
     }
 
+    /// <summary>Footer line: <c>(ESC)</c> uses the same paren + bright-key treatment as <see cref="WriteMenuLine"/>.</summary>
+    public static string EscBackHint()
+    {
+        if (!UseAnsi)
+            return "(ESC) Back";
+        return "\x1b[37m(\x1b[0m"
+            + "\x1b[1m\x1b[97mESC\x1b[0m"
+            + "\x1b[37m)\x1b[0m"
+            + Muted(" Back");
+    }
+
     public static int VisibleLength(string s)
     {
         int len = 0;

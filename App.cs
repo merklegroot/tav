@@ -514,10 +514,12 @@ public class App(GameState state) : IApp
             }
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
-                Console.WriteLine(Terminal.Muted("(1-9) Select item  Esc = back"));
+                Console.WriteLine(Terminal.EscBackHint());
             else
-                Console.WriteLine(
-                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter / esc to go back"));
+            {
+                Console.WriteLine(Terminal.Muted($"Type item number (1-{n}) to select."));
+                Console.WriteLine(Terminal.EscBackHint());
+            }
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -525,6 +527,32 @@ public class App(GameState state) : IApp
 
             RunSelectedInventoryItem(state, selectedIndex.Value);
         }
+    }
+
+    /// <summary>Hotkey lines use <see cref="Terminal.WriteMenuLine"/> like the main adventure menu.</summary>
+    private static void WriteInventoryItemDetailMenu(bool canEat, bool canUse)
+    {
+        if (canEat)
+        {
+            Terminal.WriteMenuLine("(E)at", 'e');
+            Terminal.WriteMenuLine("(D)rop", 'd');
+            Console.WriteLine();
+            Console.WriteLine(Terminal.EscBackHint());
+            return;
+        }
+
+        if (canUse)
+        {
+            Terminal.WriteMenuLine("(U)se", 'u');
+            Terminal.WriteMenuLine("(D)rop", 'd');
+            Console.WriteLine();
+            Console.WriteLine(Terminal.EscBackHint());
+            return;
+        }
+
+        Terminal.WriteMenuLine("(D)rop", 'd');
+        Console.WriteLine();
+        Console.WriteLine(Terminal.EscBackHint());
     }
 
     private void RunSelectedInventoryItem(GameState state, int index)
@@ -550,44 +578,7 @@ public class App(GameState state) : IApp
             }
 
             Console.WriteLine();
-            if (canEat)
-            {
-                if (Console.IsInputRedirected)
-                {
-                    Console.WriteLine(
-                        Terminal.Muted(
-                            "e / eat · u / use (same as eat) · d / drop · Enter or esc = back to list"));
-                }
-                else
-                {
-                    Console.WriteLine(
-                        Terminal.Muted("(E)at  (U)se  (D)rop  Esc = back to list"));
-                }
-            }
-            else if (canUse)
-            {
-                if (Console.IsInputRedirected)
-                {
-                    Console.WriteLine(
-                        Terminal.Muted("u / use · d / drop · Enter or esc = back to list"));
-                }
-                else
-                {
-                    Console.WriteLine(Terminal.Muted("(U)se  (D)rop  Esc = back to list"));
-                }
-            }
-            else
-            {
-                if (Console.IsInputRedirected)
-                {
-                    Console.WriteLine(
-                        Terminal.Muted("d / drop · Enter or esc = back to list"));
-                }
-                else
-                {
-                    Console.WriteLine(Terminal.Muted("(D)rop  Esc = back to list"));
-                }
-            }
+            WriteInventoryItemDetailMenu(canEat, canUse);
 
             var action = ReadInventoryItemDetailAction(canEat, canUse);
             if (action == InventoryItemDetailAction.BackToList)
@@ -685,7 +676,7 @@ public class App(GameState state) : IApp
                     return InventoryItemDetailAction.BackToList;
                 if (t is "d" or "drop")
                     return InventoryItemDetailAction.Drop;
-                if (offerEat && (t is "e" or "eat" or "u" or "use"))
+                if (offerEat && (t is "e" or "eat"))
                     return InventoryItemDetailAction.UseOrEat;
                 if (offerUse && (t is "u" or "use"))
                     return InventoryItemDetailAction.UseOrEat;
@@ -697,7 +688,7 @@ public class App(GameState state) : IApp
 
                 Console.WriteLine(
                     offerEat
-                        ? Terminal.Muted("Try e, eat, u, use, d, drop, Enter, or esc to go back.")
+                        ? Terminal.Muted("Try e, eat, d, drop, Enter, or esc to go back.")
                         : Terminal.Muted("Try u, use, d, drop, Enter, or esc to go back."));
             }
         }
@@ -710,7 +701,7 @@ public class App(GameState state) : IApp
             char c = char.ToLowerInvariant(key.KeyChar);
             if (c == 'd')
                 return InventoryItemDetailAction.Drop;
-            if (offerEat && (c == 'e' || c == 'u'))
+            if (offerEat && c == 'e')
                 return InventoryItemDetailAction.UseOrEat;
             if (offerUse && c == 'u')
                 return InventoryItemDetailAction.UseOrEat;
@@ -778,10 +769,12 @@ public class App(GameState state) : IApp
             }
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
-                Console.WriteLine(Terminal.Muted("(1-9) Select item  Esc = back"));
+                Console.WriteLine(Terminal.EscBackHint());
             else
-                Console.WriteLine(
-                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter / esc to go back"));
+            {
+                Console.WriteLine(Terminal.Muted($"Type item number (1-{n}) to select."));
+                Console.WriteLine(Terminal.EscBackHint());
+            }
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -878,7 +871,7 @@ public class App(GameState state) : IApp
         Console.WriteLine(Terminal.Muted("Move with compass keys shown in the menu."));
         Console.WriteLine(
             Terminal.Muted(
-                "(I)nventory: select an item. Edible ones list eating effects; then Eat, Use, Drop, or Esc."));
+                "(I)nventory: select an item. Edible ones list eating effects; then Eat, Drop, or Esc."));
         Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
         Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
         Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield gold; sometimes a find."));
