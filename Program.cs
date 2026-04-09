@@ -1,16 +1,18 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Tav.Registry;
 
 namespace Tav;
 
 internal static class Program
 {
-    public static void Main()
+    public static void Main(string[] args)
     {
-        var services = new ServiceCollection();
-        services.RegisterGame();
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+        builder.Services.RegisterGame();
 
-        using ServiceProvider provider = services.BuildServiceProvider();
-        provider.GetRequiredService<IApp>()!.Run();
+        using IHost host = builder.Build();
+        using IServiceScope scope = host.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<IApp>().Run();
     }
 }
