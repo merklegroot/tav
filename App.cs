@@ -172,15 +172,6 @@ public class App(GameState state) : IApp
         };
         leftLines.Add("");
         leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
-        if (state.GroundItemsInCurrentRoom.Count == 0)
-            return leftLines;
-
-        leftLines.Add("");
-        leftLines.Add(
-            Terminal.Muted("On the ground: ")
-            + string.Join(
-                ", ",
-                state.GroundItemsInCurrentRoom.Select(ManipulativeStore.DisplayName)));
         return leftLines;
     }
 
@@ -520,7 +511,8 @@ public class App(GameState state) : IApp
             if (selectedIndex is null)
                 return;
 
-            RunSelectedInventoryItem(state, selectedIndex.Value);
+            if (RunSelectedInventoryItem(state, selectedIndex.Value))
+                return;
         }
     }
 
@@ -541,12 +533,13 @@ public class App(GameState state) : IApp
         Console.WriteLine(Terminal.EscBackHint());
     }
 
-    private void RunSelectedInventoryItem(GameState state, int index)
+    /// <returns><see langword="true"/> if the player dropped an item (caller should leave Inventory).</returns>
+    private bool RunSelectedInventoryItem(GameState state, int index)
     {
         while (true)
         {
             if (index < 0 || index >= state.Inventory.Count)
-                return;
+                return false;
 
             string id = state.Inventory[index];
             ManipulativeStore.TryGet(id, out var def);
@@ -567,15 +560,14 @@ public class App(GameState state) : IApp
 
             var action = ReadInventoryItemDetailAction(canEat);
             if (action == InventoryItemDetailAction.BackToList)
-                return;
+                return false;
             if (action == InventoryItemDetailAction.Drop)
             {
                 var dropped = state.DropItemAt(index);
                 Console.WriteLine();
                 Console.WriteLine(
                     Terminal.Muted($"You drop the {ManipulativeStore.DisplayName(dropped)}."));
-                PauseForContinue();
-                return;
+                return true;
             }
 
             TryUseInventoryItem(state, ref index, out bool consumed, out string message);
@@ -583,7 +575,7 @@ public class App(GameState state) : IApp
             Console.WriteLine(Terminal.Muted(message));
             PauseForContinue();
             if (consumed)
-                return;
+                return false;
         }
     }
 
@@ -720,15 +712,15 @@ public class App(GameState state) : IApp
             if (n == 0)
             {
                 ClearConsole();
-                Console.WriteLine(Terminal.Title("== Pick up =="));
-                Console.WriteLine(Terminal.Muted("Nothing here to pick up."));
+                Console.WriteLine(Terminal.Title("== Ground =="));
+                Console.WriteLine(Terminal.Muted("Nothing on the ground."));
                 Console.WriteLine();
                 PauseForContinue();
                 return;
             }
 
             ClearConsole();
-            WritePlayerStatusHeader("== Pick up ==", state);
+            WritePlayerStatusHeader("== Ground ==", state);
             Console.WriteLine();
             for (int i = 0; i < n; i++)
             {
@@ -745,19 +737,21 @@ public class App(GameState state) : IApp
             if (selectedIndex is null)
                 return;
 
-            RunSelectedGroundItem(state, selectedIndex.Value);
+            if (RunSelectedGroundItem(state, selectedIndex.Value))
+                return;
         }
     }
 
-    private void RunSelectedGroundItem(GameState state, int index)
+    /// <returns><see langword="true"/> if an item was taken (caller should leave the Ground screen).</returns>
+    private bool RunSelectedGroundItem(GameState state, int index)
     {
         var ground = state.GroundItemsInCurrentRoom;
         if (index < 0 || index >= ground.Count)
-            return;
+            return false;
 
         string id = ground[index];
         ClearConsole();
-        WritePlayerStatusHeader("== Pick up ==", state, includeGold: false);
+        WritePlayerStatusHeader("== Ground ==", state, includeGold: false);
         Console.WriteLine();
         Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.DisplayName(id)}"));
         Console.WriteLine();
@@ -767,15 +761,15 @@ public class App(GameState state) : IApp
 
         var action = ReadSelectedGroundItemAction();
         if (action == SelectedGroundItemAction.BackToList)
-            return;
+            return false;
 
         var taken = state.PickUpGroundItemAt(index);
         if (taken is null)
-            return;
+            return false;
         Console.WriteLine();
         Console.WriteLine(
             Terminal.Muted($"You pick up the {ManipulativeStore.DisplayName(taken)}."));
-        PauseForContinue();
+        return true;
     }
 
     private enum SelectedGroundItemAction
@@ -838,7 +832,7 @@ public class App(GameState state) : IApp
         Console.WriteLine(
             Terminal.Muted(
                 "(I)nventory: select an item. Edible ones list eating effects; then Eat, Drop, or Esc."));
-        Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
+        Console.WriteLine(Terminal.Muted("(G)round appears when something lies on the ground here."));
         Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
         Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield gold; sometimes a find."));
         Console.WriteLine();
@@ -992,7 +986,12 @@ public class App(GameState state) : IApp
         }
 
         if (state.GroundItemsInCurrentRoom.Count > 0)
-            items.Add(new MenuItem("(P)ick up", 'p', () => RunPickUpScreen(state)));
+        {
+            string groundList = string.Join(
+                ", ",
+                state.GroundItemsInCurrentRoom.Select(ManipulativeStore.DisplayName));
+            items.Add(new MenuItem($"(G)round - {groundList}", 'g', () => RunPickUpScreen(state)));
+        }
 
         items.Add(new MenuItem("(I)nventory", 'i', () => RunInventoryScreen(state)));
         items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
