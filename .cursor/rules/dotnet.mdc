@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+# .NET Coding Style Rules
+
+Put interfaces in with the same file as their implementation.

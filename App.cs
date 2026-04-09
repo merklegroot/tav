@@ -1,9 +1,13 @@
 using System.Text;
-using System.Threading;
 
 namespace Tav;
 
-internal sealed class App : IApp
+public interface IApp
+{
+    void Run();
+}
+
+public class App : IApp
 {
     private readonly Random _random = new();
 
