@@ -6,7 +6,10 @@
     "exits": {
       "n": "cobble_approach",
       "e": "courtyard"
-    }
+    },
+    "groundItems": [
+      "apple"
+    ]
   },
   {
     "id": "cobble_approach",

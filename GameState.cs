@@ -9,7 +9,7 @@ public record GameState
     public int Strength { get; set; }
     public int Dexterity { get; set; }
     public int Gold { get; set; }
-    public List<string> Inventory { get; } = [KnownManipulativeIds.Torch, KnownManipulativeIds.Apple];
+    public List<string> Inventory { get; } = [KnownManipulativeIds.Torch];
 
     /// <summary>Items on the floor, keyed by lowercase room id.</summary>
     public Dictionary<string, List<string>> GroundItemsByRoomId { get; } =
