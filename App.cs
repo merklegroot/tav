@@ -476,14 +476,14 @@ public class App(GameState state) : IApp
         return new string(' ', left) + content + new string(' ', pad - left);
     }
 
-    private static void WritePlayerStatusHeader(string screenTitle, GameState state, bool includeCoins = true)
+    private static void WritePlayerStatusHeader(string screenTitle, GameState state, bool includeGold = true)
     {
         Console.WriteLine(Terminal.Title(screenTitle));
         Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-        if (!includeCoins)
+        if (!includeGold)
             return;
 
-        Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
+        Console.WriteLine(Terminal.Muted($"Gold: {state.Gold}"));
     }
 
     private void RunInventoryScreen(GameState state)
@@ -722,7 +722,7 @@ public class App(GameState state) : IApp
 
         string name = ground[index];
         ClearConsole();
-        WritePlayerStatusHeader("== Pick up ==", state, includeCoins: false);
+        WritePlayerStatusHeader("== Pick up ==", state, includeGold: false);
         Console.WriteLine();
         Console.WriteLine(Terminal.Accent($"Selected: {name}"));
         Console.WriteLine();
@@ -784,7 +784,7 @@ public class App(GameState state) : IApp
         Console.WriteLine(Terminal.Title("== Character =="));
         Console.WriteLine();
         Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-        Console.WriteLine(Terminal.Accent($"Coins: {state.Gold}"));
+        Console.WriteLine(Terminal.Accent($"Gold: {state.Gold}"));
         Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
         Console.WriteLine(Terminal.Muted("Higher DEX softens enemy hits in a fight."));
@@ -801,7 +801,7 @@ public class App(GameState state) : IApp
         Console.WriteLine(Terminal.Muted("(I)nventory: select an item, then Use, Drop, or Esc to go back."));
         Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
         Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
-        Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield coins; sometimes a find."));
+        Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield gold; sometimes a find."));
         Console.WriteLine(Terminal.Muted("Apples can be eaten from the inventory (Use)."));
         Console.WriteLine();
         PauseForContinue();
@@ -1003,8 +1003,8 @@ public class App(GameState state) : IApp
 
             if (monsterHp <= 0)
             {
-                int coins = _random.Next(3, 11);
-                state.Gold += coins;
+                int goldFound = _random.Next(3, 11);
+                state.Gold += goldFound;
                 ClearConsole();
                 var victoryLeft = new List<string>
                 {
@@ -1012,7 +1012,7 @@ public class App(GameState state) : IApp
                     "",
                     Terminal.Ok($"The {monster.Name} falls."),
                     "",
-                    Terminal.Muted($"You scrape up {coins} coins among the debris."),
+                    Terminal.Muted($"You scrape up {goldFound} gold among the debris."),
                 };
                 if (_random.NextDouble() < 0.35)
                 {
