@@ -1,0 +1,138 @@
+using System.Text;
+
+namespace Tav;
+
+internal static class Terminal
+{
+    public static bool UseAnsi => !Console.IsOutputRedirected;
+
+    public const string Reset = "\x1b[0m";
+
+    public static string Title(string text) => Wrap(text, "\x1b[1m\x1b[93m");
+
+    public static string Accent(string text) => Wrap(text, "\x1b[96m");
+
+    public static string Muted(string text) => Wrap(text, "\x1b[2m\x1b[37m");
+
+    public static string Border(string text) => Wrap(text, "\x1b[36m");
+
+    public static string Combat(string text) => Wrap(text, "\x1b[91m");
+
+    public static string Ok(string text) => Wrap(text, "\x1b[92m");
+
+    public static string Warn(string text) => Wrap(text, "\x1b[93m");
+
+    public static string HpStatus(int hp, int max)
+    {
+        string plain = $"HP: {hp}/{max}";
+        if (!UseAnsi || max <= 0)
+            return plain;
+        double ratio = (double)hp / max;
+        string open = ratio <= 0.25 ? "\x1b[91m" : ratio <= 0.5 ? "\x1b[93m" : "\x1b[92m";
+        return open + plain + Reset;
+    }
+
+    public static string HpFraction(int hp, int max)
+    {
+        string plain = $"{hp}/{max}";
+        if (!UseAnsi || max <= 0)
+            return plain;
+        double ratio = (double)hp / max;
+        string open = ratio <= 0.25 ? "\x1b[91m" : ratio <= 0.5 ? "\x1b[93m" : "\x1b[92m";
+        return open + plain + Reset;
+    }
+
+    public static string DamageNumber(int damage) =>
+        UseAnsi ? $"\x1b[1m\x1b[93m     -{damage}{Reset}" : $"     -{damage}";
+
+    public static void WriteMenuLine(string text, char key)
+    {
+        if (!UseAnsi)
+        {
+            Console.WriteLine(text);
+            return;
+        }
+
+        char ku = char.ToUpperInvariant(key);
+        string needle = $"({ku})";
+        int i = text.IndexOf(needle, StringComparison.Ordinal);
+        if (i < 0)
+        {
+            Console.WriteLine(text);
+            return;
+        }
+
+        Console.Write(Muted(text[..i]));
+        Console.Write($"\x1b[1m\x1b[97m{needle}{Reset}");
+        Console.Write(Muted(text[(i + needle.Length)..]));
+        Console.WriteLine();
+    }
+
+    public static int VisibleLength(string s)
+    {
+        int len = 0;
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] == '\x1b' && i + 1 < s.Length && s[i + 1] == '[')
+            {
+                i += 2;
+                while (i < s.Length && s[i] != 'm')
+                    i++;
+                continue;
+            }
+
+            len++;
+        }
+
+        return len;
+    }
+
+    /// <summary>Truncates to a maximum visible (on-screen) length, preserving leading ANSI sequences.</summary>
+    public static string TruncateVisible(string s, int maxVisible)
+    {
+        if (maxVisible <= 0)
+            return "";
+
+        var sb = new StringBuilder();
+        int vis = 0;
+        bool cutShort = false;
+        for (int i = 0; i < s.Length;)
+        {
+            if (s[i] == '\x1b' && i + 1 < s.Length && s[i + 1] == '[')
+            {
+                int start = i;
+                i += 2;
+                while (i < s.Length && s[i] != 'm')
+                    i++;
+                if (i < s.Length)
+                {
+                    sb.Append(s, start, i - start + 1);
+                    i++;
+                    continue;
+                }
+            }
+
+            if (vis >= maxVisible)
+            {
+                cutShort = true;
+                break;
+            }
+
+            sb.Append(s[i]);
+            vis++;
+            i++;
+        }
+
+        if (UseAnsi && cutShort)
+            sb.Append(Reset);
+
+        return sb.ToString();
+    }
+
+    private static string Wrap(string text, string open)
+    {
+        if (!UseAnsi || text.Length == 0)
+            return text;
+        return open + text + Reset;
+    }
+}

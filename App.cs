@@ -29,7 +29,7 @@ internal sealed class App : IApp
                 () => state.ShouldExit = true);
 
             foreach (var item in menuItems)
-                Console.WriteLine(item.Text);
+                Terminal.WriteMenuLine(item.Text, item.Key);
             Console.WriteLine();
 
             var input = ReadInputChar();
@@ -43,6 +43,8 @@ internal sealed class App : IApp
         if (Console.IsOutputRedirected == false)
         {
             Console.Write("\u001b[H\u001b[2J");
+            if (Terminal.UseAnsi)
+                Console.Write(Terminal.Reset);
             Console.Out.Flush();
         }
     }
@@ -98,12 +100,12 @@ internal sealed class App : IApp
     {
         var leftLines = new List<string>
         {
-            "== Adventure Game ==",
-            $"HP: {state.HitPoints}/{state.MaxHitPoints}",
+            Terminal.Title("== Adventure Game =="),
+            Terminal.HpStatus(state.HitPoints, state.MaxHitPoints),
             "",
-            Truncate(state.CurrentRoom.Name, leftColWidth),
+            Terminal.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
         };
-        leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth));
+        leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
         return leftLines;
     }
 
@@ -222,9 +224,12 @@ internal sealed class App : IApp
 
     private static string PadRightVisual(string s, int totalWidth)
     {
-        if (s.Length >= totalWidth)
-            return s[..totalWidth];
-        return s + new string(' ', totalWidth - s.Length);
+        int v = Terminal.VisibleLength(s);
+        if (v > totalWidth)
+            return Terminal.TruncateVisible(s, totalWidth);
+        if (v == totalWidth)
+            return s;
+        return s + new string(' ', totalWidth - v);
     }
 
     private static string Truncate(string s, int maxChars)
@@ -329,14 +334,14 @@ internal sealed class App : IApp
 
         return
         [
-            top,
-            blank,
-            blank,
-            titleRow,
-            playerRow,
-            blank,
-            blank,
-            bottom,
+            Terminal.Border(top),
+            Terminal.Border(blank),
+            Terminal.Border(blank),
+            Terminal.Border(titleRow),
+            Terminal.Border(playerRow),
+            Terminal.Border(blank),
+            Terminal.Border(blank),
+            Terminal.Border(bottom),
         ];
     }
 
@@ -366,14 +371,14 @@ internal sealed class App : IApp
     private void PrintInventory(GameState state)
     {
         ClearConsole();
-        Console.WriteLine("== Inventory ==");
-        Console.WriteLine($"HP: {state.HitPoints}/{state.MaxHitPoints}");
+        Console.WriteLine(Terminal.Title("== Inventory =="));
+        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
         Console.WriteLine();
         if (state.Inventory.Count == 0)
-            Console.WriteLine("  (nothing)");
+            Console.WriteLine(Terminal.Muted("  (nothing)"));
         else
             foreach (var name in state.Inventory)
-                Console.WriteLine($"  - {name}");
+                Console.WriteLine(Terminal.Accent($"  - {name}"));
         Console.WriteLine();
         PauseForContinue();
     }
@@ -381,11 +386,11 @@ internal sealed class App : IApp
     private void PrintCharacter(GameState state)
     {
         ClearConsole();
-        Console.WriteLine("== Character ==");
+        Console.WriteLine(Terminal.Title("== Character =="));
         Console.WriteLine();
-        Console.WriteLine($"HP:  {state.HitPoints}/{state.MaxHitPoints}");
-        Console.WriteLine($"STR: {state.Strength}");
-        Console.WriteLine($"DEX: {state.Dexterity}");
+        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+        Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
+        Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
         Console.WriteLine();
         PauseForContinue();
     }
@@ -442,7 +447,7 @@ internal sealed class App : IApp
             if (key == 'f')
             {
                 Console.WriteLine();
-                Console.WriteLine("You slip away and put distance between you and the creature.");
+                Console.WriteLine(Terminal.Muted("You slip away and put distance between you and the creature."));
                 PauseForContinue();
                 return;
             }
@@ -465,9 +470,9 @@ internal sealed class App : IApp
                 ClearConsole();
                 var victoryLeft = new List<string>
                 {
-                    "== Fight ==",
+                    Terminal.Title("== Fight =="),
                     "",
-                    $"The {monster.Name} falls.",
+                    Terminal.Ok($"The {monster.Name} falls."),
                     "",
                 };
                 RenderFightScreen(victoryLeft, portraitLines);
@@ -483,16 +488,18 @@ internal sealed class App : IApp
             if (state.HitPoints <= 0)
             {
                 ClearConsole();
-                var defeatLeft = new List<string> { "== Fight ==", "" };
-                defeatLeft.AddRange(battleLog);
+                var defeatLeft = new List<string> { Terminal.Title("== Fight =="), "" };
+                defeatLeft.AddRange(battleLog.Select(Terminal.Muted));
                 if (battleLog.Count > 0)
                     defeatLeft.Add("");
-                defeatLeft.Add($"You: 0/{state.MaxHitPoints} HP    {monster.Name}: {monsterHp} HP");
+                defeatLeft.Add(
+                    Terminal.Warn($"You: 0/{state.MaxHitPoints} HP    ")
+                    + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
                 defeatLeft.Add("");
                 RenderFightScreen(defeatLeft, portraitLines);
                 Console.WriteLine();
-                Console.WriteLine("Everything goes dark…");
-                Console.WriteLine("You wake later, bruised and alone. Someone dragged you clear.");
+                Console.WriteLine(Terminal.Combat("Everything goes dark…"));
+                Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
                 state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
                 Console.WriteLine();
                 PauseForContinue();
@@ -510,18 +517,23 @@ internal sealed class App : IApp
         List<string> battleLog,
         bool showIntro)
     {
-        var left = new List<string> { "== Fight ==", "" };
+        var left = new List<string> { Terminal.Title("== Fight =="), "" };
         if (showIntro)
         {
-            left.Add($"Something stirs — a {monster.Name}! {monster.Blurb}");
+            left.Add(
+                Terminal.Muted("Something stirs — a ")
+                + Terminal.Combat(monster.Name)
+                + Terminal.Muted($"! {monster.Blurb}"));
             left.Add("");
         }
 
-        left.AddRange(battleLog);
+        left.AddRange(battleLog.Select(Terminal.Muted));
         if (battleLog.Count > 0)
             left.Add("");
-        left.Add($"You: {state.HitPoints}/{state.MaxHitPoints} HP    {monster.Name}: {monsterHp} HP");
-        left.Add("(A)ttack  (F)lee");
+        left.Add(
+            Terminal.Warn($"You: {state.HitPoints}/{state.MaxHitPoints} HP    ")
+            + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
+        left.Add(Terminal.Muted("(A)ttack  (F)lee"));
         left.Add("");
         return left;
     }
@@ -599,11 +611,8 @@ internal sealed class App : IApp
             lines.Add(sparks);
         }
 
-        // Floating damage readout (ANSI yellow; terminals that don’t support it still show the text)
         if (frame >= 8)
-        {
-            lines.Add($"\x1b[93m\x1b[1m     -{damage}\x1b[0m");
-        }
+            lines.Add(Terminal.DamageNumber(damage));
 
         return lines;
     }
