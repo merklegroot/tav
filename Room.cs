@@ -5,4 +5,5 @@ public record Room(
     string Name,
     string Description,
     Dictionary<string, string>? Exits,
-    List<string>? GroundItems = null);
+    List<string>? GroundItems = null,
+    bool IsInitialRoom = false);

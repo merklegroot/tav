@@ -10,8 +10,16 @@ public static class GameRegistry
             .AddSingleton<GameState>(_ =>
             {
                 var rooms = RoomStore.LoadAll();
-                var roomsById = rooms.ToDictionary(r => r.Id.ToLowerInvariant());
-                var state = new GameState(roomsById["castle_entrance"]);
+                var initialRooms = rooms.Where(r => r.IsInitialRoom).ToList();
+                if (initialRooms.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        initialRooms.Count == 0
+                            ? "Room data must set isInitialRoom: true on exactly one room."
+                            : "Only one room may have isInitialRoom: true.");
+                }
+
+                var state = new GameState(initialRooms[0]);
                 foreach (var room in rooms)
                 {
                     if (room.GroundItems is not { Count: > 0 })

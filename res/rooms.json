@@ -9,7 +9,8 @@
     },
     "groundItems": [
       "apple"
-    ]
+    ],
+    "isInitialRoom": true
   },
   {
     "id": "cobble_approach",
