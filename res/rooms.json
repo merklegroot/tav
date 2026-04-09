@@ -17,7 +17,8 @@
     "name": "Cobble Approach",
     "description": "Worn steps lead up from the gate. Moss fills the cracks between the stones, and you hear the wind in the parapets above.",
     "exits": {
-      "s": "castle_entrance"
+      "s": "castle_entrance",
+      "n": "great_hall"
     }
   },
   {
@@ -27,6 +28,50 @@
     "exits": {
       "w": "castle_entrance",
       "n": "armory_lane"
+    }
+  },
+  {
+    "id": "great_hall",
+    "name": "Great Hall",
+    "description": "Timbers soar overhead, hung with faded banners. Long hearths stand cold; your footsteps echo as if the place were still waiting for a feast that never came.",
+    "exits": {
+      "n": "throne_room",
+      "e": "servants_passage",
+      "s": "cobble_approach"
+    }
+  },
+  {
+    "id": "throne_room",
+    "name": "Throne Room",
+    "description": "A dais of black marble rises at the far end. The throne is empty, its high back carved with worn crests—but the candles along the walls burn steady, as though someone tends them still.",
+    "exits": {
+      "s": "great_hall",
+      "w": "royal_chapel"
+    }
+  },
+  {
+    "id": "royal_chapel",
+    "name": "Royal Chapel",
+    "description": "Stained glass throws pale shards of color onto the flagstones. The altar is bare; dust lies thick except where many feet have lately crossed the center aisle.",
+    "exits": {
+      "e": "throne_room"
+    }
+  },
+  {
+    "id": "servants_passage",
+    "name": "Servants' Passage",
+    "description": "A low corridor meant for trays and quiet feet. Hooks for lanterns line the walls; a draft from somewhere ahead carries the smell of old bread and stone.",
+    "exits": {
+      "w": "great_hall",
+      "n": "kitchen_cellar_stairs"
+    }
+  },
+  {
+    "id": "kitchen_cellar_stairs",
+    "name": "Kitchen Cellar Stairs",
+    "description": "Steps spiral down into damp shadow. From below comes a slow drip of water and the faint scrape of something dragged across flagstones long ago.",
+    "exits": {
+      "s": "servants_passage"
     }
   },
   {
