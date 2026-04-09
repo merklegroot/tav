@@ -62,8 +62,12 @@ internal static class Terminal
             return;
         }
 
+        // Menu spec: parentheses brighter than text; action key even brighter than parentheses.
         Console.Write(Muted(text[..i]));
-        Console.Write($"\x1b[1m\x1b[97m{needle}{Reset}");
+        Console.Write("\x1b[37m(");
+        Console.Write($"\x1b[1m\x1b[97m{ku}{Reset}");
+        Console.Write("\x1b[37m)");
+        Console.Write(Reset);
         Console.Write(Muted(text[(i + needle.Length)..]));
         Console.WriteLine();
     }

@@ -42,3 +42,23 @@ When that's not enough, it can be split into three lines.
 An = charater represents a door going East or West.
 
 A " character represents a door going North or South.
+
+### Menu
+
+The Menu should show the action key in parentheses.
+
+The action key should always be in caps.
+
+The parentheses should be a brighter color than the rest of the text, except for the action key which should be even brighter than the prentheses.
+
+When the action key isn't part of the word, then the action key should be to the left of the menu item.
+
+Examples:
+
+(N)orth -- Acion key is at the beginning of the word.
+
+e(X)it -- Action key was still inside of the word. Since it's the second character, the first character is no longer capilalized to empahsize that the first letter isn't the action key.
+
+(1) Torch -- Action isn't in the word, so it's to the left of it.
+
+

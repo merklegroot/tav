@@ -144,7 +144,7 @@ internal sealed class App : IApp
             return Truncate(text, maxWidth);
 
         string before = Terminal.Muted(text[..i]);
-        string hotkey = $"\x1b[1m\x1b[97m{needle}{Terminal.Reset}";
+        string hotkey = "\x1b[37m(" + $"\x1b[1m\x1b[97m{ku}{Terminal.Reset}" + "\x1b[37m)" + Terminal.Reset;
         string after = Terminal.Muted(text[(i + needle.Length)..]);
         return Terminal.TruncateVisible(before + hotkey + after, maxWidth);
     }
@@ -502,7 +502,11 @@ internal sealed class App : IApp
             }
 
             for (int i = 0; i < n; i++)
-                Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.Inventory[i]}"));
+            {
+                int num = i + 1;
+                char key = (char)('0' + num);
+                Terminal.WriteMenuLine($"({num}) {state.Inventory[i]}", key);
+            }
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
                 Console.WriteLine(Terminal.Muted("(1-9) Select item  Esc = back"));
@@ -689,7 +693,11 @@ internal sealed class App : IApp
             WritePlayerStatusHeader("== Pick up ==", state);
             Console.WriteLine();
             for (int i = 0; i < n; i++)
-                Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.GroundItemsInCurrentRoom[i]}"));
+            {
+                int num = i + 1;
+                char key = (char)('0' + num);
+                Terminal.WriteMenuLine($"({num}) {state.GroundItemsInCurrentRoom[i]}", key);
+            }
             Console.WriteLine();
             if (n <= 9 && !Console.IsInputRedirected)
                 Console.WriteLine(Terminal.Muted("(1-9) Select item  Esc = back"));
