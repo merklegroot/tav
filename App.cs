@@ -505,6 +505,105 @@ internal sealed class App : IApp
         }
     }
 
+    private void RunPickUpScreen(GameState state)
+    {
+        while (true)
+        {
+            int n = state.GroundItemsInCurrentRoom.Count;
+            if (n == 0)
+            {
+                ClearConsole();
+                Console.WriteLine(Terminal.Title("== Pick up =="));
+                Console.WriteLine(Terminal.Muted("Nothing here to pick up."));
+                Console.WriteLine();
+                PauseForContinue();
+                return;
+            }
+
+            ClearConsole();
+            Console.WriteLine(Terminal.Title("== Pick up =="));
+            Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+            Console.WriteLine();
+            for (int i = 0; i < n; i++)
+                Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.GroundItemsInCurrentRoom[i]}"));
+            Console.WriteLine();
+            if (n <= 9 && !Console.IsInputRedirected)
+                Console.WriteLine(Terminal.Muted("(1-9) Select item  (B)ack"));
+            else
+                Console.WriteLine(
+                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter to go back"));
+
+            int? selectedIndex = ReadInventoryItemIndex(n);
+            if (selectedIndex is null)
+                return;
+
+            RunSelectedGroundItem(state, selectedIndex.Value);
+        }
+    }
+
+    private void RunSelectedGroundItem(GameState state, int index)
+    {
+        var ground = state.GroundItemsInCurrentRoom;
+        if (index < 0 || index >= ground.Count)
+            return;
+
+        string name = ground[index];
+        ClearConsole();
+        Console.WriteLine(Terminal.Title("== Pick up =="));
+        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Accent($"Selected: {name}"));
+        Console.WriteLine();
+        if (!Console.IsInputRedirected)
+            Console.WriteLine(Terminal.Muted("(T)ake  (B)ack to list"));
+        else
+            Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter to go back"));
+
+        var action = ReadSelectedGroundItemAction();
+        if (action == SelectedGroundItemAction.BackToList)
+            return;
+
+        var taken = state.PickUpGroundItemAt(index);
+        if (taken is null)
+            return;
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Muted($"You pick up the {taken}."));
+        PauseForContinue();
+    }
+
+    private enum SelectedGroundItemAction
+    {
+        BackToList,
+        Take,
+    }
+
+    private static SelectedGroundItemAction ReadSelectedGroundItemAction()
+    {
+        if (!Console.IsInputRedirected)
+        {
+            while (true)
+            {
+                var key = Console.ReadKey(intercept: true);
+                char c = char.ToLowerInvariant(key.KeyChar);
+                if (c == 'b')
+                    return SelectedGroundItemAction.BackToList;
+                if (c == 't')
+                    return SelectedGroundItemAction.Take;
+            }
+        }
+
+        while (true)
+        {
+            var line = Console.ReadLine();
+            if (line is null || string.IsNullOrWhiteSpace(line))
+                return SelectedGroundItemAction.BackToList;
+            string t = line.Trim().ToLowerInvariant();
+            if (t is "t" or "take")
+                return SelectedGroundItemAction.Take;
+            Console.WriteLine(Terminal.Muted("Try t or take, or Enter to go back."));
+        }
+    }
+
     private void PrintCharacter(GameState state)
     {
         ClearConsole();
@@ -543,6 +642,9 @@ internal sealed class App : IApp
                     AnimateRoomSlide(oldPanel, BuildRoomPanel(state.CurrentRoom, 24), state, dir);
                 }));
         }
+
+        if (state.GroundItemsInCurrentRoom.Count > 0)
+            items.Add(new MenuItem("(P)ick up", 'p', () => RunPickUpScreen(state)));
 
         items.Add(new MenuItem("(I)nventory", 'i', () => RunInventoryScreen(state)));
         items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
@@ -854,6 +956,23 @@ internal sealed class App : IApp
                 GroundItemsByRoomId[roomId] = ground;
             }
             ground.Add(name);
+            return name;
+        }
+
+        /// <summary>Removes the item from the current room’s ground and adds it to inventory. Returns null if the slot is invalid.</summary>
+        public string? PickUpGroundItemAt(int index)
+        {
+            var roomId = CurrentRoom.Id.ToLowerInvariant();
+            if (!GroundItemsByRoomId.TryGetValue(roomId, out var ground))
+                return null;
+            if (index < 0 || index >= ground.Count)
+                return null;
+
+            string name = ground[index];
+            ground.RemoveAt(index);
+            if (ground.Count == 0)
+                GroundItemsByRoomId.Remove(roomId);
+            Inventory.Add(name);
             return name;
         }
     }
