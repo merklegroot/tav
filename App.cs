@@ -106,6 +106,13 @@ internal sealed class App : IApp
             Terminal.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
         };
         leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
+        if (state.GroundItemsInCurrentRoom.Count > 0)
+        {
+            leftLines.Add("");
+            leftLines.Add(
+                Terminal.Muted("On the ground: ")
+                + string.Join(", ", state.GroundItemsInCurrentRoom));
+        }
         return leftLines;
     }
 
@@ -374,19 +381,128 @@ internal sealed class App : IApp
         }
     }
 
-    private void PrintInventory(GameState state)
+    private void RunInventoryScreen(GameState state)
     {
+        while (true)
+        {
+            ClearConsole();
+            Console.WriteLine(Terminal.Title("== Inventory =="));
+            Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+            Console.WriteLine();
+            int n = state.Inventory.Count;
+            if (n == 0)
+            {
+                Console.WriteLine(Terminal.Muted("  (nothing)"));
+                Console.WriteLine();
+                PauseForContinue();
+                return;
+            }
+
+            for (int i = 0; i < n; i++)
+                Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.Inventory[i]}"));
+            Console.WriteLine();
+            if (n <= 9 && !Console.IsInputRedirected)
+                Console.WriteLine(Terminal.Muted("(1-9) Select item  (B)ack"));
+            else
+                Console.WriteLine(
+                    Terminal.Muted($"Type item number (1-{n}) to select, or Enter to go back"));
+
+            int? selectedIndex = ReadInventoryItemIndex(n);
+            if (selectedIndex is null)
+                return;
+
+            RunSelectedInventoryItem(state, selectedIndex.Value);
+        }
+    }
+
+    private void RunSelectedInventoryItem(GameState state, int index)
+    {
+        if (index < 0 || index >= state.Inventory.Count)
+            return;
+
+        string name = state.Inventory[index];
         ClearConsole();
         Console.WriteLine(Terminal.Title("== Inventory =="));
         Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
         Console.WriteLine();
-        if (state.Inventory.Count == 0)
-            Console.WriteLine(Terminal.Muted("  (nothing)"));
-        else
-            foreach (var name in state.Inventory)
-                Console.WriteLine(Terminal.Accent($"  - {name}"));
+        Console.WriteLine(Terminal.Accent($"Selected: {name}"));
         Console.WriteLine();
+        if (!Console.IsInputRedirected)
+            Console.WriteLine(Terminal.Muted("(D)rop  (B)ack to list"));
+        else
+            Console.WriteLine(Terminal.Muted("Type d or drop to drop, or Enter to go back"));
+
+        var action = ReadSelectedInventoryItemAction();
+        if (action == SelectedInventoryItemAction.BackToList)
+            return;
+
+        var dropped = state.DropItemAt(index);
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Muted($"You drop the {dropped}."));
         PauseForContinue();
+    }
+
+    private enum SelectedInventoryItemAction
+    {
+        BackToList,
+        Drop,
+    }
+
+    private static SelectedInventoryItemAction ReadSelectedInventoryItemAction()
+    {
+        if (!Console.IsInputRedirected)
+        {
+            while (true)
+            {
+                var key = Console.ReadKey(intercept: true);
+                char c = char.ToLowerInvariant(key.KeyChar);
+                if (c == 'b')
+                    return SelectedInventoryItemAction.BackToList;
+                if (c == 'd')
+                    return SelectedInventoryItemAction.Drop;
+            }
+        }
+
+        while (true)
+        {
+            var line = Console.ReadLine();
+            if (line is null || string.IsNullOrWhiteSpace(line))
+                return SelectedInventoryItemAction.BackToList;
+            string t = line.Trim().ToLowerInvariant();
+            if (t is "d" or "drop")
+                return SelectedInventoryItemAction.Drop;
+            Console.WriteLine(Terminal.Muted("Try d or drop, or Enter to go back."));
+        }
+    }
+
+    /// <summary>Returns 0-based inventory index to act on, or null to leave inventory.</summary>
+    private int? ReadInventoryItemIndex(int itemCount)
+    {
+        if (itemCount <= 0)
+            return null;
+
+        if (!Console.IsInputRedirected)
+        {
+            while (true)
+            {
+                var key = Console.ReadKey(intercept: true);
+                char c = char.ToLowerInvariant(key.KeyChar);
+                if (c == 'b')
+                    return null;
+                if (c >= '1' && c <= '0' + itemCount)
+                    return c - '1';
+            }
+        }
+
+        while (true)
+        {
+            var line = Console.ReadLine();
+            if (line is null || string.IsNullOrWhiteSpace(line))
+                return null;
+            if (int.TryParse(line.Trim(), out int num) && num >= 1 && num <= itemCount)
+                return num - 1;
+            Console.WriteLine(Terminal.Muted("Try a number from the list, or Enter to go back."));
+        }
     }
 
     private void PrintCharacter(GameState state)
@@ -428,7 +544,7 @@ internal sealed class App : IApp
                 }));
         }
 
-        items.Add(new MenuItem("(I)nventory", 'i', () => PrintInventory(state)));
+        items.Add(new MenuItem("(I)nventory", 'i', () => RunInventoryScreen(state)));
         items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
         items.Add(new MenuItem("(F)ight", 'f', () => RunFightEncounter(state, monsters)));
         items.Add(new MenuItem("e(X)it", 'x', exit));
@@ -702,6 +818,21 @@ internal sealed class App : IApp
         public int Dexterity { get; set; }
         public List<string> Inventory { get; } = ["Torch", "Apple"];
 
+        /// <summary>Items on the floor, keyed by lowercase room id.</summary>
+        public Dictionary<string, List<string>> GroundItemsByRoomId { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public IReadOnlyList<string> GroundItemsInCurrentRoom
+        {
+            get
+            {
+                var id = CurrentRoom.Id.ToLowerInvariant();
+                return GroundItemsByRoomId.TryGetValue(id, out var list)
+                    ? list
+                    : Array.Empty<string>();
+            }
+        }
+
         public GameState(Room start)
         {
             CurrentRoom = start;
@@ -709,6 +840,21 @@ internal sealed class App : IApp
             HitPoints = MaxHitPoints;
             Strength = 12;
             Dexterity = 14;
+        }
+
+        /// <summary>Removes the item from inventory and places it in the current room. Returns the item name.</summary>
+        public string DropItemAt(int index)
+        {
+            string name = Inventory[index];
+            Inventory.RemoveAt(index);
+            var roomId = CurrentRoom.Id.ToLowerInvariant();
+            if (!GroundItemsByRoomId.TryGetValue(roomId, out var ground))
+            {
+                ground = [];
+                GroundItemsByRoomId[roomId] = ground;
+            }
+            ground.Add(name);
+            return name;
         }
     }
 }
