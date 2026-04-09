@@ -7,17 +7,11 @@ internal sealed class App : IApp
 {
     private readonly Random _random = new();
 
-    private static readonly Monster[] Monsters =
-    [
-        new("rot hound", "Its breath reeks of the grave.", 10, 4),
-        new("gargoyle bat", "Stone dust flakes from its wings.", 6, 3),
-        new("castle drudge", "A shambling figure in rusted chain.", 14, 5),
-    ];
-
     public void Run()
     {
         var rooms = RoomStore.LoadAll();
         var roomsById = rooms.ToDictionary(r => r.Id.ToLowerInvariant());
+        var monsters = MonsterStore.LoadAll();
 
         var state = new GameState(roomsById["castle_entrance"]);
 
@@ -28,6 +22,7 @@ internal sealed class App : IApp
             var menuItems = BuildMenuItems(
                 state.CurrentRoom,
                 roomsById,
+                monsters,
                 state,
                 r => state.CurrentRoom = r,
                 () => state.ShouldExit = true);
@@ -281,6 +276,7 @@ internal sealed class App : IApp
     private List<MenuItem> BuildMenuItems(
         Room currentRoom,
         IReadOnlyDictionary<string, Room> roomsById,
+        IReadOnlyList<Monster> monsters,
         GameState state,
         Action<Room> navigateTo,
         Action exit)
@@ -298,15 +294,15 @@ internal sealed class App : IApp
 
         items.Add(new MenuItem("(I)nventory", 'i', () => PrintInventory(state)));
         items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
-        items.Add(new MenuItem("(F)ight", 'f', () => RunFightEncounter(state)));
+        items.Add(new MenuItem("(F)ight", 'f', () => RunFightEncounter(state, monsters)));
         items.Add(new MenuItem("e(X)it", 'x', exit));
         return items;
     }
 
-    private void RunFightEncounter(GameState state)
+    private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
     {
         ClearConsole();
-        var monster = Monsters[_random.Next(Monsters.Length)];
+        var monster = monsters[_random.Next(monsters.Count)];
         int monsterHp = monster.HitPoints;
 
         Console.WriteLine("== Fight ==");
@@ -361,8 +357,6 @@ internal sealed class App : IApp
             }
         }
     }
-
-    private sealed record Monster(string Name, string Blurb, int HitPoints, int MaxDamage);
 
     private static string FormatDirectionOption(char direction, string destinationName) =>
         direction switch
@@ -419,6 +413,8 @@ internal sealed class App : IApp
 
 internal sealed record Room(string Id, string Name, string Description, Dictionary<string, string>? Exits);
 
+internal sealed record Monster(string Id, string Name, string Blurb, int HitPoints, int MaxDamage);
+
 internal sealed record MenuItem(string Text, char Key, Action Action);
 
 internal static class RoomStore
@@ -440,5 +436,27 @@ internal static class RoomStore
             ?? throw new InvalidOperationException("Missing embedded resource rooms.json");
         return JsonSerializer.Deserialize<List<Room>>(stream, JsonOptions)
             ?? throw new InvalidOperationException("rooms.json was empty or invalid");
+    }
+}
+
+internal static class MonsterStore
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    public static List<Monster> LoadAll()
+    {
+        var assembly = typeof(MonsterStore).Assembly;
+        var name = assembly
+            .GetManifestResourceNames()
+            .SingleOrDefault(n => n.EndsWith("monsters.json", StringComparison.Ordinal))
+            ?? throw new InvalidOperationException("Missing embedded resource monsters.json");
+
+        using var stream = assembly.GetManifestResourceStream(name)
+            ?? throw new InvalidOperationException("Missing embedded resource monsters.json");
+        return JsonSerializer.Deserialize<List<Monster>>(stream, JsonOptions)
+            ?? throw new InvalidOperationException("monsters.json was empty or invalid");
     }
 }

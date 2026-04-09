@@ -1,0 +1,9 @@
+[
+  {
+    "id": "rot_hound",
+    "name": "Rot Hound",
+    "blurb": "Its breath reeks of the grave.",
+    "hitPoints": 10,
+    "maxDamage": 4
+  }
+]
