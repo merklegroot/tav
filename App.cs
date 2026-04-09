@@ -50,10 +50,17 @@ internal sealed class App : IApp
     private void PrintScreen(GameState state)
     {
         ClearConsole();
+        foreach (var line in BuildScreenLines(state))
+            Console.WriteLine(line);
+    }
 
+    /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
+    private static List<string> BuildScreenLines(GameState state, bool forceWide = false)
+    {
         const int gap = 2;
         const int leftColWidth = 46;
         const int panelOuter = 24;
+        int screenWidth = leftColWidth + gap + panelOuter;
 
         var leftLines = new List<string>
         {
@@ -66,28 +73,109 @@ internal sealed class App : IApp
 
         var panel = BuildRoomPanel(state.CurrentRoom, panelOuter);
 
-        int minWidth = leftColWidth + gap + panelOuter;
-        if (CanUseWideLayout(minWidth))
+        int minWidth = screenWidth;
+        if (!forceWide && !CanUseWideLayout(minWidth))
         {
-            for (int i = 0; i < panel.Length; i++)
+            var stacked = new List<string>();
+            foreach (var line in leftLines)
+                stacked.Add(line);
+            stacked.Add("");
+            foreach (var line in panel)
+                stacked.Add(line);
+            stacked.Add("");
+            return stacked;
+        }
+
+        var lines = new List<string>();
+        for (int i = 0; i < panel.Length; i++)
+        {
+            string left = i < leftLines.Count ? leftLines[i] : "";
+            string row = PadRightVisual(left, leftColWidth) + new string(' ', gap) + panel[i];
+            lines.Add(PadRightVisual(row, screenWidth));
+        }
+
+        for (int i = panel.Length; i < leftLines.Count; i++)
+            lines.Add(PadRightVisual(leftLines[i], screenWidth));
+
+        lines.Add(new string(' ', screenWidth));
+        return lines;
+    }
+
+    /// <summary>
+    /// Slides the rendered screen: east = old room shifts left, new room enters from the right (column window moves across old|new).
+    /// North/south use a vertical strip the same way.
+    /// </summary>
+    private void AnimateRoomSlide(IReadOnlyList<string> oldLines, IReadOnlyList<string> newLines, char direction)
+    {
+        if (Console.IsOutputRedirected)
+            return;
+
+        const int gap = 2;
+        const int leftColWidth = 46;
+        const int panelOuter = 24;
+        int screenWidth = leftColWidth + gap + panelOuter;
+
+        if (!CanUseWideLayout(screenWidth))
+            return;
+
+        int H = Math.Max(oldLines.Count, newLines.Count);
+        var oldP = PadScreenToRect(oldLines, screenWidth, H);
+        var newP = PadScreenToRect(newLines, screenWidth, H);
+
+        const int frames = 22;
+        for (int f = 0; f < frames; f++)
+        {
+            double t = frames <= 1 ? 1 : f / (double)(frames - 1);
+            ClearConsole();
+
+            if (direction is 'e' or 'w')
             {
-                string left = i < leftLines.Count ? leftLines[i] : "";
-                Console.WriteLine(PadRightVisual(left, leftColWidth) + new string(' ', gap) + panel[i]);
+                // Window slides right across each row: [ old | new ] — old exits left, new enters from the right.
+                int offset = (int)Math.Round(t * screenWidth);
+                for (int r = 0; r < H; r++)
+                {
+                    string combined = oldP[r] + newP[r];
+                    Console.WriteLine(combined.Substring(offset, screenWidth));
+                }
+            }
+            else
+            {
+                // North: new room above; scroll downward through [new][old]. South: [old][new], scroll down.
+                var strip = direction == 'n'
+                    ? BuildVerticalStrip(newP, oldP)
+                    : BuildVerticalStrip(oldP, newP);
+                int scroll = direction == 'n'
+                    ? (int)Math.Round((1 - t) * H)
+                    : (int)Math.Round(t * H);
+                scroll = Math.Clamp(scroll, 0, H);
+                for (int r = 0; r < H; r++)
+                {
+                    int idx = scroll + r;
+                    Console.WriteLine(idx < strip.Count ? strip[idx] : new string(' ', screenWidth));
+                }
             }
 
-            for (int i = panel.Length; i < leftLines.Count; i++)
-                Console.WriteLine(leftLines[i]);
+            Thread.Sleep(28);
         }
-        else
-        {
-            foreach (var line in leftLines)
-                Console.WriteLine(line);
-            Console.WriteLine();
-            foreach (var line in panel)
-                Console.WriteLine(line);
-        }
+    }
 
-        Console.WriteLine();
+    private static List<string> PadScreenToRect(IReadOnlyList<string> lines, int width, int height)
+    {
+        var list = new List<string>(height);
+        for (int i = 0; i < height; i++)
+        {
+            string s = i < lines.Count ? lines[i] : "";
+            list.Add(PadRightVisual(s, width));
+        }
+        return list;
+    }
+
+    private static List<string> BuildVerticalStrip(IReadOnlyList<string> top, IReadOnlyList<string> bottom)
+    {
+        var strip = new List<string>(top.Count + bottom.Count);
+        strip.AddRange(top);
+        strip.AddRange(bottom);
+        return strip;
     }
 
     private static bool CanUseWideLayout(int minWidth)
@@ -290,7 +378,16 @@ internal sealed class App : IApp
                 continue;
             if (!roomsById.TryGetValue(destId.ToLowerInvariant(), out var destRoom))
                 continue;
-            items.Add(new MenuItem(FormatDirectionOption(dir, destRoom.Name), dir, () => navigateTo(destRoom)));
+            items.Add(new MenuItem(
+                FormatDirectionOption(dir, destRoom.Name),
+                dir,
+                () =>
+                {
+                    var oldScreen = BuildScreenLines(state, forceWide: true);
+                    navigateTo(destRoom);
+                    var newScreen = BuildScreenLines(state, forceWide: true);
+                    AnimateRoomSlide(oldScreen, newScreen, dir);
+                }));
         }
 
         items.Add(new MenuItem("(I)nventory", 'i', () => PrintInventory(state)));
