@@ -7,9 +7,15 @@ public interface IApp
     void Run();
 }
 
-public class App : IApp
+internal class App : IApp
 {
     private readonly Random _random = new();
+    private readonly GameState _state;
+
+    public App(GameState state)
+    {
+        _state = state;
+    }
 
     public void Run()
     {
@@ -17,19 +23,17 @@ public class App : IApp
         var roomsById = rooms.ToDictionary(r => r.Id.ToLowerInvariant());
         var monsters = MonsterStore.LoadAll();
 
-        var state = new GameState(roomsById["castle_entrance"]);
-
-        while (!state.ShouldExit)
+        while (!_state.ShouldExit)
         {
             var menuItems = BuildMenuItems(
-                state.CurrentRoom,
+                _state.CurrentRoom,
                 roomsById,
                 monsters,
-                state,
-                r => state.CurrentRoom = r,
-                () => state.ShouldExit = true);
+                _state,
+                r => _state.CurrentRoom = r,
+                () => _state.ShouldExit = true);
 
-            PrintScreen(state, menuItems);
+            PrintScreen(_state, menuItems);
 
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);

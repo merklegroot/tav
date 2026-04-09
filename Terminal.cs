@@ -2,7 +2,7 @@ using System.Text;
 
 namespace Tav;
 
-internal static class Terminal
+public static class Terminal
 {
     public static bool UseAnsi => !Console.IsOutputRedirected;
 

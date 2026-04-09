@@ -1,6 +1,6 @@
 namespace Tav;
 
-internal static class MonsterImageStore
+public static class MonsterImageStore
 {
     /// <summary>Lines of the portrait file, or empty when missing.</summary>
     public static IEnumerable<string> Lines(string monsterId)

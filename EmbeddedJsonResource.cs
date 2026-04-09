@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Tav;
 
-internal static class EmbeddedJsonResource
+public static class EmbeddedJsonResource
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

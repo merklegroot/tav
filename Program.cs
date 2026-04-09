@@ -4,7 +4,7 @@ using Tav.Registry;
 
 namespace Tav;
 
-internal static class Program
+public static class Program
 {
     public static void Main(string[] args)
     {

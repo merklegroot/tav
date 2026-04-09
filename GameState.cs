@@ -1,6 +1,6 @@
 namespace Tav;
 
-internal sealed class GameState
+public record GameState
 {
     public Room CurrentRoom { get; set; }
     public bool ShouldExit { get; set; }
