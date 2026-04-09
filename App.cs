@@ -102,6 +102,7 @@ internal sealed class App : IApp
         {
             Terminal.Title("== Adventure Game =="),
             Terminal.HpStatus(state.HitPoints, state.MaxHitPoints),
+            Terminal.Muted($"Coins: {state.Gold}"),
             "",
             Terminal.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
         };
@@ -388,6 +389,7 @@ internal sealed class App : IApp
             ClearConsole();
             Console.WriteLine(Terminal.Title("== Inventory =="));
             Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
             Console.WriteLine();
             int n = state.Inventory.Count;
             if (n == 0)
@@ -417,38 +419,93 @@ internal sealed class App : IApp
 
     private void RunSelectedInventoryItem(GameState state, int index)
     {
-        if (index < 0 || index >= state.Inventory.Count)
-            return;
+        while (true)
+        {
+            if (index < 0 || index >= state.Inventory.Count)
+                return;
 
-        string name = state.Inventory[index];
-        ClearConsole();
-        Console.WriteLine(Terminal.Title("== Inventory =="));
-        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-        Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {name}"));
-        Console.WriteLine();
-        if (!Console.IsInputRedirected)
-            Console.WriteLine(Terminal.Muted("(D)rop  (B)ack to list"));
-        else
-            Console.WriteLine(Terminal.Muted("Type d or drop to drop, or Enter to go back"));
+            string name = state.Inventory[index];
+            ClearConsole();
+            Console.WriteLine(Terminal.Title("== Inventory =="));
+            Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
+            Console.WriteLine();
+            Console.WriteLine(Terminal.Accent($"Selected: {name}"));
+            Console.WriteLine();
+            if (!Console.IsInputRedirected)
+                Console.WriteLine(Terminal.Muted("(U)se  (D)rop  (B)ack to list"));
+            else
+                Console.WriteLine(
+                    Terminal.Muted("u / use / eat · d / drop · Enter = back to list"));
 
-        var action = ReadSelectedInventoryItemAction();
-        if (action == SelectedInventoryItemAction.BackToList)
-            return;
+            var action = ReadInventoryItemDetailAction();
+            if (action == InventoryItemDetailAction.BackToList)
+                return;
+            if (action == InventoryItemDetailAction.Drop)
+            {
+                var dropped = state.DropItemAt(index);
+                Console.WriteLine();
+                Console.WriteLine(Terminal.Muted($"You drop the {dropped}."));
+                PauseForContinue();
+                return;
+            }
 
-        var dropped = state.DropItemAt(index);
-        Console.WriteLine();
-        Console.WriteLine(Terminal.Muted($"You drop the {dropped}."));
-        PauseForContinue();
+            TryUseInventoryItem(state, ref index, out bool consumed, out string message);
+            Console.WriteLine();
+            Console.WriteLine(Terminal.Muted(message));
+            PauseForContinue();
+            if (consumed)
+                return;
+        }
     }
 
-    private enum SelectedInventoryItemAction
+    /// <summary>Applies use for known items. When the item is consumed, <paramref name="index"/> is unchanged but the list shrinks—caller should return to the list.</summary>
+    private static void TryUseInventoryItem(GameState state, ref int index, out bool consumed, out string message)
+    {
+        consumed = false;
+        message = "";
+        string name = state.Inventory[index];
+        if (name.Equals("Apple", StringComparison.OrdinalIgnoreCase))
+        {
+            if (state.HitPoints >= state.MaxHitPoints)
+            {
+                message = "You're not hungry right now.";
+                return;
+            }
+
+            int heal = Math.Min(6, state.MaxHitPoints - state.HitPoints);
+            state.HitPoints += heal;
+            state.Inventory.RemoveAt(index);
+            consumed = true;
+            message = heal >= 6
+                ? "You eat the apple. Sweet juice; warmth spreads through you."
+                : $"You eat the apple and recover {heal} HP.";
+            return;
+        }
+
+        if (name.Equals("Torch", StringComparison.OrdinalIgnoreCase))
+        {
+            message = "You lift the torch. The flame steadies; the shadows lean away.";
+            return;
+        }
+
+        if (name.Equals("Bone shard", StringComparison.OrdinalIgnoreCase))
+        {
+            message = "The shard is jagged and cold. Not much use unless something needs cutting.";
+            return;
+        }
+
+        message = "You can't think of a way to use that here.";
+    }
+
+    private enum InventoryItemDetailAction
     {
         BackToList,
         Drop,
+        Use,
     }
 
-    private static SelectedInventoryItemAction ReadSelectedInventoryItemAction()
+    private static InventoryItemDetailAction ReadInventoryItemDetailAction()
     {
         if (!Console.IsInputRedirected)
         {
@@ -457,9 +514,11 @@ internal sealed class App : IApp
                 var key = Console.ReadKey(intercept: true);
                 char c = char.ToLowerInvariant(key.KeyChar);
                 if (c == 'b')
-                    return SelectedInventoryItemAction.BackToList;
+                    return InventoryItemDetailAction.BackToList;
                 if (c == 'd')
-                    return SelectedInventoryItemAction.Drop;
+                    return InventoryItemDetailAction.Drop;
+                if (c == 'u')
+                    return InventoryItemDetailAction.Use;
             }
         }
 
@@ -467,11 +526,13 @@ internal sealed class App : IApp
         {
             var line = Console.ReadLine();
             if (line is null || string.IsNullOrWhiteSpace(line))
-                return SelectedInventoryItemAction.BackToList;
+                return InventoryItemDetailAction.BackToList;
             string t = line.Trim().ToLowerInvariant();
             if (t is "d" or "drop")
-                return SelectedInventoryItemAction.Drop;
-            Console.WriteLine(Terminal.Muted("Try d or drop, or Enter to go back."));
+                return InventoryItemDetailAction.Drop;
+            if (t is "u" or "use" or "eat")
+                return InventoryItemDetailAction.Use;
+            Console.WriteLine(Terminal.Muted("Try u, d, or Enter to go back."));
         }
     }
 
@@ -523,6 +584,7 @@ internal sealed class App : IApp
             ClearConsole();
             Console.WriteLine(Terminal.Title("== Pick up =="));
             Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
             Console.WriteLine();
             for (int i = 0; i < n; i++)
                 Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.GroundItemsInCurrentRoom[i]}"));
@@ -610,8 +672,24 @@ internal sealed class App : IApp
         Console.WriteLine(Terminal.Title("== Character =="));
         Console.WriteLine();
         Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+        Console.WriteLine(Terminal.Accent($"Coins: {state.Gold}"));
         Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
+        Console.WriteLine(Terminal.Muted("Higher DEX softens enemy hits in a fight."));
+        Console.WriteLine();
+        PauseForContinue();
+    }
+
+    private void PrintHelp()
+    {
+        ClearConsole();
+        Console.WriteLine(Terminal.Title("== Help =="));
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Muted("Move with compass keys shown in the menu."));
+        Console.WriteLine(Terminal.Muted("(I)nventory: select an item, then Use, Drop, or Back."));
+        Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
+        Console.WriteLine(Terminal.Muted("(F)ight: Attack or Flee. Wins yield coins; sometimes a find."));
+        Console.WriteLine(Terminal.Muted("Apples can be eaten from the inventory (Use)."));
         Console.WriteLine();
         PauseForContinue();
     }
@@ -649,6 +727,7 @@ internal sealed class App : IApp
         items.Add(new MenuItem("(I)nventory", 'i', () => RunInventoryScreen(state)));
         items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
         items.Add(new MenuItem("(F)ight", 'f', () => RunFightEncounter(state, monsters)));
+        items.Add(new MenuItem("(H)elp", 'h', () => PrintHelp()));
         items.Add(new MenuItem("e(X)it", 'x', exit));
         return items;
     }
@@ -691,6 +770,8 @@ internal sealed class App : IApp
 
             if (monsterHp <= 0)
             {
+                int coins = _random.Next(3, 11);
+                state.Gold += coins;
                 ClearConsole();
                 var victoryLeft = new List<string>
                 {
@@ -698,16 +779,28 @@ internal sealed class App : IApp
                     "",
                     Terminal.Ok($"The {monster.Name} falls."),
                     "",
+                    Terminal.Muted($"You scrape up {coins} coins among the debris."),
                 };
+                if (_random.NextDouble() < 0.35)
+                {
+                    state.Inventory.Add("Bone shard");
+                    victoryLeft.Add(Terminal.Ok("Something worth taking: a sharp bone shard."));
+                }
+                victoryLeft.Add("");
                 RenderFightScreen(victoryLeft, portraitLines);
                 Console.WriteLine();
                 PauseForContinue();
                 return;
             }
 
-            int enemyDamage = _random.Next(1, monster.MaxDamage + 1);
-            state.HitPoints = Math.Max(0, state.HitPoints - enemyDamage);
-            AppendBattleLog(battleLog, $"It strikes back for {enemyDamage} damage.");
+            int rawDamage = _random.Next(1, monster.MaxDamage + 1);
+            int mitigated = Math.Max(1, rawDamage - state.Dexterity / 8);
+            state.HitPoints = Math.Max(0, state.HitPoints - mitigated);
+            AppendBattleLog(
+                battleLog,
+                mitigated < rawDamage
+                    ? $"It strikes for {mitigated} damage (you slip part of the blow)."
+                    : $"It strikes back for {mitigated} damage.");
 
             if (state.HitPoints <= 0)
             {
@@ -918,6 +1011,7 @@ internal sealed class App : IApp
         public int MaxHitPoints { get; }
         public int Strength { get; set; }
         public int Dexterity { get; set; }
+        public int Gold { get; set; }
         public List<string> Inventory { get; } = ["Torch", "Apple"];
 
         /// <summary>Items on the floor, keyed by lowercase room id.</summary>

@@ -19,9 +19,27 @@
   {
     "id": "courtyard",
     "name": "Courtyard",
-    "description": "An open yard of slick cobblestones. A dry fountain sits at the center, and torchlight flickers along the walls.",
+    "description": "An open yard of slick cobblestones. A dry fountain sits at the center, and torchlight flickers along the walls. A narrow passage leads north into older stone.",
     "exits": {
-      "w": "castle_entrance"
+      "w": "castle_entrance",
+      "n": "armory_lane"
+    }
+  },
+  {
+    "id": "armory_lane",
+    "name": "Armory Lane",
+    "description": "Weapon racks line the walls, mostly bare. Rust flakes under your boots, and drafts carry a smell of wet earth from deeper in.",
+    "exits": {
+      "s": "courtyard",
+      "n": "collapsed_cell"
+    }
+  },
+  {
+    "id": "collapsed_cell",
+    "name": "Collapsed Cell",
+    "description": "A fallen beam splits the corridor. Beyond it, iron bars twist in the rubble—whatever was kept here is long gone, but the dark still feels watchful.",
+    "exits": {
+      "s": "armory_lane"
     }
   }
 ]

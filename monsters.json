@@ -5,5 +5,12 @@
     "blurb": "Its breath reeks of the grave.",
     "hitPoints": 10,
     "maxDamage": 4
+  },
+  {
+    "id": "bone_gnawer",
+    "name": "Bone Gnawer",
+    "blurb": "Too many joints click when it moves.",
+    "hitPoints": 6,
+    "maxDamage": 3
   }
 ]
