@@ -180,7 +180,7 @@ public class App(GameState state) : IApp
             Terminal.Muted("On the ground: ")
             + string.Join(
                 ", ",
-                state.GroundItemsInCurrentRoom.Select(ManipulativeDisplayStore.DisplayName)));
+                state.GroundItemsInCurrentRoom.Select(ManipulativeStore.DisplayName)));
         return leftLines;
     }
 
@@ -509,7 +509,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {ManipulativeDisplayStore.DisplayName(state.Inventory[i])}",
+                    $"({num}) {ManipulativeStore.DisplayName(state.Inventory[i])}",
                     key);
             }
             Console.WriteLine();
@@ -535,18 +535,61 @@ public class App(GameState state) : IApp
                 return;
 
             string id = state.Inventory[index];
+            ManipulativeStore.TryGet(id, out var def);
+            bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
+            bool canUse = def != null && !string.IsNullOrEmpty(def.UseMessage);
+
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
-            Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeDisplayStore.DisplayName(id)}"));
-            Console.WriteLine();
-            if (Console.IsInputRedirected)
-                Console.WriteLine(
-                    Terminal.Muted("u / use / eat · d / drop · Enter or esc = back to list"));
-            else
-                Console.WriteLine(Terminal.Muted("(U)se  (D)rop  Esc = back to list"));
+            Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.DisplayName(id)}"));
+            if (canEat)
+            {
+                Console.WriteLine();
+                ManipulativeStore.WriteEdibleEffectDescription(def!, state);
+            }
 
-            var action = ReadInventoryItemDetailAction();
+            Console.WriteLine();
+            if (canEat)
+            {
+                if (Console.IsInputRedirected)
+                {
+                    Console.WriteLine(
+                        Terminal.Muted(
+                            "e / eat · u / use (same as eat) · d / drop · Enter or esc = back to list"));
+                }
+                else
+                {
+                    Console.WriteLine(
+                        Terminal.Muted("(E)at  (U)se  (D)rop  Esc = back to list"));
+                }
+            }
+            else if (canUse)
+            {
+                if (Console.IsInputRedirected)
+                {
+                    Console.WriteLine(
+                        Terminal.Muted("u / use · d / drop · Enter or esc = back to list"));
+                }
+                else
+                {
+                    Console.WriteLine(Terminal.Muted("(U)se  (D)rop  Esc = back to list"));
+                }
+            }
+            else
+            {
+                if (Console.IsInputRedirected)
+                {
+                    Console.WriteLine(
+                        Terminal.Muted("d / drop · Enter or esc = back to list"));
+                }
+                else
+                {
+                    Console.WriteLine(Terminal.Muted("(D)rop  Esc = back to list"));
+                }
+            }
+
+            var action = ReadInventoryItemDetailAction(canEat, canUse);
             if (action == InventoryItemDetailAction.BackToList)
                 return;
             if (action == InventoryItemDetailAction.Drop)
@@ -554,7 +597,7 @@ public class App(GameState state) : IApp
                 var dropped = state.DropItemAt(index);
                 Console.WriteLine();
                 Console.WriteLine(
-                    Terminal.Muted($"You drop the {ManipulativeDisplayStore.DisplayName(dropped)}."));
+                    Terminal.Muted($"You drop the {ManipulativeStore.DisplayName(dropped)}."));
                 PauseForContinue();
                 return;
             }
@@ -568,39 +611,53 @@ public class App(GameState state) : IApp
         }
     }
 
-    /// <summary>Applies use for known items. When the item is consumed, <paramref name="index"/> is unchanged but the list shrinks—caller should return to the list.</summary>
+    /// <summary>Applies use from <c>res/manipulatives.json</c>. When the item is consumed, <paramref name="index"/> is unchanged but the list shrinks—caller should return to the list.</summary>
     private static void TryUseInventoryItem(GameState state, ref int index, out bool consumed, out string message)
     {
         consumed = false;
         message = "";
         string id = state.Inventory[index];
-        if (string.Equals(id, KnownManipulativeIds.Apple, StringComparison.OrdinalIgnoreCase))
+        if (!ManipulativeStore.TryGet(id, out var def))
         {
-            if (state.HitPoints >= state.MaxHitPoints)
+            message = "You can't think of a way to use that here.";
+            return;
+        }
+
+        if (def.IsEdible)
+        {
+            int cap = def.ConsumeEffects?.HealthRestored ?? 0;
+            if (cap <= 0)
             {
-                message = "You're not hungry right now.";
+                message = "You can't think of a way to use that here.";
                 return;
             }
 
-            int heal = Math.Min(6, state.MaxHitPoints - state.HitPoints);
+            int missing = state.MaxHitPoints - state.HitPoints;
+            int heal = Math.Min(cap, missing);
             state.HitPoints += heal;
             state.Inventory.RemoveAt(index);
             consumed = true;
-            message = heal >= 6
-                ? "You eat the apple. Sweet juice; warmth spreads through you."
-                : $"You eat the apple and recover {heal} HP.";
+            string label = def.Name.ToLowerInvariant();
+            if (heal <= 0)
+            {
+                message =
+                    $"You eat the {label}. You're already at full health — satisfying, but no healing needed.";
+            }
+            else if (heal >= cap)
+            {
+                message = $"You eat the {label}. Sweet juice; warmth spreads through you.";
+            }
+            else
+            {
+                message = $"You eat the {label} and recover {heal} HP.";
+            }
+
             return;
         }
 
-        if (string.Equals(id, KnownManipulativeIds.Torch, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(def.UseMessage))
         {
-            message = "You lift the torch. The flame steadies; the shadows lean away.";
-            return;
-        }
-
-        if (string.Equals(id, KnownManipulativeIds.BoneShard, StringComparison.OrdinalIgnoreCase))
-        {
-            message = "The shard is jagged and cold. Not much use unless something needs cutting.";
+            message = def.UseMessage;
             return;
         }
 
@@ -611,10 +668,10 @@ public class App(GameState state) : IApp
     {
         BackToList,
         Drop,
-        Use,
+        UseOrEat,
     }
 
-    private static InventoryItemDetailAction ReadInventoryItemDetailAction()
+    private static InventoryItemDetailAction ReadInventoryItemDetailAction(bool offerEat, bool offerUse)
     {
         if (Console.IsInputRedirected)
         {
@@ -628,9 +685,20 @@ public class App(GameState state) : IApp
                     return InventoryItemDetailAction.BackToList;
                 if (t is "d" or "drop")
                     return InventoryItemDetailAction.Drop;
-                if (t is "u" or "use" or "eat")
-                    return InventoryItemDetailAction.Use;
-                Console.WriteLine(Terminal.Muted("Try u, d, Enter, or esc to go back."));
+                if (offerEat && (t is "e" or "eat" or "u" or "use"))
+                    return InventoryItemDetailAction.UseOrEat;
+                if (offerUse && (t is "u" or "use"))
+                    return InventoryItemDetailAction.UseOrEat;
+                if (!offerEat && !offerUse)
+                {
+                    Console.WriteLine(Terminal.Muted("Try d / drop, Enter, or esc to go back."));
+                    continue;
+                }
+
+                Console.WriteLine(
+                    offerEat
+                        ? Terminal.Muted("Try e, eat, u, use, d, drop, Enter, or esc to go back.")
+                        : Terminal.Muted("Try u, use, d, drop, Enter, or esc to go back."));
             }
         }
 
@@ -642,8 +710,10 @@ public class App(GameState state) : IApp
             char c = char.ToLowerInvariant(key.KeyChar);
             if (c == 'd')
                 return InventoryItemDetailAction.Drop;
-            if (c == 'u')
-                return InventoryItemDetailAction.Use;
+            if (offerEat && (c == 'e' || c == 'u'))
+                return InventoryItemDetailAction.UseOrEat;
+            if (offerUse && c == 'u')
+                return InventoryItemDetailAction.UseOrEat;
         }
     }
 
@@ -703,7 +773,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {ManipulativeDisplayStore.DisplayName(state.GroundItemsInCurrentRoom[i])}",
+                    $"({num}) {ManipulativeStore.DisplayName(state.GroundItemsInCurrentRoom[i])}",
                     key);
             }
             Console.WriteLine();
@@ -731,7 +801,7 @@ public class App(GameState state) : IApp
         ClearConsole();
         WritePlayerStatusHeader("== Pick up ==", state, includeGold: false);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeDisplayStore.DisplayName(id)}"));
+        Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.DisplayName(id)}"));
         Console.WriteLine();
         if (Console.IsInputRedirected)
             Console.WriteLine(Terminal.Muted("Type t or take to pick up, or Enter / esc to go back"));
@@ -747,7 +817,7 @@ public class App(GameState state) : IApp
             return;
         Console.WriteLine();
         Console.WriteLine(
-            Terminal.Muted($"You pick up the {ManipulativeDisplayStore.DisplayName(taken)}."));
+            Terminal.Muted($"You pick up the {ManipulativeStore.DisplayName(taken)}."));
         PauseForContinue();
     }
 
@@ -806,11 +876,12 @@ public class App(GameState state) : IApp
         Console.WriteLine(Terminal.Title("== Help =="));
         Console.WriteLine();
         Console.WriteLine(Terminal.Muted("Move with compass keys shown in the menu."));
-        Console.WriteLine(Terminal.Muted("(I)nventory: select an item, then Use, Drop, or Esc to go back."));
+        Console.WriteLine(
+            Terminal.Muted(
+                "(I)nventory: select an item. Edible ones list eating effects; then Eat, Use, Drop, or Esc."));
         Console.WriteLine(Terminal.Muted("(P)ick up appears when something lies on the ground here."));
         Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
         Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield gold; sometimes a find."));
-        Console.WriteLine(Terminal.Muted("Apples can be eaten from the inventory (Use)."));
         Console.WriteLine();
         PauseForContinue();
     }

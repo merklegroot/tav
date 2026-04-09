@@ -48,3 +48,10 @@ A " character represents a door going North or South.
 A manipulative is an item in the game, such as a torch, an axe, or an apple.
 
 Manipulatives with special uses have their IDs maintained in ```KnownManipulativeIds```.
+
+## Inventory
+
+When an edible item from the inventory is selected
+- The game should tell the user what effects eating it will have.
+- The game should allow the user to eat it.
+- The game should apply those effects.

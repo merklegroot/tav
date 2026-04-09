@@ -1,14 +1,20 @@
 [
   {
     "id": "apple",
-    "name": "Apple"
+    "name": "Apple",
+    "isEdible": true,
+    "consumeEffects": {
+      "healthRestored": 6
+    }
   },
   {
     "id": "torch",
-    "name": "Torch"
+    "name": "Torch",
+    "useMessage": "You lift the torch. The flame steadies; the shadows lean away."
   },
   {
     "id": "bone_shard",
-    "name": "Bone shard"
+    "name": "Bone shard",
+    "useMessage": "The shard is jagged and cold. Not much use unless something needs cutting."
   }
 ]
