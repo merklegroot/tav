@@ -4,8 +4,19 @@
 
 ## Layout
 
-Most screens in the game should consist of a title bar with a left and right panel below it.  
+Most screens in the game should consist of a title bar with a left and right panel below it.
+
 The Title bar should include the game's title alone with the most basic of stats, such as HP and Gold.
+
+There should be a blank space after the title bar.
+
+## Main View
+
+The left panel should show the room's title, the room's description, and the menu.
+
+The right panel should show the drawn room.
+
+The drawn room should be centered vertically within the right panel.
 
 ## Rooms
 

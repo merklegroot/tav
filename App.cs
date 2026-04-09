@@ -17,8 +17,6 @@ internal sealed class App : IApp
 
         while (!state.ShouldExit)
         {
-            PrintScreen(state);
-
             var menuItems = BuildMenuItems(
                 state.CurrentRoom,
                 roomsById,
@@ -27,9 +25,7 @@ internal sealed class App : IApp
                 r => state.CurrentRoom = r,
                 () => state.ShouldExit = true);
 
-            foreach (var item in menuItems)
-                Terminal.WriteMenuLine(item.Text, item.Key);
-            Console.WriteLine();
+            PrintScreen(state, menuItems);
 
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);
@@ -48,10 +44,10 @@ internal sealed class App : IApp
         }
     }
 
-    private void PrintScreen(GameState state)
+    private void PrintScreen(GameState state, IReadOnlyList<MenuItem> menuItems)
     {
         ClearConsole();
-        foreach (var line in BuildScreenLines(state))
+        foreach (var line in BuildScreenLines(state, menuItems))
             Console.WriteLine(line);
     }
 
@@ -70,7 +66,7 @@ internal sealed class App : IApp
     }
 
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
-    private static List<string> BuildScreenLines(GameState state, bool forceWide = false)
+    private static List<string> BuildScreenLines(GameState state, IReadOnlyList<MenuItem> menuItems, bool forceWide = false)
     {
         int leftColWidth = AdventureLayout.LeftColumnWidth;
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
@@ -79,7 +75,7 @@ internal sealed class App : IApp
         // Layout spec: a single title bar line with game title + basic stats, then two panels beneath.
         string titleBar = BuildTitleBar(state, screenWidth);
 
-        var leftLines = BuildLeftColumnLines(state, leftColWidth);
+        var leftLines = BuildMainViewLeftPanelLines(state, menuItems, leftColWidth);
 
         var panel = BuildRoomPanel(state.CurrentRoom, panelOuter);
 
@@ -88,6 +84,7 @@ internal sealed class App : IApp
         {
             var stacked = new List<string>();
             stacked.Add(titleBar);
+            stacked.Add("");
             foreach (var line in leftLines)
                 stacked.Add(line);
             stacked.Add("");
@@ -99,18 +96,57 @@ internal sealed class App : IApp
 
         var lines = new List<string>();
         lines.Add(titleBar);
-        for (int i = 0; i < panel.Length; i++)
+        lines.Add("");
+        int H = Math.Max(leftLines.Count, panel.Length);
+        int topPad = Math.Max(0, (H - panel.Length) / 2);
+        string blankPanelRow = new string(' ', panelOuter);
+
+        for (int i = 0; i < H; i++)
         {
             string left = i < leftLines.Count ? leftLines[i] : "";
-            string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + panel[i];
+            int pi = i - topPad;
+            string right = pi >= 0 && pi < panel.Length ? panel[pi] : blankPanelRow;
+            right = PadRightVisual(right, panelOuter);
+
+            string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
             lines.Add(PadRightVisual(row, screenWidth));
         }
 
-        for (int i = panel.Length; i < leftLines.Count; i++)
-            lines.Add(PadRightVisual(leftLines[i], screenWidth));
-
         lines.Add(new string(' ', screenWidth));
         return lines;
+    }
+
+    private static List<string> BuildMainViewLeftPanelLines(
+        GameState state,
+        IReadOnlyList<MenuItem> menuItems,
+        int leftColWidth)
+    {
+        var lines = BuildLeftColumnLines(state, leftColWidth);
+        if (menuItems.Count > 0)
+        {
+            lines.Add("");
+            foreach (var item in menuItems)
+                lines.Add(FormatMenuLine(item.Text, item.Key, leftColWidth));
+        }
+        return lines;
+    }
+
+    private static string FormatMenuLine(string text, char key, int maxWidth)
+    {
+        // Mirror Terminal.WriteMenuLine, but return a single formatted line.
+        if (!Terminal.UseAnsi)
+            return Truncate(text, maxWidth);
+
+        char ku = char.ToUpperInvariant(key);
+        string needle = $"({ku})";
+        int i = text.IndexOf(needle, StringComparison.Ordinal);
+        if (i < 0)
+            return Truncate(text, maxWidth);
+
+        string before = Terminal.Muted(text[..i]);
+        string hotkey = $"\x1b[1m\x1b[97m{needle}{Terminal.Reset}";
+        string after = Terminal.Muted(text[(i + needle.Length)..]);
+        return Terminal.TruncateVisible(before + hotkey + after, maxWidth);
     }
 
     private static string BuildTitleBar(GameState state, int screenWidth)
@@ -133,6 +169,7 @@ internal sealed class App : IApp
         {
             Terminal.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
         };
+        leftLines.Add("");
         leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
         if (state.GroundItemsInCurrentRoom.Count > 0)
         {
@@ -177,6 +214,7 @@ internal sealed class App : IApp
             double t = frames <= 1 ? 1 : f / (double)(frames - 1);
             ClearConsole();
             Console.WriteLine(titleBar);
+            Console.WriteLine();
 
             if (direction is 'e' or 'w')
             {
