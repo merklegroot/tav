@@ -59,7 +59,6 @@ internal sealed class ManipulativeDefinition
     public required string Name { get; init; }
     public bool IsEdible { get; init; }
     public ConsumeEffects? ConsumeEffects { get; init; }
-    public string? UseMessage { get; init; }
 }
 
 internal sealed class ConsumeEffects

@@ -47,7 +47,10 @@
     "exits": {
       "s": "great_hall",
       "w": "royal_chapel"
-    }
+    },
+    "groundItems": [
+      "crown"
+    ]
   },
   {
     "id": "royal_chapel",

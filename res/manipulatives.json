@@ -9,12 +9,14 @@
   },
   {
     "id": "torch",
-    "name": "Torch",
-    "useMessage": "You lift the torch. The flame steadies; the shadows lean away."
+    "name": "Torch"
   },
   {
     "id": "bone_shard",
-    "name": "Bone shard",
-    "useMessage": "The shard is jagged and cold. Not much use unless something needs cutting."
+    "name": "Bone shard"
+  },
+  {
+    "id": "crown",
+    "name": "Crown"
   }
 ]

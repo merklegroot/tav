@@ -531,20 +531,11 @@ public class App(GameState state) : IApp
     }
 
     /// <summary>Hotkey lines use <see cref="Terminal.WriteMenuLine"/> like the main adventure menu.</summary>
-    private static void WriteInventoryItemDetailMenu(bool canEat, bool canUse)
+    private static void WriteInventoryItemDetailMenu(bool canEat)
     {
         if (canEat)
         {
             Terminal.WriteMenuLine("(E)at", 'e');
-            Terminal.WriteMenuLine("(D)rop", 'd');
-            Console.WriteLine();
-            Console.WriteLine(Terminal.EscBackHint());
-            return;
-        }
-
-        if (canUse)
-        {
-            Terminal.WriteMenuLine("(U)se", 'u');
             Terminal.WriteMenuLine("(D)rop", 'd');
             Console.WriteLine();
             Console.WriteLine(Terminal.EscBackHint());
@@ -566,7 +557,6 @@ public class App(GameState state) : IApp
             string id = state.Inventory[index];
             ManipulativeStore.TryGet(id, out var def);
             bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
-            bool canUse = def != null && !string.IsNullOrEmpty(def.UseMessage);
 
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
@@ -579,9 +569,9 @@ public class App(GameState state) : IApp
             }
 
             Console.WriteLine();
-            WriteInventoryItemDetailMenu(canEat, canUse);
+            WriteInventoryItemDetailMenu(canEat);
 
-            var action = ReadInventoryItemDetailAction(canEat, canUse);
+            var action = ReadInventoryItemDetailAction(canEat);
             if (action == InventoryItemDetailAction.BackToList)
                 return;
             if (action == InventoryItemDetailAction.Drop)
@@ -603,7 +593,7 @@ public class App(GameState state) : IApp
         }
     }
 
-    /// <summary>Applies use from <c>res/manipulatives.json</c>. When the item is consumed, <paramref name="index"/> is unchanged but the list shrinks—caller should return to the list.</summary>
+    /// <summary>Eats an edible item when the player chose (E)at. When consumed, <paramref name="index"/> is unchanged but the list shrinks—caller should return to the list.</summary>
     private static void TryUseInventoryItem(GameState state, ref int index, out bool consumed, out string message)
     {
         consumed = false;
@@ -647,12 +637,6 @@ public class App(GameState state) : IApp
             return;
         }
 
-        if (!string.IsNullOrEmpty(def.UseMessage))
-        {
-            message = def.UseMessage;
-            return;
-        }
-
         message = "You can't think of a way to use that here.";
     }
 
@@ -663,7 +647,7 @@ public class App(GameState state) : IApp
         UseOrEat,
     }
 
-    private static InventoryItemDetailAction ReadInventoryItemDetailAction(bool offerEat, bool offerUse)
+    private static InventoryItemDetailAction ReadInventoryItemDetailAction(bool offerEat)
     {
         if (Console.IsInputRedirected)
         {
@@ -679,18 +663,14 @@ public class App(GameState state) : IApp
                     return InventoryItemDetailAction.Drop;
                 if (offerEat && (t is "e" or "eat"))
                     return InventoryItemDetailAction.UseOrEat;
-                if (offerUse && (t is "u" or "use"))
-                    return InventoryItemDetailAction.UseOrEat;
-                if (!offerEat && !offerUse)
+                if (offerEat)
                 {
-                    Console.WriteLine(Terminal.Muted("Try d / drop, Enter, or esc to go back."));
+                    Console.WriteLine(
+                        Terminal.Muted("Try e, eat, d, drop, Enter, or esc to go back."));
                     continue;
                 }
 
-                Console.WriteLine(
-                    offerEat
-                        ? Terminal.Muted("Try e, eat, d, drop, Enter, or esc to go back.")
-                        : Terminal.Muted("Try u, use, d, drop, Enter, or esc to go back."));
+                Console.WriteLine(Terminal.Muted("Try d / drop, Enter, or esc to go back."));
             }
         }
 
@@ -703,8 +683,6 @@ public class App(GameState state) : IApp
             if (c == 'd')
                 return InventoryItemDetailAction.Drop;
             if (offerEat && c == 'e')
-                return InventoryItemDetailAction.UseOrEat;
-            if (offerUse && c == 'u')
                 return InventoryItemDetailAction.UseOrEat;
         }
     }
