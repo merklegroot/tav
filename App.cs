@@ -138,7 +138,12 @@ internal sealed class App : IApp
 
             if (direction is 'e' or 'w')
             {
-                int offset = (int)Math.Round(t * panelOuter);
+                // East: [old|new], window slides right (offset ↑) — old leaves left, new enters from the right.
+                // West: [new|old], window slides left (offset ↓) — old leaves right, new enters from the left.
+                bool east = direction == 'e';
+                int offset = east
+                    ? (int)Math.Round(t * panelOuter)
+                    : (int)Math.Round((1 - t) * panelOuter);
                 for (int r = 0; r < H; r++)
                 {
                     if (r >= panelRows)
@@ -149,7 +154,7 @@ internal sealed class App : IApp
                     }
 
                     string left = r < newLeft.Count ? PadRightVisual(newLeft[r], leftColWidth) : new string(' ', leftColWidth);
-                    string combined = oldRows[r] + newRows[r];
+                    string combined = east ? oldRows[r] + newRows[r] : newRows[r] + oldRows[r];
                     string right = combined.Substring(offset, panelOuter);
                     Console.WriteLine(left + new string(' ', gap) + right);
                 }
