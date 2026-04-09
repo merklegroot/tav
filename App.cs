@@ -1,11 +1,18 @@
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 
 namespace Tav;
 
 internal sealed class App : IApp
 {
+    private static class AdventureLayout
+    {
+        public const int Gap = 2;
+        public const int LeftColumnWidth = 46;
+        public const int MapPanelOuterWidth = 24;
+        public const int ScreenWidth = LeftColumnWidth + Gap + MapPanelOuterWidth;
+    }
+
     private readonly Random _random = new();
 
     public void Run()
@@ -59,10 +66,9 @@ internal sealed class App : IApp
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
     private static List<string> BuildScreenLines(GameState state, bool forceWide = false)
     {
-        const int gap = 2;
-        const int leftColWidth = 46;
-        const int panelOuter = 24;
-        int screenWidth = leftColWidth + gap + panelOuter;
+        int leftColWidth = AdventureLayout.LeftColumnWidth;
+        int panelOuter = AdventureLayout.MapPanelOuterWidth;
+        int screenWidth = AdventureLayout.ScreenWidth;
 
         var leftLines = BuildLeftColumnLines(state, leftColWidth);
 
@@ -85,7 +91,7 @@ internal sealed class App : IApp
         for (int i = 0; i < panel.Length; i++)
         {
             string left = i < leftLines.Count ? leftLines[i] : "";
-            string row = PadRightVisual(left, leftColWidth) + new string(' ', gap) + panel[i];
+            string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + panel[i];
             lines.Add(PadRightVisual(row, screenWidth));
         }
 
@@ -125,10 +131,9 @@ internal sealed class App : IApp
         if (Console.IsOutputRedirected)
             return;
 
-        const int gap = 2;
-        const int leftColWidth = 46;
-        const int panelOuter = 24;
-        int screenWidth = leftColWidth + gap + panelOuter;
+        int leftColWidth = AdventureLayout.LeftColumnWidth;
+        int panelOuter = AdventureLayout.MapPanelOuterWidth;
+        int screenWidth = AdventureLayout.ScreenWidth;
 
         if (!CanUseWideLayout(screenWidth))
             return;
@@ -172,7 +177,7 @@ internal sealed class App : IApp
                         : newRowsPlain[r] + oldRowsPlain[r];
                     string rightPlain = combined.Substring(offset, panelOuter);
                     string right = Terminal.Border(rightPlain);
-                    Console.WriteLine(left + new string(' ', gap) + right);
+                    Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
                 }
             }
             else
@@ -198,7 +203,7 @@ internal sealed class App : IApp
                     string left = r < newLeft.Count ? PadRightVisual(newLeft[r], leftColWidth) : new string(' ', leftColWidth);
                     int idx = scroll + r;
                     string right = strip[idx];
-                    Console.WriteLine(left + new string(' ', gap) + right);
+                    Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
                 }
             }
 
@@ -382,14 +387,20 @@ internal sealed class App : IApp
         }
     }
 
+    private static void WritePlayerStatusHeader(string screenTitle, GameState state, bool includeCoins = true)
+    {
+        Console.WriteLine(Terminal.Title(screenTitle));
+        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+        if (includeCoins)
+            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
+    }
+
     private void RunInventoryScreen(GameState state)
     {
         while (true)
         {
             ClearConsole();
-            Console.WriteLine(Terminal.Title("== Inventory =="));
-            Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
+            WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
             int n = state.Inventory.Count;
             if (n == 0)
@@ -426,9 +437,7 @@ internal sealed class App : IApp
 
             string name = state.Inventory[index];
             ClearConsole();
-            Console.WriteLine(Terminal.Title("== Inventory =="));
-            Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
+            WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
             Console.WriteLine(Terminal.Accent($"Selected: {name}"));
             Console.WriteLine();
@@ -582,9 +591,7 @@ internal sealed class App : IApp
             }
 
             ClearConsole();
-            Console.WriteLine(Terminal.Title("== Pick up =="));
-            Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-            Console.WriteLine(Terminal.Muted($"Coins: {state.Gold}"));
+            WritePlayerStatusHeader("== Pick up ==", state);
             Console.WriteLine();
             for (int i = 0; i < n; i++)
                 Console.WriteLine(Terminal.Accent($"  {i + 1}. {state.GroundItemsInCurrentRoom[i]}"));
@@ -611,8 +618,7 @@ internal sealed class App : IApp
 
         string name = ground[index];
         ClearConsole();
-        Console.WriteLine(Terminal.Title("== Pick up =="));
-        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
+        WritePlayerStatusHeader("== Pick up ==", state, includeCoins: false);
         Console.WriteLine();
         Console.WriteLine(Terminal.Accent($"Selected: {name}"));
         Console.WriteLine();
@@ -715,9 +721,13 @@ internal sealed class App : IApp
                 dir,
                 () =>
                 {
-                    var oldPanel = BuildRoomPanel(state.CurrentRoom, 24);
+                    var oldPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth);
                     navigateTo(destRoom);
-                    AnimateRoomSlide(oldPanel, BuildRoomPanel(state.CurrentRoom, 24), state, dir);
+                    AnimateRoomSlide(
+                        oldPanel,
+                        BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth),
+                        state,
+                        dir);
                 }));
         }
 
@@ -937,8 +947,7 @@ internal sealed class App : IApp
     /// <summary>Left column text with portrait on the right. Uses two columns whenever stdout is a TTY.</summary>
     private void RenderFightScreen(IReadOnlyList<string> leftLines, IReadOnlyList<string> portraitLines)
     {
-        const int gap = 2;
-        const int minLeftWidth = 46;
+        int minLeftWidth = AdventureLayout.LeftColumnWidth;
 
         if (portraitLines.Count == 0)
         {
@@ -967,7 +976,7 @@ internal sealed class App : IApp
         {
             string left = i < leftLines.Count ? leftLines[i] : "";
             string right = i < portraitLines.Count ? portraitLines[i] : "";
-            Console.WriteLine(PadRightVisual(left, leftW) + new string(' ', gap) + right);
+            Console.WriteLine(PadRightVisual(left, leftW) + new string(' ', AdventureLayout.Gap) + right);
         }
     }
 
@@ -1080,46 +1089,14 @@ internal sealed record MenuItem(string Text, char Key, Action Action);
 
 internal static class RoomStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
-
-    public static List<Room> LoadAll()
-    {
-        var assembly = typeof(RoomStore).Assembly;
-        var name = assembly
-            .GetManifestResourceNames()
-            .SingleOrDefault(n => n.EndsWith("rooms.json", StringComparison.Ordinal))
-            ?? throw new InvalidOperationException("Missing embedded resource rooms.json");
-
-        using var stream = assembly.GetManifestResourceStream(name)
-            ?? throw new InvalidOperationException("Missing embedded resource rooms.json");
-        return JsonSerializer.Deserialize<List<Room>>(stream, JsonOptions)
-            ?? throw new InvalidOperationException("rooms.json was empty or invalid");
-    }
+    public static List<Room> LoadAll() =>
+        EmbeddedJsonResource.DeserializeList<Room>("rooms.json", "rooms.json");
 }
 
 internal static class MonsterStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
-
-    public static List<Monster> LoadAll()
-    {
-        var assembly = typeof(MonsterStore).Assembly;
-        var name = assembly
-            .GetManifestResourceNames()
-            .SingleOrDefault(n => n.EndsWith("monsters.json", StringComparison.Ordinal))
-            ?? throw new InvalidOperationException("Missing embedded resource monsters.json");
-
-        using var stream = assembly.GetManifestResourceStream(name)
-            ?? throw new InvalidOperationException("Missing embedded resource monsters.json");
-        return JsonSerializer.Deserialize<List<Monster>>(stream, JsonOptions)
-            ?? throw new InvalidOperationException("monsters.json was empty or invalid");
-    }
+    public static List<Monster> LoadAll() =>
+        EmbeddedJsonResource.DeserializeList<Monster>("monsters.json", "monsters.json");
 }
 
 internal static class MonsterImageStore
