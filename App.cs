@@ -436,7 +436,9 @@ internal sealed class App : IApp
         var innerRows = new List<string>(capacity: 3);
 
         int titleCount = Math.Clamp(titleLines.Count, 1, 3);
-        int startRow = (3 - titleCount) / 2;
+        // For 3 inner rows, bias "centering" downward so 2-line titles look like the README example:
+        // blank row, then line 1, then line 2 (startRow = 1).
+        int startRow = (3 - titleCount + 1) / 2;
         int titleLineIndex = 0;
         for (int r = 0; r < 3; r++)
         {
