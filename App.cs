@@ -120,7 +120,7 @@ public class App(
 
     /// <summary>
     /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
-    /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is the item image lines.
+    /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is item art when present, otherwise blank (same column geometry).
     /// When <paramref name="reserveLastLeftRowForRightPanel"/> is false (e.g. victory), the image starts at row 1 like the map.
     /// When true (inventory item with <c>(ESC) Back</c> last), art starts at row 1 but is clipped so the last left row stays panel-free.
     /// </summary>
@@ -129,23 +129,22 @@ public class App(
         IReadOnlyList<string> portraitLines,
         bool reserveLastLeftRowForRightPanel)
     {
-        if (portraitLines.Count == 0)
-        {
-            foreach (string line in leftLines)
-                Console.WriteLine(line);
-            return;
-        }
-
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
-        string[] panel = BuildPortraitPanelCells(portraitLines, panelOuter);
+        string[] panel = portraitLines.Count > 0
+            ? BuildPortraitPanelCells(portraitLines, panelOuter)
+            : [];
 
         if (Console.IsOutputRedirected || !CanUseWideLayout(AdventureLayout.ScreenWidth))
         {
             foreach (string line in leftLines)
                 Console.WriteLine(line);
-            Console.WriteLine();
-            foreach (string line in panel)
-                Console.WriteLine(line);
+            if (panel.Length > 0)
+            {
+                Console.WriteLine();
+                foreach (string line in panel)
+                    Console.WriteLine(line);
+            }
+
             return;
         }
 
@@ -238,7 +237,7 @@ public class App(
         return panel;
     }
 
-    /// <summary>Wraps one layout line to the adventure left column width (plain-word wrap; re-applies muted style).</summary>
+    /// <summary>Word-wraps one description line to the adventure left column width (plain-word wrap; re-applies muted style).</summary>
     private static List<string> WrapInventoryDescriptionLineToColumn(string line, int columnWidth)
     {
         if (Terminal.VisibleLength(line) <= columnWidth)
@@ -931,12 +930,7 @@ public class App(
             if (!withImage)
                 left.Add("");
             foreach (string d in manipulativeStore.EdibleEffectDescriptionLines(def, state))
-            {
-                if (withImage)
-                    left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
-                else
-                    left.Add(d);
-            }
+                left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
         if (canEquipHelmet && def is not null)
@@ -944,12 +938,7 @@ public class App(
             if (!withImage)
                 left.Add("");
             foreach (string d in manipulativeStore.HelmetEffectDescriptionLines(def))
-            {
-                if (withImage)
-                    left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
-                else
-                    left.Add(d);
-            }
+                left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
         if (!withImage)
