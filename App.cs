@@ -1607,7 +1607,6 @@ public class App(
     {
         var monster = monsters[_random.Next(monsters.Count)];
         int monsterHp = monster.HitPoints;
-        var portraitLines = monsterImageStore.Lines(monster.Id).Select(Terminal.Border).ToList();
         var battleLog = new List<string>();
         bool showIntro = true;
 
@@ -1616,13 +1615,12 @@ public class App(
             ClearConsole();
             var left = BuildFightLeftColumn(
                 monster,
-                monsterHp,
                 state,
                 battleLog,
                 showIntro,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            WriteTextAndRightImagePanel(left, portraitLines);
+            WriteTextAndRightImagePanel(left, BuildFightMonsterPortraitLines(monsterHp, monster));
 
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'r')
@@ -1644,16 +1642,16 @@ public class App(
 
             if (playerActsFirst)
             {
-                if (TryCompletePlayerAttack(state, monster, ref monsterHp, portraitLines, battleLog))
+                if (TryCompletePlayerAttack(state, monster, ref monsterHp, battleLog))
                     return;
-                if (TryCompleteMonsterAttack(state, monster, monsterHp, portraitLines, battleLog))
+                if (TryCompleteMonsterAttack(state, monster, monsterHp, battleLog))
                     return;
             }
             else
             {
-                if (TryCompleteMonsterAttack(state, monster, monsterHp, portraitLines, battleLog))
+                if (TryCompleteMonsterAttack(state, monster, monsterHp, battleLog))
                     return;
-                if (TryCompletePlayerAttack(state, monster, ref monsterHp, portraitLines, battleLog))
+                if (TryCompletePlayerAttack(state, monster, ref monsterHp, battleLog))
                     return;
             }
 
@@ -1661,12 +1659,22 @@ public class App(
         }
     }
 
+    /// <summary>Right panel: current/max HP on the first row, then bordered ASCII portrait (fight only).</summary>
+    private List<string> BuildFightMonsterPortraitLines(int currentHp, Monster monster)
+    {
+        int shown = Math.Max(0, currentHp);
+        int outer = AdventureLayout.MapPanelOuterWidth;
+        string hpLine = CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), outer);
+        var lines = new List<string> { hpLine };
+        lines.AddRange(monsterImageStore.Lines(monster.Id).Select(Terminal.Border));
+        return lines;
+    }
+
     /// <summary>Player attacks; returns true if the fight ended (victory).</summary>
     private bool TryCompletePlayerAttack(
         GameState state,
         Monster monster,
         ref int monsterHp,
-        IReadOnlyList<string> portraitLines,
         List<string> battleLog)
     {
         int weaponBonus = EquippedWeaponSlotAttackBonus(state) + EquippedHelmetSlotAttackBonus(state);
@@ -1686,18 +1694,17 @@ public class App(
         monsterHp -= res.Damage;
         AppendBattleLog(battleLog, $"You hit for {res.Damage} damage.");
 
-        if (portraitLines.Count > 0 && !Console.IsOutputRedirected)
+        if (!Console.IsOutputRedirected)
         {
             ClearConsole();
             var leftAfterStrike = BuildFightLeftColumn(
                 monster,
-                monsterHp,
                 state,
                 battleLog,
                 showIntro: false,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            WriteTextAndRightImagePanel(leftAfterStrike, portraitLines);
+            WriteTextAndRightImagePanel(leftAfterStrike, BuildFightMonsterPortraitLines(monsterHp, monster));
         }
 
         if (monsterHp > 0)
@@ -1721,7 +1728,7 @@ public class App(
         }
 
         victoryLeft.Add("");
-        WriteTextAndRightImagePanel(victoryLeft, portraitLines);
+        WriteTextAndRightImagePanel(victoryLeft, BuildFightMonsterPortraitLines(0, monster));
         Console.WriteLine();
         PauseForContinue();
         return true;
@@ -1732,7 +1739,6 @@ public class App(
         GameState state,
         Monster monster,
         int monsterHp,
-        IReadOnlyList<string> portraitLines,
         List<string> battleLog)
     {
         AttackResolution res = CombatMath.ResolveAttack(
@@ -1768,11 +1774,9 @@ public class App(
         defeatLeft.AddRange(BuildFightLogDisplayLines(showIntro: false, monster, defeatLogW, battleLog));
         if (battleLog.Count > 0)
             defeatLeft.Add("");
-        defeatLeft.Add(
-            Terminal.Warn($"You: 0/{state.MaxHitPoints} HP    ")
-            + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
+        defeatLeft.Add(Terminal.Warn($"You: 0/{state.MaxHitPoints} HP"));
         defeatLeft.Add("");
-        WriteTextAndRightImagePanel(defeatLeft, portraitLines);
+        WriteTextAndRightImagePanel(defeatLeft, BuildFightMonsterPortraitLines(monsterHp, monster));
         Console.WriteLine();
         Console.WriteLine(Terminal.Combat("Everything goes dark…"));
         Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
@@ -1833,7 +1837,6 @@ public class App(
 
     private static List<string> BuildFightLeftColumn(
         Monster monster,
-        int monsterHp,
         GameState state,
         List<string> battleLog,
         bool showIntro,
@@ -1842,9 +1845,7 @@ public class App(
     {
         int w = AdventureLayout.LeftColumnWidth;
         var left = new List<string> { Terminal.Title("== Fight =="), "" };
-        left.Add(
-            Terminal.Warn($"You: {state.HitPoints}/{state.MaxHitPoints} HP    ")
-            + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
+        left.Add(Terminal.Warn($"You: {state.HitPoints}/{state.MaxHitPoints} HP"));
         if (defenderArmorRating > 0)
         {
             string armorPlain =
