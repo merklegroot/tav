@@ -106,6 +106,9 @@ public record ManipulativeDefinition
     public int? Armor { get; init; }
     /// <summary>Added to weapon damage bonus when this helmet is equipped (README: helmet attack bonus).</summary>
     public int? HelmetAttackBonus { get; init; }
+
+    /// <summary>If set, embedded art is loaded from <c>res/{image}.img.txt</c> (same convention as monster portraits).</summary>
+    public string? Image { get; init; }
 }
 
 public record ConsumeEffects

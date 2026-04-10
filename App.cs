@@ -14,7 +14,8 @@ public class App(
     IRoomStore roomStore,
     IMonsterStore monsterStore,
     IManipulativeStore manipulativeStore,
-    IMonsterImageStore monsterImageStore) : IApp
+    IMonsterImageStore monsterImageStore,
+    IManipulativeImageStore manipulativeImageStore) : IApp
 {
     private readonly Random _random = new();
 
@@ -72,25 +73,23 @@ public class App(
 
     private void PrintVictoryScreen(GameState state)
     {
-        Console.WriteLine(Terminal.Title("== Victory =="));
-        Console.WriteLine();
-        Console.WriteLine(Terminal.Border("            .-===-."));
-        Console.WriteLine(Terminal.Border("           /       \\"));
-        Console.WriteLine(Terminal.Border("          |    ♔    |"));
-        Console.WriteLine(Terminal.Border("           \\       /"));
-        Console.WriteLine(Terminal.Border("            '-===-'"));
-        Console.WriteLine();
-        Console.WriteLine(Terminal.Ok("The crown fits cold and sure."));
-        Console.WriteLine(
-            Terminal.Ok("Banners you never hung stir in a wind that has waited ages for an heir."));
-        Console.WriteLine();
-        Console.WriteLine(
-            Terminal.Muted("The tower exhales. Somewhere below, a door you did not open swings shut."));
+        var left = new List<string>
+        {
+            Terminal.Title("== Victory =="),
+            "",
+            Terminal.Ok("The crown fits cold and sure."),
+            Terminal.Ok(
+                "Banners you never hung stir in a wind that has waited ages for an heir."),
+            "",
+            Terminal.Muted(
+                "The tower exhales. Somewhere below, a door you did not open swings shut."),
+        };
+
         int ar = EquippedArmorRating(state);
         int hb = EquippedHelmetAttackBonus(state);
         if (ar > 0 || hb != 0)
         {
-            Console.WriteLine();
+            left.Add("");
             var parts = new List<string>();
             if (ar > 0)
                 parts.Add($"Armor {ar}");
@@ -100,13 +99,23 @@ public class App(
                 parts.Add($"helmet strike {sign}{hb}");
             }
 
-            Console.WriteLine(Terminal.Muted(string.Join(" · ", parts) + " — regalia and reach."));
+            left.Add(Terminal.Muted(string.Join(" · ", parts) + " — regalia and reach."));
         }
 
-        Console.WriteLine();
-        Console.WriteLine(
+        left.Add("");
+        left.Add(
             Terminal.Muted(
                 $"You stand crowned. HP {state.HitPoints}/{state.MaxHitPoints}, gold {state.Gold}. The story ends here."));
+
+        string? helmetId = state.EquippedHelmetId;
+        var def = helmetId is not null ? manipulativeStore.Get(helmetId) : null;
+        List<string> portrait = [];
+        if (def?.Image is { Length: > 0 } stem)
+            portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
+
+        Console.WriteLine();
+        RenderFightScreen(left, portrait);
+        Console.WriteLine();
     }
 
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>

@@ -14,6 +14,7 @@ public static class GameRegistry
             .AddSingleton<IMonsterStore, MonsterStore>()
             .AddSingleton<IManipulativeStore, ManipulativeStore>()
             .AddSingleton<IMonsterImageStore, MonsterImageStore>()
+            .AddSingleton<IManipulativeImageStore, ManipulativeImageStore>()
             .AddSingleton<GameState>(sp =>
             {
                 var rooms = sp.GetRequiredService<IRoomStore>().LoadAll();
