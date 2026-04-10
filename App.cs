@@ -114,8 +114,60 @@ public class App(
             portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
         Console.WriteLine();
-        RenderFightScreen(left, portrait);
+        WriteTextAndRightImagePanel(left, portrait);
         Console.WriteLine();
+    }
+
+    /// <summary>
+    /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
+    /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is the item image lines.
+    /// </summary>
+    private static void WriteTextAndRightImagePanel(
+        IReadOnlyList<string> leftLines,
+        IReadOnlyList<string> portraitLines)
+    {
+        if (portraitLines.Count == 0)
+        {
+            foreach (string line in leftLines)
+                Console.WriteLine(line);
+            return;
+        }
+
+        if (Console.IsOutputRedirected || !CanUseWideLayout(AdventureLayout.ScreenWidth))
+        {
+            foreach (string line in leftLines)
+                Console.WriteLine(line);
+            Console.WriteLine();
+            foreach (string line in portraitLines)
+                Console.WriteLine(line);
+            return;
+        }
+
+        int leftColWidth = AdventureLayout.LeftColumnWidth;
+        int panelOuter = AdventureLayout.MapPanelOuterWidth;
+        int screenWidth = AdventureLayout.ScreenWidth;
+        const int rightPanelTopOffset = 1;
+
+        var panel = new string[portraitLines.Count];
+        for (int p = 0; p < portraitLines.Count; p++)
+        {
+            string clipped = Terminal.TruncateVisible(portraitLines[p], panelOuter);
+            panel[p] = CenterVisual(clipped, panelOuter);
+        }
+
+        int h = Math.Max(leftLines.Count, rightPanelTopOffset + panel.Length);
+        string blankPanelRow = new string(' ', panelOuter);
+
+        for (int i = 0; i < h; i++)
+        {
+            string left = i < leftLines.Count ? leftLines[i] : "";
+            int pi = i - rightPanelTopOffset;
+            string right = pi >= 0 && pi < panel.Length ? panel[pi] : blankPanelRow;
+            right = PadRightVisual(right, panelOuter);
+
+            string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
+            Console.WriteLine(PadRightVisual(row, screenWidth));
+        }
     }
 
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
@@ -745,18 +797,22 @@ public class App(
         }
     }
 
-    /// <summary>Hotkey lines use <see cref="Terminal.WriteMenuLine"/> like the main adventure menu.</summary>
-    private static void WriteInventoryItemDetailMenu(bool canEat, bool offerEquip, bool offerUnequip)
+    private static void AddInventoryItemDetailMenuLines(
+        List<string> left,
+        bool canEat,
+        bool offerEquip,
+        bool offerUnequip)
     {
+        int w = AdventureLayout.LeftColumnWidth;
         if (canEat)
-            Terminal.WriteMenuLine("(E)at", 'e');
+            left.Add(FormatMenuLine("(E)at", 'e', w));
         if (offerEquip)
-            Terminal.WriteMenuLine("(E)quip", 'e');
+            left.Add(FormatMenuLine("(E)quip", 'e', w));
         if (offerUnequip)
-            Terminal.WriteMenuLine("(U)nequip", 'u');
-        Terminal.WriteMenuLine("(D)rop", 'd');
-        Console.WriteLine();
-        Console.WriteLine(Terminal.EscBackHint());
+            left.Add(FormatMenuLine("(U)nequip", 'u', w));
+        left.Add(FormatMenuLine("(D)rop", 'd', w));
+        left.Add("");
+        left.Add(Terminal.EscBackHint());
     }
 
     /// <summary>Detail screen for one stack. Returns text to show above the list on return, or <see langword="null"/> if the player backed out without acting.</summary>
@@ -782,21 +838,37 @@ public class App(
         ClearConsole();
         WritePlayerStatusHeader("== Inventory ==", state);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"));
-        if (canEat)
+
+        bool withImage = def?.Image is { Length: > 0 };
+
+        var left = new List<string>
         {
-            Console.WriteLine();
-            manipulativeStore.WriteEdibleEffectDescription(def!, state);
+            Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"),
+        };
+        if (canEat && def is not null)
+        {
+            if (!withImage)
+                left.Add("");
+            left.AddRange(manipulativeStore.EdibleEffectDescriptionLines(def, state));
         }
 
-        if (canEquipHelmet)
+        if (canEquipHelmet && def is not null)
         {
-            Console.WriteLine();
-            manipulativeStore.WriteHelmetEffectDescription(def!);
+            if (!withImage)
+                left.Add("");
+            left.AddRange(manipulativeStore.HelmetEffectDescriptionLines(def));
         }
+
+        if (!withImage)
+            left.Add("");
+        AddInventoryItemDetailMenuLines(left, canEat, offerEquip, offerUnequip);
+
+        List<string> portrait = [];
+        if (withImage && def is not null && def.Image is { Length: > 0 } stem)
+            portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
         Console.WriteLine();
-        WriteInventoryItemDetailMenu(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
+        WriteTextAndRightImagePanel(left, portrait);
 
         var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
         if (action == InventoryItemDetailAction.BackToList)

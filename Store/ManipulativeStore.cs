@@ -6,6 +6,12 @@ public interface IManipulativeStore
     ManipulativeDefinition? Get(string manipulativeId);
     void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state);
     void WriteHelmetEffectDescription(ManipulativeDefinition definition);
+
+    /// <summary>Same text as <see cref="WriteEdibleEffectDescription"/>; empty when not applicable.</summary>
+    IEnumerable<string> EdibleEffectDescriptionLines(ManipulativeDefinition definition, GameState state);
+
+    /// <summary>Same text as <see cref="WriteHelmetEffectDescription"/>; empty when not a helmet.</summary>
+    IEnumerable<string> HelmetEffectDescriptionLines(ManipulativeDefinition definition);
 }
 
 public class ManipulativeStore : IManipulativeStore
@@ -33,54 +39,61 @@ public class ManipulativeStore : IManipulativeStore
     /// <summary>Prints what eating would do, from <see cref="ConsumeEffects"/>. Caller ensures <paramref name="definition"/> is edible with a positive heal cap.</summary>
     public void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state)
     {
-        int cap = definition.ConsumeEffects?.HealthRestored ?? 0;
-        if (cap <= 0)
-            return;
-
-        Console.WriteLine(Terminal.Muted($"If you eat it, you can restore up to {cap} hit points."));
-        if (state.HitPoints >= state.MaxHitPoints)
-        {
-            Console.WriteLine(
-                Terminal.Muted(
-                    "You're at full health — eating won't restore HP, but you can still eat it."));
-            return;
-        }
-
-        int wouldHeal = Math.Min(cap, state.MaxHitPoints - state.HitPoints);
-        Console.WriteLine(
-            Terminal.Muted($"If you eat it now, you would restore {wouldHeal} HP."));
+        foreach (string line in EdibleEffectDescriptionLines(definition, state))
+            Console.WriteLine(line);
     }
 
     /// <summary>Explains armor and optional helmet attack bonus. Caller ensures <paramref name="definition"/> is a helmet (including a crown).</summary>
     public void WriteHelmetEffectDescription(ManipulativeDefinition definition)
     {
+        foreach (string line in HelmetEffectDescriptionLines(definition))
+            Console.WriteLine(line);
+    }
+
+    public IEnumerable<string> EdibleEffectDescriptionLines(ManipulativeDefinition definition, GameState state)
+    {
+        int cap = definition.ConsumeEffects?.HealthRestored ?? 0;
+        if (cap <= 0)
+            yield break;
+
+        yield return Terminal.Muted($"If you eat it, you can restore up to {cap} hit points.");
+        if (state.HitPoints >= state.MaxHitPoints)
+        {
+            yield return Terminal.Muted(
+                "You're at full health — eating won't restore HP, but you can still eat it.");
+            yield break;
+        }
+
+        int wouldHeal = Math.Min(cap, state.MaxHitPoints - state.HitPoints);
+        yield return Terminal.Muted($"If you eat it now, you would restore {wouldHeal} HP.");
+    }
+
+    public IEnumerable<string> HelmetEffectDescriptionLines(ManipulativeDefinition definition)
+    {
         if (!definition.IsEquippableHelmet)
-            return;
+            yield break;
 
         int a = definition.Armor ?? 0;
         if (a > 0)
         {
-            Console.WriteLine(
-                Terminal.Muted(
-                    $"Armor {a}: each enemy hit loses up to {a} damage before HP (never below 1 damage per hit)."));
+            yield return Terminal.Muted(
+                $"Armor {a}: each enemy hit loses up to {a} damage before HP (never below 1 damage per hit).");
         }
         else
         {
-            Console.WriteLine(
-                Terminal.Muted("Armor 0 — this helmet does not reduce damage from hits."));
+            yield return Terminal.Muted("Armor 0 — this helmet does not reduce damage from hits.");
         }
 
         int h = definition.HelmetAttackBonus ?? 0;
         if (h > 0)
         {
-            Console.WriteLine(
-                Terminal.Muted(
-                    $"Helmet attack +{h}: adds {h} to weapon damage when you land a hit (stacks with your equipped weapon)."));
+            yield return Terminal.Muted(
+                $"Helmet attack +{h}: adds {h} to weapon damage when you land a hit (stacks with your equipped weapon).");
         }
         else if (h < 0)
         {
-            Console.WriteLine(
-                Terminal.Muted($"Helmet attack {h}: subtracts {-h} from weapon damage when you land a hit."));
+            yield return Terminal.Muted(
+                $"Helmet attack {h}: subtracts {-h} from weapon damage when you land a hit.");
         }
     }
 
