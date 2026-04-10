@@ -1,3 +1,5 @@
+using Tav.Models;
+
 namespace Tav.Store;
 
 public interface IMonsterStore

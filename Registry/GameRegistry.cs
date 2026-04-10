@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Tav;
+using Tav.Models;
 using Tav.Store;
 
 namespace Tav.Registry;

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Tav;
+namespace Tav.Models;
 
 public record Room
 {

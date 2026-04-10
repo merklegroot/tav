@@ -1,3 +1,5 @@
+using Tav.Models;
+
 namespace Tav;
 
 /// <summary>Combat rules from README: d20 hit vs defender DEX, potential × placement damage.</summary>
@@ -59,12 +61,4 @@ public static class CombatMath
             Damage = damage,
         };
     }
-}
-
-public readonly record struct AttackResolution
-{
-    public bool Hit { get; init; }
-    public int D20 { get; init; }
-    public int HitTotal { get; init; }
-    public int Damage { get; init; }
 }

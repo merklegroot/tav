@@ -13,3 +13,6 @@ Don't create methods with out or ref params.
 It's ok to use existing ones.
 
 Don't declare positional records. Use explicit property syntax instead.
+
+Don't make things internal or sealed unless you have a good reason.
+

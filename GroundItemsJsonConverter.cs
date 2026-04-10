@@ -1,13 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Tav.Models;
 
 namespace Tav;
-
-public record GroundItemStack
-{
-    public required string Id { get; init; }
-    public int Quantity { get; init; } = 1;
-}
 
 /// <summary>Accepts <c>["id"]</c>, <c>[{"id":"a","quantity":2}]</c>, or a mix.</summary>
 public sealed class GroundItemsJsonConverter : JsonConverter<List<GroundItemStack>?>

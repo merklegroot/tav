@@ -1,3 +1,5 @@
+using Tav.Models;
+
 namespace Tav;
 
 public interface IRoomStore

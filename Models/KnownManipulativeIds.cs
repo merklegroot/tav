@@ -1,4 +1,4 @@
-namespace Tav;
+namespace Tav.Models;
 
 public static class KnownManipulativeIds
 {

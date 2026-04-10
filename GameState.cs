@@ -1,3 +1,5 @@
+using Tav.Models;
+
 namespace Tav;
 
 public record GameState

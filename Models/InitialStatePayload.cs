@@ -1,4 +1,4 @@
-namespace Tav;
+namespace Tav.Models;
 
 /// <summary>Shape of embedded <c>initial_state.json</c> (starting inventory, etc.).</summary>
 public record InitialStatePayload
