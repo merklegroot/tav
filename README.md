@@ -6,7 +6,7 @@ screenshot
 
 Most screens in the game should consist of a title bar with a left and right panel below it.
 
-The Title bar should include the game's title along with the most basic stats: HP, Gold, and **Armor** when the player has any (from equipped head protection).
+The Title bar should include the game's title along with the most basic stats: HP, Gold, and **Armor** when the player has any (from an equipped helmet — a crown counts as a helmet).
 
 There should be a blank space after the title bar.
 
@@ -60,6 +60,8 @@ W -   - E
 
 A manipulative is an item in the game, such as a torch, an axe, or an apple.
 
+Helmet-slot items (including crowns) use `isEquippableHelmet` (only one worn at a time). They may define `armor` and/or `helmetAttackBonus`.
+
 Manipulatives with special uses have their IDs maintained in ```KnownManipulativeIds```.
 
 ## Inventory
@@ -77,9 +79,9 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 - **Strength** — Physical power. Feeds directly into damage on a hit.
 - **Dexterity** — Speed and coordination. Feeds into who acts first, whether an attack connects, and how cleanly a connected hit lands (how much of the strike’s potential becomes real damage).
 
-**Weapon damage** comes from the equipped item (for example a flat bonus such as +2 from an axe). Unarmed can be treated as +0.
+**Weapon damage** comes from the equipped weapon (for example a flat bonus such as +3 from an axe). **Helmet attack bonus** from the equipped helmet (optional field `helmetAttackBonus` in data, e.g. a crown) **adds** to that same bonus for computing potential damage. Unarmed can be treated as weapon +0.
 
-**Armor (equipment)** — How much raw damage is stripped from each enemy hit that lands on you, *after* that hit’s damage is rolled but *before* HP is reduced. Armor rating comes from worn protection (for example a helmet in data as `armor`). Subtract that rating from the rolled damage, then the hit deals at least **1** HP anyway (so a tiny hit cannot be reduced to zero, and very high armor still leaves a scratch). If you have no protective gear, treat armor as **0**.
+**Armor (equipment)** — How much raw damage is stripped from each enemy hit that lands on you, *after* that hit’s damage is rolled but *before* HP is reduced. Armor rating comes from the worn helmet (for example `armor` on a helmet or crown). Subtract that rating from the rolled damage, then the hit deals at least **1** HP anyway (so a tiny hit cannot be reduced to zero, and very high armor still leaves a scratch). If you have no helmet, treat armor as **0**.
 
 ### Combat loop (one round)
 
@@ -91,8 +93,8 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 3. **Damage on a hit** — Treat a landed blow in two parts: how hard it *could* hurt, and how well it actually *landed*.
 
    - **Potential damage** — The strike at full connection (a jab to the throat, not the shoulder):  
-     `max(1, weaponDamageBonus + (attackerStrength − 10))`.  
-     Treat 10 Strength as baseline (+0); each point above or below adds or subtracts one, before applying placement below.
+     `max(1, weaponDamageBonus + helmetAttackBonus + (attackerStrength − 10))`.  
+     Here `weaponDamageBonus` is from the wielded weapon (0 if unarmed) and `helmetAttackBonus` is from the worn helmet (0 if none). Treat 10 Strength as baseline (+0); each point above or below adds or subtracts one, before applying placement below.
 
    - **Placement** — A hit is rarely “all or nothing.” Use **margin** = `hitTotal − 11` (how far past a glancing touch the roll went). Turn that into a fraction between a **graze** and **full potential**, and let Dexterity bend that curve: a precise fighter gets more mileage from the same opening.
 
@@ -104,7 +106,7 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 
    - **Final damage** — `floor(potentialDamage × placement)`, with a minimum of **1** on any hit if you want every connected blow to matter a little.
 
-4. **Armor (defender equipment, player side)** — When an enemy hit lands on the player, take the rolled damage from step 3, subtract the player’s **Armor** rating (from equipped head protection), then apply at least **1** HP loss:  
+4. **Armor (defender equipment, player side)** — When an enemy hit lands on the player, take the rolled damage from step 3, subtract the player’s **Armor** rating (from the equipped helmet), then apply at least **1** HP loss:  
    `damageToHp = max(1, rolledDamage − armor)`  
    Monsters do not use armor unless you give them an equivalent value later.
 

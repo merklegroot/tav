@@ -5,7 +5,7 @@ public interface IManipulativeStore
     string GetDisplayName(string manipulativeId);
     ManipulativeDefinition? Get(string manipulativeId);
     void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state);
-    void WriteArmorEffectDescription(ManipulativeDefinition definition);
+    void WriteHelmetEffectDescription(ManipulativeDefinition definition);
 }
 
 public class ManipulativeStore : IManipulativeStore
@@ -51,8 +51,8 @@ public class ManipulativeStore : IManipulativeStore
             Terminal.Muted($"If you eat it now, you would restore {wouldHeal} HP."));
     }
 
-    /// <summary>Explains armor rating for helmet-style gear. Caller ensures <paramref name="definition"/> is a helmet.</summary>
-    public void WriteArmorEffectDescription(ManipulativeDefinition definition)
+    /// <summary>Explains armor and optional helmet attack bonus. Caller ensures <paramref name="definition"/> is a helmet (including a crown).</summary>
+    public void WriteHelmetEffectDescription(ManipulativeDefinition definition)
     {
         if (!definition.IsEquippableHelmet)
             return;
@@ -63,11 +63,25 @@ public class ManipulativeStore : IManipulativeStore
             Console.WriteLine(
                 Terminal.Muted(
                     $"Armor {a}: each enemy hit loses up to {a} damage before HP (never below 1 damage per hit)."));
-            return;
+        }
+        else
+        {
+            Console.WriteLine(
+                Terminal.Muted("Armor 0 — this helmet does not reduce damage from hits."));
         }
 
-        Console.WriteLine(
-            Terminal.Muted("Armor 0 — this headgear does not reduce damage from hits."));
+        int h = definition.HelmetAttackBonus ?? 0;
+        if (h > 0)
+        {
+            Console.WriteLine(
+                Terminal.Muted(
+                    $"Helmet attack +{h}: adds {h} to weapon damage when you land a hit (stacks with your equipped weapon)."));
+        }
+        else if (h < 0)
+        {
+            Console.WriteLine(
+                Terminal.Muted($"Helmet attack {h}: subtracts {-h} from weapon damage when you land a hit."));
+        }
     }
 
     private static Dictionary<string, ManipulativeDefinition> Load()
@@ -88,8 +102,10 @@ public record ManipulativeDefinition
     public bool IsEquippableWeapon { get; init; }
     public int? WeaponDamageBonus { get; init; }
     public bool IsEquippableHelmet { get; init; }
-    /// <summary>Damage stripped from each incoming hit (README: Armor). Used by equipped head protection.</summary>
+    /// <summary>Damage stripped from each incoming hit (README: Armor). Used by equipped helmet (including crown).</summary>
     public int? Armor { get; init; }
+    /// <summary>Added to weapon damage bonus when this helmet is equipped (README: helmet attack bonus).</summary>
+    public int? HelmetAttackBonus { get; init; }
 }
 
 public record ConsumeEffects

@@ -16,7 +16,7 @@ public record GameState
     /// <summary>Canonical manipulative id for the wielded weapon, or null.</summary>
     public string? EquippedWeaponId { get; set; }
 
-    /// <summary>Canonical manipulative id for the worn helmet, or null.</summary>
+    /// <summary>Canonical manipulative id for the worn helmet (helmet, crown, …), or null.</summary>
     public string? EquippedHelmetId { get; set; }
 
     /// <summary>Item stacks on the floor, keyed by lowercase room id.</summary>

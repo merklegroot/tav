@@ -17,7 +17,10 @@
   },
   {
     "id": "crown",
-    "name": "Crown"
+    "name": "Crown",
+    "isEquippableHelmet": true,
+    "armor": 1,
+    "helmetAttackBonus": 1
   },
   {
     "id": "axe",
