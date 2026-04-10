@@ -133,10 +133,35 @@ public class App(
             return lines;
 
         lines.Add("");
-        foreach (var item in menuItems)
-            lines.Add(FormatMenuLine(item.Text, item.Key, leftColWidth));
+        int i = 0;
+        if (IsGroundMenuLine(menuItems[0]))
+        {
+            lines.Add(FormatMenuLine(menuItems[0].Text, menuItems[0].Key, leftColWidth));
+            lines.Add("");
+            i = 1;
+        }
+
+        int directionLines = 0;
+        while (i < menuItems.Count && IsCompassDirectionKey(menuItems[i].Key))
+        {
+            lines.Add(FormatMenuLine(menuItems[i].Text, menuItems[i].Key, leftColWidth));
+            directionLines++;
+            i++;
+        }
+
+        if (directionLines > 0 && i < menuItems.Count)
+            lines.Add("");
+
+        for (; i < menuItems.Count; i++)
+            lines.Add(FormatMenuLine(menuItems[i].Text, menuItems[i].Key, leftColWidth));
         return lines;
     }
+
+    private static bool IsGroundMenuLine(MenuItem item) =>
+        item.Key == 'g' && item.Text.StartsWith("(G)round", StringComparison.Ordinal);
+
+    private static bool IsCompassDirectionKey(char key) =>
+        key is 'n' or 'e' or 's' or 'w';
 
     private static string FormatMenuLine(string text, char key, int maxWidth)
     {
@@ -969,6 +994,20 @@ public class App(
         Action exit)
     {
         var items = new List<MenuItem>();
+
+        if (state.GroundItemsInCurrentRoom.Count > 0)
+        {
+            string groundList = string.Join(
+                ", ",
+                state.GroundItemsInCurrentRoom.Select(manipulativeStore.GetDisplayName));
+            items.Add(new MenuItem
+            {
+                Text = $"(G)round - {groundList}",
+                Key = 'g',
+                Action = () => RunPickUpScreen(state),
+            });
+        }
+
         foreach (var dir in "nesw")
         {
             if (currentRoom.Exits is null ||
@@ -990,19 +1029,6 @@ public class App(
                         state,
                         dir);
                 },
-            });
-        }
-
-        if (state.GroundItemsInCurrentRoom.Count > 0)
-        {
-            string groundList = string.Join(
-                ", ",
-                state.GroundItemsInCurrentRoom.Select(manipulativeStore.GetDisplayName));
-            items.Add(new MenuItem
-            {
-                Text = $"(G)round - {groundList}",
-                Key = 'g',
-                Action = () => RunPickUpScreen(state),
             });
         }
 
