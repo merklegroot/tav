@@ -29,6 +29,6 @@
     "id": "helmet",
     "name": "Helmet",
     "isEquippableHelmet": true,
-    "helmetDamageReduction": 2
+    "armor": 2
   }
 ]

@@ -5,6 +5,7 @@ public interface IManipulativeStore
     string GetDisplayName(string manipulativeId);
     ManipulativeDefinition? Get(string manipulativeId);
     void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state);
+    void WriteArmorEffectDescription(ManipulativeDefinition definition);
 }
 
 public class ManipulativeStore : IManipulativeStore
@@ -50,6 +51,25 @@ public class ManipulativeStore : IManipulativeStore
             Terminal.Muted($"If you eat it now, you would restore {wouldHeal} HP."));
     }
 
+    /// <summary>Explains armor rating for helmet-style gear. Caller ensures <paramref name="definition"/> is a helmet.</summary>
+    public void WriteArmorEffectDescription(ManipulativeDefinition definition)
+    {
+        if (!definition.IsEquippableHelmet)
+            return;
+
+        int a = definition.Armor ?? 0;
+        if (a > 0)
+        {
+            Console.WriteLine(
+                Terminal.Muted(
+                    $"Armor {a}: each enemy hit loses up to {a} damage before HP (never below 1 damage per hit)."));
+            return;
+        }
+
+        Console.WriteLine(
+            Terminal.Muted("Armor 0 — this headgear does not reduce damage from hits."));
+    }
+
     private static Dictionary<string, ManipulativeDefinition> Load()
     {
         var list = EmbeddedJsonResource.DeserializeList<ManipulativeDefinition>(
@@ -68,7 +88,8 @@ public record ManipulativeDefinition
     public bool IsEquippableWeapon { get; init; }
     public int? WeaponDamageBonus { get; init; }
     public bool IsEquippableHelmet { get; init; }
-    public int? HelmetDamageReduction { get; init; }
+    /// <summary>Damage stripped from each incoming hit (README: Armor). Used by equipped head protection.</summary>
+    public int? Armor { get; init; }
 }
 
 public record ConsumeEffects

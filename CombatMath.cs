@@ -61,4 +61,14 @@ public static class CombatMath
             Damage = damage,
         };
     }
+
+    /// <summary>
+    /// Armor (see README Stats): subtracts from rolled damage when the defender takes a hit. Each hit still removes at least 1 HP.
+    /// </summary>
+    public static int ApplyArmorToIncomingDamage(int rolledDamage, int defenderArmor)
+    {
+        if (defenderArmor <= 0)
+            return rolledDamage;
+        return Math.Max(1, rolledDamage - defenderArmor);
+    }
 }

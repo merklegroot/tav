@@ -71,7 +71,7 @@ public class App(
     }
 
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
-    private static List<string> BuildScreenLines(GameState state, IReadOnlyList<MenuItem> menuItems, bool forceWide = false)
+    private List<string> BuildScreenLines(GameState state, IReadOnlyList<MenuItem> menuItems, bool forceWide = false)
     {
         int leftColWidth = AdventureLayout.LeftColumnWidth;
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
@@ -168,12 +168,17 @@ public class App(
         return Terminal.TruncateVisible(before + hotkey + after, maxWidth);
     }
 
-    private static string BuildTitleBar(GameState state, int screenWidth)
+    private string BuildTitleBar(GameState state, int screenWidth)
     {
         string left = Terminal.Title("== Adventure Game ==");
+        int armor = EquippedArmorRating(state);
         string right = Terminal.HpStatus(state.HitPoints, state.MaxHitPoints)
                        + Terminal.Muted("  Gold: ")
                        + Terminal.Accent(state.Gold.ToString());
+        if (armor > 0)
+        {
+            right += Terminal.Muted("  Armor ") + Terminal.Accent(armor.ToString());
+        }
 
         // Keep the title on the left; right-align the basic stats.
         int leftV = Terminal.VisibleLength(left);
@@ -652,6 +657,12 @@ public class App(
                 manipulativeStore.WriteEdibleEffectDescription(def!, state);
             }
 
+            if (canEquipHelmet)
+            {
+                Console.WriteLine();
+                manipulativeStore.WriteArmorEffectDescription(def!);
+            }
+
             Console.WriteLine();
             WriteInventoryItemDetailMenu(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
 
@@ -679,6 +690,13 @@ public class App(
                         def.IsEquippableHelmet && !def.IsEquippableWeapon
                             ? $"You put on the {def.Name.ToLowerInvariant()}."
                             : $"You equip the {def.Name.ToLowerInvariant()}."));
+                if (def.IsEquippableHelmet && (def.Armor ?? 0) > 0)
+                {
+                    Console.WriteLine(
+                        Terminal.Muted(
+                            $"Armor is now {def.Armor}: each enemy hit loses up to {def.Armor} damage (min. 1 per hit)."));
+                }
+
                 PauseForContinue();
                 continue;
             }
@@ -696,6 +714,13 @@ public class App(
                     _ => "You put the weapon away.",
                 };
                 Console.WriteLine(Terminal.Muted(unequipNote));
+                if (canEquipHelmet && isHelmetEquipped && (def!.Armor ?? 0) > 0)
+                {
+                    Console.WriteLine(
+                        Terminal.Muted(
+                            $"Without that headgear your Armor is {EquippedArmorRating(state)} in combat."));
+                }
+
                 PauseForContinue();
                 continue;
             }
@@ -964,6 +989,11 @@ public class App(
         Console.WriteLine(
             Terminal.Muted(
                 "Higher DEX helps you act first, dodge, and land cleaner hits in a fight."));
+        int combatArmor = EquippedArmorRating(state);
+        Console.WriteLine(
+            Terminal.Accent($"Armor: {combatArmor}")
+            + Terminal.Muted(
+                " — strips up to that much from each enemy hit (min. 1 damage per hit)."));
         Console.WriteLine();
         WriteCharacterEquippedSection(state);
         Console.WriteLine();
@@ -1019,15 +1049,15 @@ public class App(
             return;
         }
 
-        if (helmetDef.HelmetDamageReduction is int dr && dr > 0)
+        if (helmetDef.Armor is int ar && ar > 0)
         {
             Console.WriteLine(
-                Terminal.Muted($"  −{dr} damage from enemy hits in a fight (minimum 1 per hit)."));
+                Terminal.Muted($"  Armor {ar} — strips up to {ar} from each enemy hit (min. 1 damage per hit)."));
             return;
         }
 
         if (helmetDef.IsEquippableHelmet)
-            Console.WriteLine(Terminal.Muted("  No damage reduction from this helmet."));
+            Console.WriteLine(Terminal.Muted("  Armor 0 — no reduction from this headgear."));
     }
 
     private void PrintHelp()
@@ -1038,7 +1068,7 @@ public class App(
         Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
         Console.WriteLine(
             Terminal.Muted(
-                "(I)nventory: select an item. Edible ones list eating effects; then Eat, Drop, or Esc."));
+                "(I)nventory: select an item. Edible gear shows healing; helmets show Armor; then Eat, Equip, Drop, or Esc."));
         Console.WriteLine(Terminal.Muted("(G)round appears when something lies on the ground here."));
         Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
         Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield gold; sometimes a find."));
@@ -1256,11 +1286,11 @@ public class App(
         return manipulativeStore.Get(state.EquippedWeaponId)?.WeaponDamageBonus ?? 0;
     }
 
-    private int EquippedHelmetDamageReduction(GameState state)
+    private int EquippedArmorRating(GameState state)
     {
         if (state.EquippedHelmetId is null)
             return 0;
-        return manipulativeStore.Get(state.EquippedHelmetId)?.HelmetDamageReduction ?? 0;
+        return manipulativeStore.Get(state.EquippedHelmetId)?.Armor ?? 0;
     }
 
     private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
@@ -1274,7 +1304,7 @@ public class App(
         while (monsterHp > 0 && state.HitPoints > 0)
         {
             ClearConsole();
-            var left = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro);
+            var left = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro, EquippedArmorRating(state));
             RenderFightScreen(left, portraitLines);
 
             var key = char.ToLowerInvariant(ReadInputChar());
@@ -1334,7 +1364,13 @@ public class App(
             return false;
         }
 
-        var leftBeforeStrike = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro: false);
+        var leftBeforeStrike = BuildFightLeftColumn(
+            monster,
+            monsterHp,
+            state,
+            battleLog,
+            showIntro: false,
+            EquippedArmorRating(state));
         monsterHp -= res.Damage;
         AnimatePlayerHit(leftBeforeStrike, portraitLines, res.Damage);
         AppendBattleLog(battleLog, $"You hit for {res.Damage} damage.");
@@ -1387,13 +1423,16 @@ public class App(
             return false;
         }
 
-        int damage = res.Damage;
-        int reduction = EquippedHelmetDamageReduction(state);
-        if (reduction > 0)
-            damage = Math.Max(1, damage - reduction);
+        int rolled = res.Damage;
+        int armorRating = EquippedArmorRating(state);
+        int damage = CombatMath.ApplyArmorToIncomingDamage(rolled, armorRating);
+        int absorbed = rolled - damage;
 
         state.HitPoints = Math.Max(0, state.HitPoints - damage);
-        AppendBattleLog(battleLog, $"The {monster.Name} hits you for {damage} damage.");
+        string hitLine = absorbed > 0
+            ? $"The {monster.Name} hits you for {damage} damage ({absorbed} absorbed by your armor)."
+            : $"The {monster.Name} hits you for {damage} damage.";
+        AppendBattleLog(battleLog, hitLine);
 
         if (state.HitPoints > 0)
             return false;
@@ -1424,7 +1463,8 @@ public class App(
         int monsterHp,
         GameState state,
         List<string> battleLog,
-        bool showIntro)
+        bool showIntro,
+        int defenderArmorRating)
     {
         var left = new List<string> { Terminal.Title("== Fight =="), "" };
         if (showIntro)
@@ -1442,6 +1482,13 @@ public class App(
         left.Add(
             Terminal.Warn($"You: {state.HitPoints}/{state.MaxHitPoints} HP    ")
             + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
+        if (defenderArmorRating > 0)
+        {
+            left.Add(
+                Terminal.Muted(
+                    $"Armor {defenderArmorRating}: each enemy hit loses up to {defenderArmorRating} damage (min. 1 per hit)."));
+        }
+
         left.Add(Terminal.Muted("(A)ttack  (R)un"));
         left.Add("");
         return left;

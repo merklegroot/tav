@@ -6,7 +6,7 @@ screenshot
 
 Most screens in the game should consist of a title bar with a left and right panel below it.
 
-The Title bar should include the game's title alone with the most basic of stats, such as HP and Gold.
+The Title bar should include the game's title along with the most basic stats: HP, Gold, and **Armor** when the player has any (from equipped head protection).
 
 There should be a blank space after the title bar.
 
@@ -79,6 +79,8 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 
 **Weapon damage** comes from the equipped item (for example a flat bonus such as +2 from an axe). Unarmed can be treated as +0.
 
+**Armor (equipment)** — How much raw damage is stripped from each enemy hit that lands on you, *after* that hit’s damage is rolled but *before* HP is reduced. Armor rating comes from worn protection (for example a helmet in data as `armor`). Subtract that rating from the rolled damage, then the hit deals at least **1** HP anyway (so a tiny hit cannot be reduced to zero, and very high armor still leaves a scratch). If you have no protective gear, treat armor as **0**.
+
 ### Combat loop (one round)
 
 1. **Initiative** — Compare attacker and defender Dexterity. The higher value acts first this round. If tied, break ties with a fair random choice (or always let the player win ties—pick one rule and keep it).
@@ -102,4 +104,8 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 
    - **Final damage** — `floor(potentialDamage × placement)`, with a minimum of **1** on any hit if you want every connected blow to matter a little.
 
-That flow is: initiative → hit roll → (potential × placement) → subtract HP → repeat until someone reaches 0 HP. You can add armor, critical hits, or status effects later without changing the meaning of the three core stats.
+4. **Armor (defender equipment, player side)** — When an enemy hit lands on the player, take the rolled damage from step 3, subtract the player’s **Armor** rating (from equipped head protection), then apply at least **1** HP loss:  
+   `damageToHp = max(1, rolledDamage − armor)`  
+   Monsters do not use armor unless you give them an equivalent value later.
+
+That flow is: initiative → hit roll → (potential × placement) → optional armor for the defender → subtract HP → repeat until someone reaches 0 HP. You can add critical hits or status effects later without changing the meaning of the three core stats.
