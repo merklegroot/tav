@@ -1713,8 +1713,8 @@ public class App(
         };
         if (_random.NextDouble() < 0.35)
         {
-            state.Inventory.Add(KnownManipulativeIds.BoneShard);
-            victoryLeft.Add(Terminal.Ok("Something worth taking: a sharp bone shard."));
+            state.Inventory.Add(KnownManipulativeIds.Apple);
+            victoryLeft.Add(Terminal.Ok("The monster has dropped an apple."));
         }
 
         victoryLeft.Add("");

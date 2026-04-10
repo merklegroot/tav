@@ -14,11 +14,6 @@
     "image": "torch"
   },
   {
-    "id": "bone_shard",
-    "name": "Bone shard",
-    "image": "bone_shard"
-  },
-  {
     "id": "crown",
     "name": "Crown",
     "isEquippableHelmet": true,
