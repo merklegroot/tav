@@ -114,17 +114,20 @@ public class App(
             portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
         Console.WriteLine();
-        WriteTextAndRightImagePanel(left, portrait);
+        WriteTextAndRightImagePanel(left, portrait, reserveLastLeftRowForRightPanel: false);
         Console.WriteLine();
     }
 
     /// <summary>
     /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
     /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is the item image lines.
+    /// When <paramref name="reserveLastLeftRowForRightPanel"/> is false (e.g. victory), the image starts at row 1 like the map.
+    /// When true (inventory item with <c>(ESC) Back</c> last), art starts at row 1 but is clipped so the last left row stays panel-free.
     /// </summary>
     private static void WriteTextAndRightImagePanel(
         IReadOnlyList<string> leftLines,
-        IReadOnlyList<string> portraitLines)
+        IReadOnlyList<string> portraitLines,
+        bool reserveLastLeftRowForRightPanel)
     {
         if (portraitLines.Count == 0)
         {
@@ -133,41 +136,116 @@ public class App(
             return;
         }
 
+        int panelOuter = AdventureLayout.MapPanelOuterWidth;
+        string[] panel = BuildPortraitPanelCells(portraitLines, panelOuter);
+
         if (Console.IsOutputRedirected || !CanUseWideLayout(AdventureLayout.ScreenWidth))
         {
             foreach (string line in leftLines)
                 Console.WriteLine(line);
             Console.WriteLine();
-            foreach (string line in portraitLines)
+            foreach (string line in panel)
                 Console.WriteLine(line);
             return;
         }
 
         int leftColWidth = AdventureLayout.LeftColumnWidth;
-        int panelOuter = AdventureLayout.MapPanelOuterWidth;
         int screenWidth = AdventureLayout.ScreenWidth;
         const int rightPanelTopOffset = 1;
 
-        var panel = new string[portraitLines.Count];
-        for (int p = 0; p < portraitLines.Count; p++)
-        {
-            string clipped = Terminal.TruncateVisible(portraitLines[p], panelOuter);
-            panel[p] = CenterVisual(clipped, panelOuter);
-        }
-
-        int h = Math.Max(leftLines.Count, rightPanelTopOffset + panel.Length);
+        int imageH = panel.Length;
+        int leftCount = leftLines.Count;
         string blankPanelRow = new string(' ', panelOuter);
+
+        int h;
+        int firstImageRow;
+        int lastImageRow;
+        int linesToShow;
+
+        if (reserveLastLeftRowForRightPanel && leftCount >= 2)
+        {
+            // Last left line is the ESC hint — keep the right column blank there. Start art at row 1 like the map,
+            // but clip so no panel rows draw on the footer (same idea as extra left lines past the room box).
+            int lastArtRow = leftCount - 2;
+            firstImageRow = rightPanelTopOffset;
+            lastImageRow = Math.Min(rightPanelTopOffset + imageH - 1, lastArtRow);
+            linesToShow = lastImageRow - firstImageRow + 1;
+            if (linesToShow < 1)
+                linesToShow = 0;
+
+            h = leftCount;
+        }
+        else
+        {
+            firstImageRow = rightPanelTopOffset;
+            lastImageRow = rightPanelTopOffset + imageH - 1;
+            linesToShow = imageH;
+            h = Math.Max(leftCount, rightPanelTopOffset + imageH);
+        }
 
         for (int i = 0; i < h; i++)
         {
-            string left = i < leftLines.Count ? leftLines[i] : "";
-            int pi = i - rightPanelTopOffset;
-            string right = pi >= 0 && pi < panel.Length ? panel[pi] : blankPanelRow;
+            string left = i < leftCount ? leftLines[i] : "";
+            int pi = -1;
+            if (reserveLastLeftRowForRightPanel && leftCount >= 2 && linesToShow > 0)
+            {
+                if (i >= firstImageRow && i <= lastImageRow)
+                    pi = i - firstImageRow;
+            }
+            else if (!reserveLastLeftRowForRightPanel || leftCount < 2)
+            {
+                int legacyPi = i - rightPanelTopOffset;
+                if (legacyPi >= 0 && legacyPi < imageH)
+                    pi = legacyPi;
+            }
+
+            string right = pi >= 0 && pi < linesToShow ? panel[pi] : blankPanelRow;
             right = PadRightVisual(right, panelOuter);
 
             string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
             Console.WriteLine(PadRightVisual(row, screenWidth));
         }
+    }
+
+    /// <summary>
+    /// Pads each bordered portrait row to the same visible width (the widest line) using trailing spaces only, then
+    /// centers that block in the panel. Center-padding shorter rows nudged cap lines right vs the widest row; left-aligning
+    /// the block keeps taper rows aligned with the middle (see crown art).
+    /// </summary>
+    private static string[] BuildPortraitPanelCells(IReadOnlyList<string> borderedLines, int panelOuter)
+    {
+        int n = borderedLines.Count;
+        var clipped = new string[n];
+        for (int i = 0; i < n; i++)
+            clipped[i] = Terminal.TruncateVisible(borderedLines[i], panelOuter);
+
+        int maxV = 0;
+        for (int i = 0; i < n; i++)
+        {
+            int v = Terminal.VisibleLength(clipped[i]);
+            if (v > maxV)
+                maxV = v;
+        }
+
+        var panel = new string[n];
+        for (int i = 0; i < n; i++)
+        {
+            int v = Terminal.VisibleLength(clipped[i]);
+            string normalized = clipped[i] + new string(' ', maxV - v);
+            panel[i] = CenterVisual(normalized, panelOuter);
+        }
+
+        return panel;
+    }
+
+    /// <summary>Wraps one layout line to the adventure left column width (plain-word wrap; re-applies muted style).</summary>
+    private static List<string> WrapInventoryDescriptionLineToColumn(string line, int columnWidth)
+    {
+        if (Terminal.VisibleLength(line) <= columnWidth)
+            return [line];
+
+        string plain = Terminal.StripAnsi(line);
+        return WrapText(plain, columnWidth).Select(Terminal.Muted).ToList();
     }
 
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
@@ -801,7 +879,8 @@ public class App(
         List<string> left,
         bool canEat,
         bool offerEquip,
-        bool offerUnequip)
+        bool offerUnequip,
+        bool omitBlankLineBeforeEsc)
     {
         int w = AdventureLayout.LeftColumnWidth;
         if (canEat)
@@ -811,7 +890,8 @@ public class App(
         if (offerUnequip)
             left.Add(FormatMenuLine("(U)nequip", 'u', w));
         left.Add(FormatMenuLine("(D)rop", 'd', w));
-        left.Add("");
+        if (!omitBlankLineBeforeEsc)
+            left.Add("");
         left.Add(Terminal.EscBackHint());
     }
 
@@ -845,30 +925,43 @@ public class App(
         {
             Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"),
         };
+        int descCol = AdventureLayout.LeftColumnWidth;
         if (canEat && def is not null)
         {
             if (!withImage)
                 left.Add("");
-            left.AddRange(manipulativeStore.EdibleEffectDescriptionLines(def, state));
+            foreach (string d in manipulativeStore.EdibleEffectDescriptionLines(def, state))
+            {
+                if (withImage)
+                    left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
+                else
+                    left.Add(d);
+            }
         }
 
         if (canEquipHelmet && def is not null)
         {
             if (!withImage)
                 left.Add("");
-            left.AddRange(manipulativeStore.HelmetEffectDescriptionLines(def));
+            foreach (string d in manipulativeStore.HelmetEffectDescriptionLines(def))
+            {
+                if (withImage)
+                    left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
+                else
+                    left.Add(d);
+            }
         }
 
         if (!withImage)
             left.Add("");
-        AddInventoryItemDetailMenuLines(left, canEat, offerEquip, offerUnequip);
+        AddInventoryItemDetailMenuLines(left, canEat, offerEquip, offerUnequip, omitBlankLineBeforeEsc: withImage);
 
         List<string> portrait = [];
         if (withImage && def is not null && def.Image is { Length: > 0 } stem)
             portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
         Console.WriteLine();
-        WriteTextAndRightImagePanel(left, portrait);
+        WriteTextAndRightImagePanel(left, portrait, reserveLastLeftRowForRightPanel: true);
 
         var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
         if (action == InventoryItemDetailAction.BackToList)
