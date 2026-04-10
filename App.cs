@@ -178,31 +178,18 @@ public class App(
     }
 
     /// <summary>
-    /// Pads each bordered portrait row to the same visible width (the widest line) using trailing spaces only, then
-    /// centers that block in the panel. Center-padding shorter rows nudged cap lines right vs the widest row; left-aligning
-    /// the block keeps taper rows aligned with the middle (see crown art).
+    /// Every row is truncated to <paramref name="panelOuter"/> visible columns, then centered in that fixed width.
+    /// Monster/item art lines vary in width; HP and name lines do too — the panel is always the same width so each line
+    /// is centered in the canvas (see <see cref="AdventureLayout.MapPanelOuterWidth"/>).
     /// </summary>
     private static string[] BuildPortraitPanelCells(IReadOnlyList<string> borderedLines, int panelOuter)
     {
         int n = borderedLines.Count;
-        var clipped = new string[n];
-        for (int i = 0; i < n; i++)
-            clipped[i] = Terminal.TruncateVisible(borderedLines[i], panelOuter);
-
-        int maxV = 0;
-        for (int i = 0; i < n; i++)
-        {
-            int v = Terminal.VisibleLength(clipped[i]);
-            if (v > maxV)
-                maxV = v;
-        }
-
         var panel = new string[n];
         for (int i = 0; i < n; i++)
         {
-            int v = Terminal.VisibleLength(clipped[i]);
-            string normalized = clipped[i] + new string(' ', maxV - v);
-            panel[i] = CenterVisual(normalized, panelOuter);
+            string clipped = Terminal.TruncateVisible(borderedLines[i], panelOuter);
+            panel[i] = CenterVisual(clipped, panelOuter);
         }
 
         return panel;
