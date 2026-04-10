@@ -48,11 +48,13 @@ Two pipes with a space between them represent a door going North or South.
 
 The compass control should make it clear which directions are available to the user.
 
+```text
     N
     |
 W -   - E
     |
     S
+```
 
 ## Manipulatives
 
@@ -66,3 +68,19 @@ When an edible item from the inventory is selected
 - The game should tell the user what effects eating it will have.
 - The game should allow the user to eat it.
 - The game should apply those effects.
+
+## Stats
+
+Hitpoints
+Strength
+Dexterity
+
+The attacker's dexterity affects how likely they are to land a blow and how well a landed blow hits.  
+
+The defender's dexterity affects how likely they are to dodge a blow adn how poorly a landed blow hits.  
+
+Dexterity also affects who attacks first.
+
+The weapon's stats and strength should also combine somehow to determine how much damage is done.  
+
+Improve this concept so that we have more something to build an algorithm on.
