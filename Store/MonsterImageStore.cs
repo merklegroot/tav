@@ -1,4 +1,4 @@
-namespace Tav;
+namespace Tav.Store;
 
 public static class MonsterImageStore
 {

@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Tav;
+namespace Tav.Store;
 
-internal static class ManipulativeStore
+public static class ManipulativeStore
 {
     private static readonly Lazy<Dictionary<string, ManipulativeDefinition>> ByIdLower = new(Load);
 
@@ -10,6 +10,7 @@ internal static class ManipulativeStore
     {
         if (TryGet(manipulativeId, out var def))
             return def.Name;
+
         return manipulativeId.Replace('_', ' ');
     }
 
@@ -53,7 +54,7 @@ internal static class ManipulativeStore
     }
 }
 
-internal sealed class ManipulativeDefinition
+public record ManipulativeDefinition
 {
     public required string Id { get; init; }
     public required string Name { get; init; }
@@ -61,7 +62,7 @@ internal sealed class ManipulativeDefinition
     public ConsumeEffects? ConsumeEffects { get; init; }
 }
 
-internal sealed class ConsumeEffects
+public record ConsumeEffects
 {
     public int? HealthRestored { get; init; }
 }
