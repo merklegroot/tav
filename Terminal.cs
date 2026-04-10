@@ -38,16 +38,6 @@ public static class Terminal
         return open + plain + Reset;
     }
 
-    public static string HpFraction(int hp, int max)
-    {
-        string plain = $"{hp}/{max}";
-        if (!UseAnsi || max <= 0)
-            return plain;
-        double ratio = (double)hp / max;
-        string open = ratio <= 0.25 ? "\x1b[91m" : ratio <= 0.5 ? "\x1b[93m" : "\x1b[92m";
-        return open + plain + Reset;
-    }
-
     public static string DamageNumber(int damage) =>
         UseAnsi ? $"\x1b[1m\x1b[93m     -{damage}{Reset}" : $"     -{damage}";
 

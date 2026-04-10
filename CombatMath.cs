@@ -7,21 +7,21 @@ public static class CombatMath
 {
     private const int HitThreshold = 11;
 
-    public static int RollD20(Random random) => random.Next(1, 21);
+    private static int RollD20(Random random) => random.Next(1, 21);
 
-    public static bool HitLands(int hitTotal) => hitTotal >= HitThreshold;
+    private static bool HitLands(int hitTotal) => hitTotal >= HitThreshold;
 
-    public static int PotentialDamage(int attackBonus, int attackerStrength) =>
+    private static int PotentialDamage(int attackBonus, int attackerStrength) =>
         Math.Max(1, attackBonus + attackerStrength - 10);
 
-    public static double ComputePlacement(int hitTotal, int attackerDexterity)
+    private static double ComputePlacement(int hitTotal, int attackerDexterity)
     {
         int margin = hitTotal - HitThreshold;
         double placement = 0.25 + margin / 20.0 + 0.03 * (attackerDexterity - 10);
         return Math.Clamp(placement, 0.25, 1.0);
     }
 
-    public static int DamageOnHit(
+    private static int DamageOnHit(
         int attackBonus,
         int attackerStrength,
         int hitTotal,

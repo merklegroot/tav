@@ -1038,24 +1038,23 @@ public class App(
             return string.Join(Environment.NewLine, lines);
         }
 
-        InventoryUseResult useResult = TryUseInventoryItem(state, index);
-        return useResult.Message;
+        return TryUseInventoryItem(state, index);
     }
 
     /// <summary>Eats an edible item when the player chose (E)at. When consumed, the list shrinks at <paramref name="index"/>.</summary>
-    private InventoryUseResult TryUseInventoryItem(GameState state, int index)
+    private string TryUseInventoryItem(GameState state, int index)
     {
         string id = state.Inventory[index];
         var def = manipulativeStore.Get(id);
         if (def is null)
-            return new InventoryUseResult(false, "You can't think of a way to use that here.");
+            return "You can't think of a way to use that here.";
 
         if (!def.IsEdible)
-            return new InventoryUseResult(false, "You can't think of a way to use that here.");
+            return "You can't think of a way to use that here.";
 
         int cap = def.ConsumeEffects?.HealthRestored ?? 0;
         if (cap <= 0)
-            return new InventoryUseResult(false, "You can't think of a way to use that here.");
+            return "You can't think of a way to use that here.";
 
         int missing = state.MaxHitPoints - state.HitPoints;
         int heal = Math.Min(cap, missing);
@@ -1064,29 +1063,15 @@ public class App(
         string label = def.Name.ToLowerInvariant();
         if (heal <= 0)
         {
-            return new InventoryUseResult(
-                true,
-                $"You eat the {label}. You're already at full health — satisfying, but no healing needed.");
+            return $"You eat the {label}. You're already at full health — satisfying, but no healing needed.";
         }
 
         if (heal >= cap)
         {
-            return new InventoryUseResult(true, $"You eat the {label}. Sweet juice; warmth spreads through you.");
+            return $"You eat the {label}. Sweet juice; warmth spreads through you.";
         }
 
-        return new InventoryUseResult(true, $"You eat the {label} and recover {heal} HP.");
-    }
-
-    private readonly struct InventoryUseResult
-    {
-        public InventoryUseResult(bool consumed, string message)
-        {
-            Consumed = consumed;
-            Message = message;
-        }
-
-        public bool Consumed { get; }
-        public string Message { get; }
+        return $"You eat the {label} and recover {heal} HP.";
     }
 
     private enum InventoryItemDetailAction
