@@ -174,7 +174,7 @@ public class App(
         int armor = EquippedArmorRating(state);
         string right = Terminal.HpStatus(state.HitPoints, state.MaxHitPoints)
                        + Terminal.Muted("  Gold: ")
-                       + Terminal.Accent(state.Gold.ToString());
+                       + Terminal.Gold(state.Gold.ToString());
         if (armor > 0)
         {
             right += Terminal.Muted("  Armor ") + Terminal.Accent(armor.ToString());
@@ -563,7 +563,7 @@ public class App(
         if (!includeGold)
             return;
 
-        Console.WriteLine(Terminal.Muted($"Gold: {state.Gold}"));
+        Console.WriteLine(Terminal.Muted("Gold: ") + Terminal.Gold(state.Gold.ToString()));
     }
 
     private string FormatGroundStackLine(GroundItemStack stack)
@@ -1062,7 +1062,7 @@ public class App(
         Console.WriteLine(Terminal.Title("== Character =="));
         Console.WriteLine();
         Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-        Console.WriteLine(Terminal.Accent($"Gold: {state.Gold}"));
+        Console.WriteLine(Terminal.Muted("Gold: ") + Terminal.Gold(state.Gold.ToString()));
         Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
         Console.WriteLine(

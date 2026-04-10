@@ -25,6 +25,9 @@ public static class Terminal
 
     public static string Warn(string text) => Wrap(text, "\x1b[93m");
 
+    /// <summary>Player gold totals — bold 256-color gold, distinct from <see cref="Warn"/>.</summary>
+    public static string Gold(string text) => Wrap(text, "\x1b[1;38;5;220m");
+
     public static string HpStatus(int hp, int max)
     {
         string plain = $"HP: {hp}/{max}";
