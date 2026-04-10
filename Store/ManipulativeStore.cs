@@ -43,7 +43,7 @@ public class ManipulativeStore : IManipulativeStore
             Console.WriteLine(line);
     }
 
-    /// <summary>Explains armor and optional helmet attack bonus. Caller ensures <paramref name="definition"/> is a helmet (including a crown).</summary>
+    /// <summary>Explains armor and optional <c>attackBonus</c>. Caller ensures <paramref name="definition"/> is a helmet (including a crown).</summary>
     public void WriteHelmetEffectDescription(ManipulativeDefinition definition)
     {
         foreach (string line in HelmetEffectDescriptionLines(definition))
@@ -84,16 +84,16 @@ public class ManipulativeStore : IManipulativeStore
             yield return Terminal.Muted("Armor 0 — this helmet does not reduce damage from hits.");
         }
 
-        int h = definition.HelmetAttackBonus ?? 0;
-        if (h > 0)
+        int atk = definition.AttackBonus ?? 0;
+        if (atk > 0)
         {
             yield return Terminal.Muted(
-                $"Helmet attack +{h}: adds {h} to weapon damage when you land a hit (stacks with your equipped weapon).");
+                $"Attack +{atk}: adds {atk} to strike damage when you land a hit (stacks with your equipped weapon).");
         }
-        else if (h < 0)
+        else if (atk < 0)
         {
             yield return Terminal.Muted(
-                $"Helmet attack {h}: subtracts {-h} from weapon damage when you land a hit.");
+                $"Attack {atk}: subtracts {-atk} from strike damage when you land a hit.");
         }
     }
 
@@ -113,12 +113,11 @@ public record ManipulativeDefinition
     public bool IsEdible { get; init; }
     public ConsumeEffects? ConsumeEffects { get; init; }
     public bool IsEquippableWeapon { get; init; }
-    public int? WeaponDamageBonus { get; init; }
     public bool IsEquippableHelmet { get; init; }
     /// <summary>Damage stripped from each incoming hit (README: Armor). Used by equipped helmet (including crown).</summary>
     public int? Armor { get; init; }
-    /// <summary>Added to weapon damage bonus when this helmet is equipped (README: helmet attack bonus).</summary>
-    public int? HelmetAttackBonus { get; init; }
+    /// <summary>Flat bonus to strike damage from this item (weapon and helmet slots both use this field; bonuses stack).</summary>
+    public int? AttackBonus { get; init; }
 
     /// <summary>If set, embedded art is loaded from <c>res/{image}.img.txt</c> (same convention as monster portraits).</summary>
     public string? Image { get; init; }

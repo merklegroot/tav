@@ -20,14 +20,14 @@
     "name": "Crown",
     "isEquippableHelmet": true,
     "armor": 1,
-    "helmetAttackBonus": 1,
+    "attackBonus": 1,
     "image": "crown"
   },
   {
     "id": "axe",
     "name": "Axe",
     "isEquippableWeapon": true,
-    "weaponDamageBonus": 3
+    "attackBonus": 3
   },
   {
     "id": "helmet",

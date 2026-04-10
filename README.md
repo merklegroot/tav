@@ -60,7 +60,7 @@ W -   - E
 
 A manipulative is an item in the game, such as a torch, an axe, or an apple.
 
-Helmet-slot items (including crowns) use `isEquippableHelmet` (only one worn at a time). They may define `armor` and/or `helmetAttackBonus`.
+Helmet-slot items (including crowns) use `isEquippableHelmet` (only one worn at a time). They may define `armor` and/or `attackBonus`.
 
 Manipulatives with special uses have their IDs maintained in ```KnownManipulativeIds```.
 
@@ -79,7 +79,7 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 - **Strength** — Physical power. Feeds directly into damage on a hit.
 - **Dexterity** — Speed and coordination. Feeds into who acts first, whether an attack connects, and how cleanly a connected hit lands (how much of the strike’s potential becomes real damage).
 
-**Weapon damage** comes from the equipped weapon (for example a flat bonus such as +3 from an axe). **Helmet attack bonus** from the equipped helmet (optional field `helmetAttackBonus` in data, e.g. a crown) **adds** to that same bonus for computing potential damage. Unarmed can be treated as weapon +0.
+**Strike attack bonus** comes from the equipped weapon (for example +3 from an axe) and from the equipped helmet (optional `attackBonus` on each, e.g. a crown). Those values **add together** for computing potential damage on your hits. Unarmed is weapon slot +0.
 
 **Armor (equipment)** — How much raw damage is stripped from each enemy hit that lands on you, *after* that hit’s damage is rolled but *before* HP is reduced. Armor rating comes from the worn helmet (for example `armor` on a helmet or crown). Subtract that rating from the rolled damage, then the hit deals at least **1** HP anyway (so a tiny hit cannot be reduced to zero, and very high armor still leaves a scratch). If you have no helmet, treat armor as **0**.
 
@@ -93,8 +93,8 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 3. **Damage on a hit** — Treat a landed blow in two parts: how hard it *could* hurt, and how well it actually *landed*.
 
    - **Potential damage** — The strike at full connection (a jab to the throat, not the shoulder):  
-     `max(1, weaponDamageBonus + helmetAttackBonus + (attackerStrength − 10))`.  
-     Here `weaponDamageBonus` is from the wielded weapon (0 if unarmed) and `helmetAttackBonus` is from the worn helmet (0 if none). Treat 10 Strength as baseline (+0); each point above or below adds or subtracts one, before applying placement below.
+     `max(1, attackBonusWeapon + attackBonusHelmet + (attackerStrength − 10))`.  
+     Here `attackBonusWeapon` is from the wielded weapon’s `attackBonus` (0 if unarmed) and `attackBonusHelmet` is from the worn helmet’s `attackBonus` (0 if none). Treat 10 Strength as baseline (+0); each point above or below adds or subtracts one, before applying placement below.
 
    - **Placement** — A hit is rarely “all or nothing.” Use **margin** = `hitTotal − 11` (how far past a glancing touch the roll went). Turn that into a fraction between a **graze** and **full potential**, and let Dexterity bend that curve: a precise fighter gets more mileage from the same opening.
 

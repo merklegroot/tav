@@ -8,6 +8,6 @@ public record Monster
     public required int HitPoints { get; init; }
     public required int Strength { get; init; }
     public required int Dexterity { get; init; }
-    /// <summary>Natural weapon bonus (claws, bite); same role as an equipped weapon’s bonus.</summary>
-    public int WeaponDamageBonus { get; init; }
+    /// <summary>Natural attack bonus (claws, bite); same role as an equipped weapon’s <c>attackBonus</c>.</summary>
+    public int AttackBonus { get; init; }
 }

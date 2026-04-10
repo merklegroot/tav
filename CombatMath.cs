@@ -11,8 +11,8 @@ public static class CombatMath
 
     public static bool HitLands(int hitTotal) => hitTotal >= HitThreshold;
 
-    public static int PotentialDamage(int weaponDamageBonus, int attackerStrength) =>
-        Math.Max(1, weaponDamageBonus + attackerStrength - 10);
+    public static int PotentialDamage(int attackBonus, int attackerStrength) =>
+        Math.Max(1, attackBonus + attackerStrength - 10);
 
     public static double ComputePlacement(int hitTotal, int attackerDexterity)
     {
@@ -22,12 +22,12 @@ public static class CombatMath
     }
 
     public static int DamageOnHit(
-        int weaponDamageBonus,
+        int attackBonus,
         int attackerStrength,
         int hitTotal,
         int attackerDexterity)
     {
-        int potential = PotentialDamage(weaponDamageBonus, attackerStrength);
+        int potential = PotentialDamage(attackBonus, attackerStrength);
         double placement = ComputePlacement(hitTotal, attackerDexterity);
         return Math.Max(1, (int)Math.Floor(potential * placement));
     }
@@ -36,7 +36,7 @@ public static class CombatMath
         Random random,
         int attackerStrength,
         int attackerDexterity,
-        int weaponDamageBonus,
+        int attackBonus,
         int defenderDexterity)
     {
         int d20 = RollD20(random);
@@ -52,7 +52,7 @@ public static class CombatMath
             };
         }
 
-        int damage = DamageOnHit(weaponDamageBonus, attackerStrength, hitTotal, attackerDexterity);
+        int damage = DamageOnHit(attackBonus, attackerStrength, hitTotal, attackerDexterity);
         return new AttackResolution
         {
             Hit = true,

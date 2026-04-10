@@ -86,7 +86,7 @@ public class App(
         };
 
         int ar = EquippedArmorRating(state);
-        int hb = EquippedHelmetAttackBonus(state);
+        int hb = EquippedHelmetSlotAttackBonus(state);
         if (ar > 0 || hb != 0)
         {
             left.Add("");
@@ -96,7 +96,7 @@ public class App(
             if (hb != 0)
             {
                 string sign = hb > 0 ? "+" : "";
-                parts.Add($"helmet strike {sign}{hb}");
+                parts.Add($"attack (helmet) {sign}{hb}");
             }
 
             left.Add(Terminal.Muted(string.Join(" · ", parts) + " — regalia and reach."));
@@ -985,12 +985,20 @@ public class App(
                     $"Armor is now {ar}: each enemy hit loses up to {ar} damage (min. 1 per hit).");
             }
 
-            if (def.IsEquippableHelmet && (def.HelmetAttackBonus ?? 0) != 0)
+            if (def.IsEquippableWeapon && (def.AttackBonus ?? 0) != 0)
             {
-                int hb = EquippedHelmetAttackBonus(state);
+                int wb = EquippedWeaponSlotAttackBonus(state);
+                string sign = wb > 0 ? "+" : "";
+                lines.Add(
+                    $"Attack bonus from your weapon is now {sign}{wb} (adds to strike damage on each hit you land).");
+            }
+
+            if (def.IsEquippableHelmet && (def.AttackBonus ?? 0) != 0)
+            {
+                int hb = EquippedHelmetSlotAttackBonus(state);
                 string sign = hb > 0 ? "+" : "";
                 lines.Add(
-                    $"Helmet attack bonus is now {sign}{hb} (adds to weapon damage on each hit you land).");
+                    $"Attack bonus from your helmet is now {sign}{hb} (stacks with your weapon on each hit).");
             }
 
             return string.Join(Environment.NewLine, lines);
@@ -1011,14 +1019,20 @@ public class App(
                 _ => "You put the weapon away.",
             };
             var lines = new List<string> { unequipNote };
-            if (canEquipHelmet && isHelmetEquipped
-                && ((defForUnequip.Armor ?? 0) > 0 || (defForUnequip.HelmetAttackBonus ?? 0) != 0))
+            if (canEquipHelmet && isHelmetEquipped)
             {
-                int ar = EquippedArmorRating(state);
-                int hb = EquippedHelmetAttackBonus(state);
-                lines.Add(
-                    $"Without that helmet, your Armor is {ar} and helmet attack bonus is {(hb >= 0 ? "+" : "")}{hb}.");
+                if ((defForUnequip.Armor ?? 0) > 0)
+                {
+                    int ar = EquippedArmorRating(state);
+                    lines.Add($"Without that helmet, your Armor is {ar}.");
+                }
+
+                if ((defForUnequip.AttackBonus ?? 0) != 0)
+                    lines.Add("This helmet no longer adds to your strike damage.");
             }
+
+            if (canEquipWeapon && isWeaponEquipped && (defForUnequip.AttackBonus ?? 0) != 0)
+                lines.Add("That weapon no longer adds to your strike damage.");
 
             return string.Join(Environment.NewLine, lines);
         }
@@ -1313,11 +1327,11 @@ public class App(
             else
             {
                 bool wroteWeaponBonus = false;
-                if (weaponDef.WeaponDamageBonus is int bonus && bonus != 0)
+                if (weaponDef.AttackBonus is int bonus && bonus != 0)
                 {
                     string sign = bonus > 0 ? "+" : "";
                     Console.WriteLine(
-                        Terminal.Muted($"  {sign}{bonus} damage on each strike in a fight."));
+                        Terminal.Muted($"  Attack {sign}{bonus} on each strike in a fight."));
                     wroteWeaponBonus = true;
                 }
 
@@ -1355,11 +1369,11 @@ public class App(
             wroteHelmet = true;
         }
 
-        if (helmetDef.HelmetAttackBonus is int hb && hb != 0)
+        if (helmetDef.AttackBonus is int hb && hb != 0)
         {
             string sign = hb > 0 ? "+" : "";
             Console.WriteLine(
-                Terminal.Muted($"  Helmet attack {sign}{hb} — added to weapon damage on each hit you land."));
+                Terminal.Muted($"  Attack {sign}{hb} from helmet — stacks with weapon on each hit you land."));
             wroteHelmet = true;
         }
 
@@ -1375,7 +1389,7 @@ public class App(
         Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
         Console.WriteLine(
             Terminal.Muted(
-                "(I)nventory: select an item. Edible gear shows healing; helmets (including crowns) show Armor and helmet attack bonus; then Eat, Equip, Drop, or Esc."));
+                "(I)nventory: select an item. Edible gear shows healing; helmets (including crowns) show Armor and attack bonus; then Eat, Equip, Drop, or Esc."));
         Console.WriteLine(Terminal.Muted("(G)round appears when something lies on the ground here."));
         Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
         Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield gold; sometimes a find."));
@@ -1586,11 +1600,11 @@ public class App(
         return true;
     }
 
-    private int EquippedWeaponDamageBonus(GameState state)
+    private int EquippedWeaponSlotAttackBonus(GameState state)
     {
         if (state.EquippedWeaponId is null)
             return 0;
-        return manipulativeStore.Get(state.EquippedWeaponId)?.WeaponDamageBonus ?? 0;
+        return manipulativeStore.Get(state.EquippedWeaponId)?.AttackBonus ?? 0;
     }
 
     private int EquippedArmorRating(GameState state)
@@ -1600,11 +1614,11 @@ public class App(
         return manipulativeStore.Get(state.EquippedHelmetId)?.Armor ?? 0;
     }
 
-    private int EquippedHelmetAttackBonus(GameState state)
+    private int EquippedHelmetSlotAttackBonus(GameState state)
     {
         if (state.EquippedHelmetId is null)
             return 0;
-        return manipulativeStore.Get(state.EquippedHelmetId)?.HelmetAttackBonus ?? 0;
+        return manipulativeStore.Get(state.EquippedHelmetId)?.AttackBonus ?? 0;
     }
 
     private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
@@ -1625,7 +1639,7 @@ public class App(
                 battleLog,
                 showIntro,
                 EquippedArmorRating(state),
-                EquippedHelmetAttackBonus(state));
+                EquippedHelmetSlotAttackBonus(state));
             RenderFightScreen(left, portraitLines);
 
             var key = char.ToLowerInvariant(ReadInputChar());
@@ -1671,7 +1685,7 @@ public class App(
         IReadOnlyList<string> portraitLines,
         List<string> battleLog)
     {
-        int weaponBonus = EquippedWeaponDamageBonus(state) + EquippedHelmetAttackBonus(state);
+        int weaponBonus = EquippedWeaponSlotAttackBonus(state) + EquippedHelmetSlotAttackBonus(state);
         AttackResolution res = CombatMath.ResolveAttack(
             _random,
             state.Strength,
@@ -1692,7 +1706,7 @@ public class App(
             battleLog,
             showIntro: false,
             EquippedArmorRating(state),
-            EquippedHelmetAttackBonus(state));
+            EquippedHelmetSlotAttackBonus(state));
         monsterHp -= res.Damage;
         AnimatePlayerHit(leftBeforeStrike, portraitLines, res.Damage);
         AppendBattleLog(battleLog, $"You hit for {res.Damage} damage.");
@@ -1736,7 +1750,7 @@ public class App(
             _random,
             monster.Strength,
             monster.Dexterity,
-            monster.WeaponDamageBonus,
+            monster.AttackBonus,
             state.Dexterity);
 
         if (!res.Hit)
@@ -1787,7 +1801,7 @@ public class App(
         List<string> battleLog,
         bool showIntro,
         int defenderArmorRating,
-        int helmetAttackBonus)
+        int helmetSlotAttackBonus)
     {
         var left = new List<string> { Terminal.Title("== Fight =="), "" };
         if (showIntro)
@@ -1812,12 +1826,12 @@ public class App(
                     $"Armor {defenderArmorRating}: each enemy hit loses up to {defenderArmorRating} damage (min. 1 per hit)."));
         }
 
-        if (helmetAttackBonus != 0)
+        if (helmetSlotAttackBonus != 0)
         {
-            string sign = helmetAttackBonus > 0 ? "+" : "";
+            string sign = helmetSlotAttackBonus > 0 ? "+" : "";
             left.Add(
                 Terminal.Muted(
-                    $"Helmet attack {sign}{helmetAttackBonus}: added to weapon damage on each hit you land."));
+                    $"Attack {sign}{helmetSlotAttackBonus} from helmet — stacks with weapon on each hit you land."));
         }
 
         left.Add(Terminal.Muted("(A)ttack  (R)un"));

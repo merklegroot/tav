@@ -6,7 +6,7 @@
     "hitPoints": 10,
     "strength": 12,
     "dexterity": 11,
-    "weaponDamageBonus": 2
+    "attackBonus": 2
   },
   {
     "id": "bone_gnawer",
@@ -15,6 +15,6 @@
     "hitPoints": 6,
     "strength": 10,
     "dexterity": 13,
-    "weaponDamageBonus": 1
+    "attackBonus": 1
   }
 ]
