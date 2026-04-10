@@ -123,7 +123,8 @@ public class App(
     /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
     /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is item art when present, otherwise blank (same column geometry).
     /// When <paramref name="reserveLastLeftRowForRightPanel"/> is false (e.g. victory), the image starts at row 1 like the map.
-    /// When true (inventory item with <c>(ESC) Back</c> last), art starts at row 1 but is clipped so the last left row stays panel-free.
+    /// When true (inventory item with <c>(ESC) Back</c> last), art starts at row 1; the ESC row stays panel-free, and
+    /// any extra portrait lines continue below on rows with blank left text (tall art is not clipped to menu height).
     /// </summary>
     private static void WriteTextAndRightImagePanel(
         IReadOnlyList<string> leftLines,
@@ -158,28 +159,42 @@ public class App(
         string blankPanelRow = new string(' ', panelOuter);
 
         int h;
-        int firstImageRow;
-        int lastImageRow;
-        int linesToShow;
+        int[]? portraitPanelIndexByScreenRow = null;
 
         if (reserveLastLeftRowForRightPanel && leftCount >= 2)
         {
-            // Last left line is the ESC hint — keep the right column blank there. Start art at row 1 like the map,
-            // but clip so no panel rows draw on the footer (same idea as extra left lines past the room box).
-            int lastArtRow = leftCount - 2;
-            firstImageRow = rightPanelTopOffset;
-            lastImageRow = Math.Min(rightPanelTopOffset + imageH - 1, lastArtRow);
-            linesToShow = lastImageRow - firstImageRow + 1;
-            if (linesToShow < 1)
-                linesToShow = 0;
+            int escRow = leftCount - 1;
+            if (imageH == 0)
+            {
+                h = leftCount;
+            }
+            else
+            {
+                int sr = rightPanelTopOffset;
+                int maxPortraitRow = -1;
+                for (int p = 0; p < imageH; p++)
+                {
+                    while (sr == escRow)
+                        sr++;
+                    maxPortraitRow = Math.Max(maxPortraitRow, sr);
+                    sr++;
+                }
 
-            h = leftCount;
+                h = Math.Max(leftCount, maxPortraitRow + 1);
+                portraitPanelIndexByScreenRow = new int[h];
+                Array.Fill(portraitPanelIndexByScreenRow, -1);
+                sr = rightPanelTopOffset;
+                for (int p = 0; p < imageH; p++)
+                {
+                    while (sr == escRow)
+                        sr++;
+                    portraitPanelIndexByScreenRow[sr] = p;
+                    sr++;
+                }
+            }
         }
         else
         {
-            firstImageRow = rightPanelTopOffset;
-            lastImageRow = rightPanelTopOffset + imageH - 1;
-            linesToShow = imageH;
             h = Math.Max(leftCount, rightPanelTopOffset + imageH);
         }
 
@@ -187,11 +202,8 @@ public class App(
         {
             string left = i < leftCount ? leftLines[i] : "";
             int pi = -1;
-            if (reserveLastLeftRowForRightPanel && leftCount >= 2 && linesToShow > 0)
-            {
-                if (i >= firstImageRow && i <= lastImageRow)
-                    pi = i - firstImageRow;
-            }
+            if (portraitPanelIndexByScreenRow is not null)
+                pi = portraitPanelIndexByScreenRow[i];
             else if (!reserveLastLeftRowForRightPanel || leftCount < 2)
             {
                 int legacyPi = i - rightPanelTopOffset;
@@ -199,7 +211,7 @@ public class App(
                     pi = legacyPi;
             }
 
-            string right = pi >= 0 && pi < linesToShow ? panel[pi] : blankPanelRow;
+            string right = pi >= 0 && pi < imageH ? panel[pi] : blankPanelRow;
             right = PadRightVisual(right, panelOuter);
 
             string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
