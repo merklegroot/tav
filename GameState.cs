@@ -6,6 +6,9 @@ public record GameState
 {
     public Room CurrentRoom { get; set; }
     public bool ShouldExit { get; set; }
+
+    /// <summary>Set when the player equips the crown — the winning condition.</summary>
+    public bool GameWon { get; set; }
     public int HitPoints { get; set; }
     public int MaxHitPoints { get; }
     public int Strength { get; set; }

@@ -70,6 +70,45 @@ public class App(
         Console.ReadKey(intercept: true);
     }
 
+    private void PrintVictoryScreen(GameState state)
+    {
+        Console.WriteLine(Terminal.Title("== Victory =="));
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Border("            .-===-."));
+        Console.WriteLine(Terminal.Border("           /       \\"));
+        Console.WriteLine(Terminal.Border("          |    ♔    |"));
+        Console.WriteLine(Terminal.Border("           \\       /"));
+        Console.WriteLine(Terminal.Border("            '-===-'"));
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Ok("The crown fits cold and sure."));
+        Console.WriteLine(
+            Terminal.Ok("Banners you never hung stir in a wind that has waited ages for an heir."));
+        Console.WriteLine();
+        Console.WriteLine(
+            Terminal.Muted("The tower exhales. Somewhere below, a door you did not open swings shut."));
+        int ar = EquippedArmorRating(state);
+        int hb = EquippedHelmetAttackBonus(state);
+        if (ar > 0 || hb != 0)
+        {
+            Console.WriteLine();
+            var parts = new List<string>();
+            if (ar > 0)
+                parts.Add($"Armor {ar}");
+            if (hb != 0)
+            {
+                string sign = hb > 0 ? "+" : "";
+                parts.Add($"helmet strike {sign}{hb}");
+            }
+
+            Console.WriteLine(Terminal.Muted(string.Join(" · ", parts) + " — regalia and reach."));
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(
+            Terminal.Muted(
+                $"You stand crowned. HP {state.HitPoints}/{state.MaxHitPoints}, gold {state.Gold}. The story ends here."));
+    }
+
     /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
     private List<string> BuildScreenLines(GameState state, IReadOnlyList<MenuItem> menuItems, bool forceWide = false)
     {
@@ -686,6 +725,14 @@ public class App(
                 return;
 
             listFeedback = RunSelectedInventoryItem(state, selectedIndex.Value);
+            if (state.GameWon)
+            {
+                ClearConsole();
+                PrintVictoryScreen(state);
+                PauseForContinue();
+                state.ShouldExit = true;
+                return;
+            }
         }
     }
 
@@ -757,6 +804,10 @@ public class App(
                 state.EquippedWeaponId = def.Id;
             if (def.IsEquippableHelmet)
                 state.EquippedHelmetId = def.Id;
+
+            if (def.IsEquippableHelmet
+                && string.Equals(def.Id, KnownManipulativeIds.Crown, StringComparison.OrdinalIgnoreCase))
+                state.GameWon = true;
 
             var lines = new List<string>
             {
