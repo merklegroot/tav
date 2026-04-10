@@ -22,6 +22,12 @@ public static class GameStateGroundOps
             state.EquippedWeaponId = null;
         }
 
+        if (state.EquippedHelmetId is not null
+            && string.Equals(state.EquippedHelmetId, name, StringComparison.OrdinalIgnoreCase))
+        {
+            state.EquippedHelmetId = null;
+        }
+
         var roomId = state.CurrentRoom.Id.ToLowerInvariant();
         if (!state.GroundItemsByRoomId.TryGetValue(roomId, out var ground))
         {

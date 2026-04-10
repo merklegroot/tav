@@ -67,6 +67,8 @@ public record ManipulativeDefinition
     public ConsumeEffects? ConsumeEffects { get; init; }
     public bool IsEquippableWeapon { get; init; }
     public int? WeaponDamageBonus { get; init; }
+    public bool IsEquippableHelmet { get; init; }
+    public int? HelmetDamageReduction { get; init; }
 }
 
 public record ConsumeEffects

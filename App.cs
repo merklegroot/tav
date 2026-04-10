@@ -631,10 +631,16 @@ public class App(
             string id = state.Inventory[index];
             var def = manipulativeStore.Get(id);
             bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
-            bool canEquip = def is { IsEquippableWeapon: true };
-            bool isEquipped = canEquip
+            bool canEquipWeapon = def is { IsEquippableWeapon: true };
+            bool canEquipHelmet = def is { IsEquippableHelmet: true };
+            bool isWeaponEquipped = canEquipWeapon
                 && state.EquippedWeaponId is not null
                 && string.Equals(state.EquippedWeaponId, id, StringComparison.OrdinalIgnoreCase);
+            bool isHelmetEquipped = canEquipHelmet
+                && state.EquippedHelmetId is not null
+                && string.Equals(state.EquippedHelmetId, id, StringComparison.OrdinalIgnoreCase);
+            bool offerEquip = (canEquipWeapon && !isWeaponEquipped) || (canEquipHelmet && !isHelmetEquipped);
+            bool offerUnequip = (canEquipWeapon && isWeaponEquipped) || (canEquipHelmet && isHelmetEquipped);
 
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
@@ -647,9 +653,9 @@ public class App(
             }
 
             Console.WriteLine();
-            WriteInventoryItemDetailMenu(canEat, offerEquip: canEquip && !isEquipped, offerUnequip: isEquipped);
+            WriteInventoryItemDetailMenu(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
 
-            var action = ReadInventoryItemDetailAction(canEat, offerEquip: canEquip && !isEquipped, offerUnequip: isEquipped);
+            var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
             if (action == InventoryItemDetailAction.BackToList)
                 return false;
             if (action == InventoryItemDetailAction.Drop)
@@ -663,19 +669,33 @@ public class App(
 
             if (action == InventoryItemDetailAction.Equip)
             {
-                state.EquippedWeaponId = def!.Id;
+                if (def!.IsEquippableWeapon)
+                    state.EquippedWeaponId = def.Id;
+                if (def.IsEquippableHelmet)
+                    state.EquippedHelmetId = def.Id;
                 Console.WriteLine();
                 Console.WriteLine(
-                    Terminal.Muted($"You equip the {def.Name.ToLowerInvariant()}."));
+                    Terminal.Muted(
+                        def.IsEquippableHelmet && !def.IsEquippableWeapon
+                            ? $"You put on the {def.Name.ToLowerInvariant()}."
+                            : $"You equip the {def.Name.ToLowerInvariant()}."));
                 PauseForContinue();
                 continue;
             }
 
             if (action == InventoryItemDetailAction.Unequip)
             {
-                state.EquippedWeaponId = null;
+                if (canEquipWeapon && isWeaponEquipped)
+                    state.EquippedWeaponId = null;
+                if (canEquipHelmet && isHelmetEquipped)
+                    state.EquippedHelmetId = null;
                 Console.WriteLine();
-                Console.WriteLine(Terminal.Muted("You put the weapon away."));
+                string unequipNote = def! switch
+                {
+                    { IsEquippableHelmet: true, IsEquippableWeapon: false } => "You take off the helmet.",
+                    _ => "You put the weapon away.",
+                };
+                Console.WriteLine(Terminal.Muted(unequipNote));
                 PauseForContinue();
                 continue;
             }
@@ -956,30 +976,58 @@ public class App(
         if (state.EquippedWeaponId is null)
         {
             Console.WriteLine(Terminal.Muted("  Weapon: none"));
+        }
+        else
+        {
+            var weaponDef = manipulativeStore.Get(state.EquippedWeaponId);
+            string weaponName = weaponDef?.Name ?? manipulativeStore.GetDisplayName(state.EquippedWeaponId);
+            Console.WriteLine(Terminal.Accent($"  Weapon: {weaponName}"));
+
+            if (weaponDef is null)
+            {
+                Console.WriteLine(Terminal.Muted("  No effect data for this item."));
+            }
+            else
+            {
+                bool wroteWeaponBonus = false;
+                if (weaponDef.WeaponDamageBonus is int bonus && bonus != 0)
+                {
+                    string sign = bonus > 0 ? "+" : "";
+                    Console.WriteLine(
+                        Terminal.Muted($"  {sign}{bonus} damage on each strike in a fight."));
+                    wroteWeaponBonus = true;
+                }
+
+                if (!wroteWeaponBonus && weaponDef.IsEquippableWeapon)
+                    Console.WriteLine(Terminal.Muted("  No combat bonuses from this weapon."));
+            }
+        }
+
+        if (state.EquippedHelmetId is null)
+        {
+            Console.WriteLine(Terminal.Muted("  Helmet: none"));
             return;
         }
 
-        var weaponDef = manipulativeStore.Get(state.EquippedWeaponId);
-        string weaponName = weaponDef?.Name ?? manipulativeStore.GetDisplayName(state.EquippedWeaponId);
-        Console.WriteLine(Terminal.Accent($"  Weapon: {weaponName}"));
+        var helmetDef = manipulativeStore.Get(state.EquippedHelmetId);
+        string helmetName = helmetDef?.Name ?? manipulativeStore.GetDisplayName(state.EquippedHelmetId);
+        Console.WriteLine(Terminal.Accent($"  Helmet: {helmetName}"));
 
-        if (weaponDef is null)
+        if (helmetDef is null)
         {
             Console.WriteLine(Terminal.Muted("  No effect data for this item."));
             return;
         }
 
-        bool wroteAny = false;
-        if (weaponDef.WeaponDamageBonus is int bonus && bonus != 0)
+        if (helmetDef.HelmetDamageReduction is int dr && dr > 0)
         {
-            string sign = bonus > 0 ? "+" : "";
             Console.WriteLine(
-                Terminal.Muted($"  {sign}{bonus} damage on each strike in a fight."));
-            wroteAny = true;
+                Terminal.Muted($"  −{dr} damage from enemy hits in a fight (minimum 1 per hit)."));
+            return;
         }
 
-        if (!wroteAny && weaponDef.IsEquippableWeapon)
-            Console.WriteLine(Terminal.Muted("  No combat bonuses from this weapon."));
+        if (helmetDef.IsEquippableHelmet)
+            Console.WriteLine(Terminal.Muted("  No damage reduction from this helmet."));
     }
 
     private void PrintHelp()
@@ -1208,6 +1256,13 @@ public class App(
         return manipulativeStore.Get(state.EquippedWeaponId)?.WeaponDamageBonus ?? 0;
     }
 
+    private int EquippedHelmetDamageReduction(GameState state)
+    {
+        if (state.EquippedHelmetId is null)
+            return 0;
+        return manipulativeStore.Get(state.EquippedHelmetId)?.HelmetDamageReduction ?? 0;
+    }
+
     private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
     {
         var monster = monsters[_random.Next(monsters.Count)];
@@ -1332,8 +1387,13 @@ public class App(
             return false;
         }
 
-        state.HitPoints = Math.Max(0, state.HitPoints - res.Damage);
-        AppendBattleLog(battleLog, $"The {monster.Name} hits you for {res.Damage} damage.");
+        int damage = res.Damage;
+        int reduction = EquippedHelmetDamageReduction(state);
+        if (reduction > 0)
+            damage = Math.Max(1, damage - reduction);
+
+        state.HitPoints = Math.Max(0, state.HitPoints - damage);
+        AppendBattleLog(battleLog, $"The {monster.Name} hits you for {damage} damage.");
 
         if (state.HitPoints > 0)
             return false;

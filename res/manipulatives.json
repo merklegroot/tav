@@ -24,5 +24,11 @@
     "name": "Axe",
     "isEquippableWeapon": true,
     "weaponDamageBonus": 3
+  },
+  {
+    "id": "helmet",
+    "name": "Helmet",
+    "isEquippableHelmet": true,
+    "helmetDamageReduction": 2
   }
 ]
