@@ -543,7 +543,7 @@ public class App(GameState state) : IApp
                 return false;
 
             string id = state.Inventory[index];
-            ManipulativeStore.TryGet(id, out var def);
+            var def = ManipulativeStore.Find(id);
             bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
 
             ClearConsole();
@@ -571,60 +571,60 @@ public class App(GameState state) : IApp
                 return true;
             }
 
-            TryUseInventoryItem(state, ref index, out bool consumed, out string message);
+            var useResult = TryUseInventoryItem(state, index);
             Console.WriteLine();
-            Console.WriteLine(Terminal.Muted(message));
+            Console.WriteLine(Terminal.Muted(useResult.Message));
             PauseForContinue();
-            if (consumed)
+            if (useResult.Consumed)
                 return false;
         }
     }
 
-    /// <summary>Eats an edible item when the player chose (E)at. When consumed, <paramref name="index"/> is unchanged but the list shrinks—caller should return to the list.</summary>
-    private static void TryUseInventoryItem(GameState state, ref int index, out bool consumed, out string message)
+    /// <summary>Eats an edible item when the player chose (E)at. When consumed, the list shrinks at <paramref name="index"/>—caller should return to the list.</summary>
+    private static InventoryUseResult TryUseInventoryItem(GameState state, int index)
     {
-        consumed = false;
-        message = "";
         string id = state.Inventory[index];
-        if (!ManipulativeStore.TryGet(id, out var def))
+        var def = ManipulativeStore.Find(id);
+        if (def is null)
+            return new InventoryUseResult(false, "You can't think of a way to use that here.");
+
+        if (!def.IsEdible)
+            return new InventoryUseResult(false, "You can't think of a way to use that here.");
+
+        int cap = def.ConsumeEffects?.HealthRestored ?? 0;
+        if (cap <= 0)
+            return new InventoryUseResult(false, "You can't think of a way to use that here.");
+
+        int missing = state.MaxHitPoints - state.HitPoints;
+        int heal = Math.Min(cap, missing);
+        state.HitPoints += heal;
+        state.Inventory.RemoveAt(index);
+        string label = def.Name.ToLowerInvariant();
+        if (heal <= 0)
         {
-            message = "You can't think of a way to use that here.";
-            return;
+            return new InventoryUseResult(
+                true,
+                $"You eat the {label}. You're already at full health — satisfying, but no healing needed.");
         }
 
-        if (def.IsEdible)
+        if (heal >= cap)
         {
-            int cap = def.ConsumeEffects?.HealthRestored ?? 0;
-            if (cap <= 0)
-            {
-                message = "You can't think of a way to use that here.";
-                return;
-            }
-
-            int missing = state.MaxHitPoints - state.HitPoints;
-            int heal = Math.Min(cap, missing);
-            state.HitPoints += heal;
-            state.Inventory.RemoveAt(index);
-            consumed = true;
-            string label = def.Name.ToLowerInvariant();
-            if (heal <= 0)
-            {
-                message =
-                    $"You eat the {label}. You're already at full health — satisfying, but no healing needed.";
-            }
-            else if (heal >= cap)
-            {
-                message = $"You eat the {label}. Sweet juice; warmth spreads through you.";
-            }
-            else
-            {
-                message = $"You eat the {label} and recover {heal} HP.";
-            }
-
-            return;
+            return new InventoryUseResult(true, $"You eat the {label}. Sweet juice; warmth spreads through you.");
         }
 
-        message = "You can't think of a way to use that here.";
+        return new InventoryUseResult(true, $"You eat the {label} and recover {heal} HP.");
+    }
+
+    private readonly struct InventoryUseResult
+    {
+        public InventoryUseResult(bool consumed, string message)
+        {
+            Consumed = consumed;
+            Message = message;
+        }
+
+        public bool Consumed { get; }
+        public string Message { get; }
     }
 
     private enum InventoryItemDetailAction
@@ -971,10 +971,11 @@ public class App(GameState state) : IApp
                 continue;
             if (!roomsById.TryGetValue(destId.ToLowerInvariant(), out var destRoom))
                 continue;
-            items.Add(new MenuItem(
-                FormatDirectionOption(dir, destRoom.Name),
-                dir,
-                () =>
+            items.Add(new MenuItem
+            {
+                Text = FormatDirectionOption(dir, destRoom.Name),
+                Key = dir,
+                Action = () =>
                 {
                     var oldPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
                     navigateTo(destRoom);
@@ -983,7 +984,8 @@ public class App(GameState state) : IApp
                         BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
                         state,
                         dir);
-                }));
+                },
+            });
         }
 
         if (state.GroundItemsInCurrentRoom.Count > 0)
@@ -991,15 +993,50 @@ public class App(GameState state) : IApp
             string groundList = string.Join(
                 ", ",
                 state.GroundItemsInCurrentRoom.Select(ManipulativeStore.DisplayName));
-            items.Add(new MenuItem($"(G)round - {groundList}", 'g', () => RunPickUpScreen(state)));
+            items.Add(new MenuItem
+            {
+                Text = $"(G)round - {groundList}",
+                Key = 'g',
+                Action = () => RunPickUpScreen(state),
+            });
         }
 
-        items.Add(new MenuItem("(I)nventory", 'i', () => RunInventoryScreen(state)));
-        items.Add(new MenuItem("(C)haracter", 'c', () => PrintCharacter(state)));
-        items.Add(new MenuItem("(M)ap", 'm', () => PrintMapScreen(state)));
-        items.Add(new MenuItem("(F)ight", 'f', () => RunFightEncounter(state, monsters)));
-        items.Add(new MenuItem("(H)elp", 'h', () => PrintHelp()));
-        items.Add(new MenuItem("e(X)it", 'x', exit));
+        items.Add(new MenuItem
+        {
+            Text = "(I)nventory",
+            Key = 'i',
+            Action = () => RunInventoryScreen(state),
+        });
+        items.Add(new MenuItem
+        {
+            Text = "(C)haracter",
+            Key = 'c',
+            Action = () => PrintCharacter(state),
+        });
+        items.Add(new MenuItem
+        {
+            Text = "(M)ap",
+            Key = 'm',
+            Action = () => PrintMapScreen(state),
+        });
+        items.Add(new MenuItem
+        {
+            Text = "(F)ight",
+            Key = 'f',
+            Action = () => RunFightEncounter(state, monsters),
+        });
+        items.Add(new MenuItem
+        {
+            Text = "(H)elp",
+            Key = 'h',
+            Action = () => PrintHelp(),
+        });
+        items.Add(new MenuItem
+        {
+            Text = "e(X)it",
+            Key = 'x',
+            Action = exit,
+        });
         return items;
     }
 

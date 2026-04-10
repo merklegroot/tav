@@ -1,3 +1,10 @@
 namespace Tav;
 
-public record Monster(string Id, string Name, string Blurb, int HitPoints, int MaxDamage);
+public record Monster
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public required string Blurb { get; init; }
+    public required int HitPoints { get; init; }
+    public required int MaxDamage { get; init; }
+}

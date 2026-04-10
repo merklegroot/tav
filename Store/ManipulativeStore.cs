@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace Tav.Store;
 
 public static class ManipulativeStore
@@ -8,20 +6,20 @@ public static class ManipulativeStore
 
     public static string DisplayName(string manipulativeId)
     {
-        if (TryGet(manipulativeId, out var def))
+        var def = Find(manipulativeId);
+        if (def is not null)
             return def.Name;
 
         return manipulativeId.Replace('_', ' ');
     }
 
-    public static bool TryGet(
-        string manipulativeId,
-        [NotNullWhen(true)] out ManipulativeDefinition? definition)
+    public static ManipulativeDefinition? Find(string manipulativeId)
     {
-        definition = null;
         if (string.IsNullOrEmpty(manipulativeId))
-            return false;
-        return ByIdLower.Value.TryGetValue(manipulativeId.ToLowerInvariant(), out definition);
+            return null;
+        return ByIdLower.Value.TryGetValue(manipulativeId.ToLowerInvariant(), out var def)
+            ? def
+            : null;
     }
 
     /// <summary>Prints what eating would do, from <see cref="ConsumeEffects"/>. Caller ensures <paramref name="definition"/> is edible with a positive heal cap.</summary>
