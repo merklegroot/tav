@@ -5,15 +5,18 @@
     "isEdible": true,
     "consumeEffects": {
       "healthRestored": 6
-    }
+    },
+    "image": "apple"
   },
   {
     "id": "torch",
-    "name": "Torch"
+    "name": "Torch",
+    "image": "torch"
   },
   {
     "id": "bone_shard",
-    "name": "Bone shard"
+    "name": "Bone shard",
+    "image": "bone_shard"
   },
   {
     "id": "crown",
@@ -27,7 +30,8 @@
     "id": "axe",
     "name": "Axe",
     "isEquippableWeapon": true,
-    "attackBonus": 3
+    "attackBonus": 3,
+    "image": "axe"
   },
   {
     "id": "helmet",
