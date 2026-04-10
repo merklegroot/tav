@@ -1656,6 +1656,8 @@ public class App(
                 if (TryCompletePlayerAttack(state, monster, ref monsterHp, portraitLines, battleLog))
                     return;
             }
+
+            AppendBattleLog(battleLog, "");
         }
     }
 
@@ -1761,8 +1763,9 @@ public class App(
             return false;
 
         ClearConsole();
+        int defeatLogW = AdventureLayout.LeftColumnWidth;
         var defeatLeft = new List<string> { Terminal.Title("== Fight =="), "" };
-        defeatLeft.AddRange(battleLog.Select(Terminal.Muted));
+        defeatLeft.AddRange(BuildFightLogDisplayLines(showIntro: false, monster, defeatLogW, battleLog));
         if (battleLog.Count > 0)
             defeatLeft.Add("");
         defeatLeft.Add(
@@ -1779,7 +1782,54 @@ public class App(
         return true;
     }
 
-    private const int FightBattleLogMaxLines = 12;
+    /// <summary>Max number of <em>display</em> lines for intro + battle log; oldest lines drop from the top.</summary>
+    private const int FightBattleLogMaxVisibleLines = 8;
+
+    /// <summary>Intro (optional) plus battle log entries as screen lines (wrap + round blanks), trimmed from the top when over <see cref="FightBattleLogMaxVisibleLines"/>.</summary>
+    private static List<string> BuildFightLogDisplayLines(
+        bool showIntro,
+        Monster monster,
+        int wrapWidth,
+        IReadOnlyList<string> battleLog)
+    {
+        var buffer = new List<string>();
+        if (showIntro)
+        {
+            string nameForWrap = monster.Name.Replace(" ", "\u00A0", StringComparison.Ordinal);
+            string plainIntro = $"Something stirs — a {nameForWrap}! {monster.Blurb}";
+            foreach (string rawLine in WrapText(plainIntro, wrapWidth))
+            {
+                string line = rawLine.Replace("\u00A0", " ", StringComparison.Ordinal);
+                int idx = line.IndexOf(monster.Name, StringComparison.Ordinal);
+                if (idx >= 0)
+                {
+                    buffer.Add(
+                        Terminal.Muted(line[..idx])
+                        + Terminal.Combat(monster.Name)
+                        + Terminal.Muted(line[(idx + monster.Name.Length)..]));
+                    continue;
+                }
+
+                buffer.Add(Terminal.Muted(line));
+            }
+        }
+
+        foreach (string entry in battleLog)
+        {
+            if (entry.Length == 0)
+            {
+                buffer.Add("");
+                continue;
+            }
+
+            buffer.AddRange(WrapText(entry, wrapWidth).Select(Terminal.Muted));
+        }
+
+        if (buffer.Count > FightBattleLogMaxVisibleLines)
+            buffer.RemoveRange(0, buffer.Count - FightBattleLogMaxVisibleLines);
+
+        return buffer;
+    }
 
     private static List<string> BuildFightLeftColumn(
         Monster monster,
@@ -1792,34 +1842,6 @@ public class App(
     {
         int w = AdventureLayout.LeftColumnWidth;
         var left = new List<string> { Terminal.Title("== Fight =="), "" };
-        if (showIntro)
-        {
-            // Keep multi-word names from wrapping in the middle when possible; same word-wrap rules as room text.
-            string nameForWrap = monster.Name.Replace(" ", "\u00A0", StringComparison.Ordinal);
-            string plainIntro = $"Something stirs — a {nameForWrap}! {monster.Blurb}";
-            foreach (string rawLine in WrapText(plainIntro, w))
-            {
-                string line = rawLine.Replace("\u00A0", " ", StringComparison.Ordinal);
-                int idx = line.IndexOf(monster.Name, StringComparison.Ordinal);
-                if (idx >= 0)
-                {
-                    left.Add(
-                        Terminal.Muted(line[..idx])
-                        + Terminal.Combat(monster.Name)
-                        + Terminal.Muted(line[(idx + monster.Name.Length)..]));
-                    continue;
-                }
-
-                left.Add(Terminal.Muted(line));
-            }
-
-            left.Add("");
-        }
-
-        foreach (string entry in battleLog)
-            left.AddRange(WrapText(entry, w).Select(Terminal.Muted));
-        if (battleLog.Count > 0)
-            left.Add("");
         left.Add(
             Terminal.Warn($"You: {state.HitPoints}/{state.MaxHitPoints} HP    ")
             + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
@@ -1841,16 +1863,17 @@ public class App(
         left.Add("");
         left.Add(FormatMenuLine("(A)ttack", 'a', w));
         left.Add(FormatMenuLine("(R)un", 'r', w));
+        if (showIntro || battleLog.Count > 0)
+        {
+            left.Add("");
+            left.AddRange(BuildFightLogDisplayLines(showIntro, monster, w, battleLog));
+        }
+
         left.Add("");
         return left;
     }
 
-    private static void AppendBattleLog(List<string> battleLog, string line)
-    {
-        battleLog.Add(line);
-        while (battleLog.Count > FightBattleLogMaxLines)
-            battleLog.RemoveAt(0);
-    }
+    private static void AppendBattleLog(List<string> battleLog, string line) => battleLog.Add(line);
 
     // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
     private static char ReadInputChar()
