@@ -632,11 +632,20 @@ public class App(
 
     private void RunInventoryScreen(GameState state)
     {
+        string? listFeedback = null;
         while (true)
         {
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
+            if (!string.IsNullOrEmpty(listFeedback))
+            {
+                foreach (string line in listFeedback.Split(Environment.NewLine))
+                    Console.WriteLine(Terminal.Muted(line));
+                Console.WriteLine();
+                listFeedback = null;
+            }
+
             int n = state.Inventory.Count;
             if (n == 0)
             {
@@ -676,8 +685,7 @@ public class App(
             if (selectedIndex is null)
                 return;
 
-            if (RunSelectedInventoryItem(state, selectedIndex.Value))
-                return;
+            listFeedback = RunSelectedInventoryItem(state, selectedIndex.Value);
         }
     }
 
@@ -695,130 +703,117 @@ public class App(
         Console.WriteLine(Terminal.EscBackHint());
     }
 
-    /// <returns><see langword="true"/> if the player dropped an item (caller should leave Inventory).</returns>
-    private bool RunSelectedInventoryItem(GameState state, int index)
+    /// <summary>Detail screen for one stack. Returns text to show above the list on return, or <see langword="null"/> if the player backed out without acting.</summary>
+    private string? RunSelectedInventoryItem(GameState state, int index)
     {
-        while (true)
+        if (index < 0 || index >= state.Inventory.Count)
+            return null;
+
+        string id = state.Inventory[index];
+        var def = manipulativeStore.Get(id);
+        bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
+        bool canEquipWeapon = def is { IsEquippableWeapon: true };
+        bool canEquipHelmet = def is { IsEquippableHelmet: true };
+        bool isWeaponEquipped = canEquipWeapon
+            && state.EquippedWeaponId is not null
+            && string.Equals(state.EquippedWeaponId, id, StringComparison.OrdinalIgnoreCase);
+        bool isHelmetEquipped = canEquipHelmet
+            && state.EquippedHelmetId is not null
+            && string.Equals(state.EquippedHelmetId, id, StringComparison.OrdinalIgnoreCase);
+        bool offerEquip = (canEquipWeapon && !isWeaponEquipped) || (canEquipHelmet && !isHelmetEquipped);
+        bool offerUnequip = (canEquipWeapon && isWeaponEquipped) || (canEquipHelmet && isHelmetEquipped);
+
+        ClearConsole();
+        WritePlayerStatusHeader("== Inventory ==", state);
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"));
+        if (canEat)
         {
-            if (index < 0 || index >= state.Inventory.Count)
-                return false;
-
-            string id = state.Inventory[index];
-            var def = manipulativeStore.Get(id);
-            bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
-            bool canEquipWeapon = def is { IsEquippableWeapon: true };
-            bool canEquipHelmet = def is { IsEquippableHelmet: true };
-            bool isWeaponEquipped = canEquipWeapon
-                && state.EquippedWeaponId is not null
-                && string.Equals(state.EquippedWeaponId, id, StringComparison.OrdinalIgnoreCase);
-            bool isHelmetEquipped = canEquipHelmet
-                && state.EquippedHelmetId is not null
-                && string.Equals(state.EquippedHelmetId, id, StringComparison.OrdinalIgnoreCase);
-            bool offerEquip = (canEquipWeapon && !isWeaponEquipped) || (canEquipHelmet && !isHelmetEquipped);
-            bool offerUnequip = (canEquipWeapon && isWeaponEquipped) || (canEquipHelmet && isHelmetEquipped);
-
-            ClearConsole();
-            WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
-            Console.WriteLine(Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"));
-            if (canEat)
-            {
-                Console.WriteLine();
-                manipulativeStore.WriteEdibleEffectDescription(def!, state);
-            }
-
-            if (canEquipHelmet)
-            {
-                Console.WriteLine();
-                manipulativeStore.WriteHelmetEffectDescription(def!);
-            }
-
-            Console.WriteLine();
-            WriteInventoryItemDetailMenu(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
-
-            var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
-            if (action == InventoryItemDetailAction.BackToList)
-                return false;
-            if (action == InventoryItemDetailAction.Drop)
-            {
-                var dropped = GameStateGroundOps.DropInventoryItemAt(state, index);
-                Console.WriteLine();
-                Console.WriteLine(
-                    Terminal.Muted($"You drop the {manipulativeStore.GetDisplayName(dropped)}."));
-                return true;
-            }
-
-            if (action == InventoryItemDetailAction.Equip)
-            {
-                if (def!.IsEquippableWeapon)
-                    state.EquippedWeaponId = def.Id;
-                if (def.IsEquippableHelmet)
-                    state.EquippedHelmetId = def.Id;
-                Console.WriteLine();
-                Console.WriteLine(
-                    Terminal.Muted(
-                        def.IsEquippableHelmet && !def.IsEquippableWeapon
-                            ? $"You put on the {def.Name.ToLowerInvariant()}."
-                            : $"You equip the {def.Name.ToLowerInvariant()}."));
-                if (def.IsEquippableHelmet && (def.Armor ?? 0) > 0)
-                {
-                    Console.WriteLine(
-                        Terminal.Muted(
-                            $"Armor is now {EquippedArmorRating(state)}: each enemy hit loses up to {EquippedArmorRating(state)} damage (min. 1 per hit)."));
-                }
-
-                if (def.IsEquippableHelmet && (def.HelmetAttackBonus ?? 0) != 0)
-                {
-                    int hb = EquippedHelmetAttackBonus(state);
-                    string sign = hb > 0 ? "+" : "";
-                    Console.WriteLine(
-                        Terminal.Muted(
-                            $"Helmet attack bonus is now {sign}{hb} (adds to weapon damage on each hit you land)."));
-                }
-
-                PauseForContinue();
-                continue;
-            }
-
-            if (action == InventoryItemDetailAction.Unequip)
-            {
-                if (canEquipWeapon && isWeaponEquipped)
-                    state.EquippedWeaponId = null;
-                if (canEquipHelmet && isHelmetEquipped)
-                    state.EquippedHelmetId = null;
-                Console.WriteLine();
-                var defForUnequip = def!;
-                string unequipNote = defForUnequip switch
-                {
-                    { IsEquippableHelmet: true, IsEquippableWeapon: false } =>
-                        $"You take off the {defForUnequip.Name.ToLowerInvariant()}.",
-                    _ => "You put the weapon away.",
-                };
-                Console.WriteLine(Terminal.Muted(unequipNote));
-                if (canEquipHelmet && isHelmetEquipped
-                    && ((def!.Armor ?? 0) > 0 || (def.HelmetAttackBonus ?? 0) != 0))
-                {
-                    int ar = EquippedArmorRating(state);
-                    int hb = EquippedHelmetAttackBonus(state);
-                    Console.WriteLine(
-                        Terminal.Muted(
-                            $"Without that helmet, your Armor is {ar} and helmet attack bonus is {(hb >= 0 ? "+" : "")}{hb}."));
-                }
-
-                PauseForContinue();
-                continue;
-            }
-
-            var useResult = TryUseInventoryItem(state, index);
-            Console.WriteLine();
-            Console.WriteLine(Terminal.Muted(useResult.Message));
-            PauseForContinue();
-            if (useResult.Consumed)
-                return false;
+            manipulativeStore.WriteEdibleEffectDescription(def!, state);
         }
+
+        if (canEquipHelmet)
+        {
+            Console.WriteLine();
+            manipulativeStore.WriteHelmetEffectDescription(def!);
+        }
+
+        Console.WriteLine();
+        WriteInventoryItemDetailMenu(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
+
+        var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
+        if (action == InventoryItemDetailAction.BackToList)
+            return null;
+        if (action == InventoryItemDetailAction.Drop)
+        {
+            var dropped = GameStateGroundOps.DropInventoryItemAt(state, index);
+            return $"You drop the {manipulativeStore.GetDisplayName(dropped)}.";
+        }
+
+        if (action == InventoryItemDetailAction.Equip)
+        {
+            if (def!.IsEquippableWeapon)
+                state.EquippedWeaponId = def.Id;
+            if (def.IsEquippableHelmet)
+                state.EquippedHelmetId = def.Id;
+
+            var lines = new List<string>
+            {
+                def.IsEquippableHelmet && !def.IsEquippableWeapon
+                    ? $"You put on the {def.Name.ToLowerInvariant()}."
+                    : $"You equip the {def.Name.ToLowerInvariant()}.",
+            };
+            if (def.IsEquippableHelmet && (def.Armor ?? 0) > 0)
+            {
+                int ar = EquippedArmorRating(state);
+                lines.Add(
+                    $"Armor is now {ar}: each enemy hit loses up to {ar} damage (min. 1 per hit).");
+            }
+
+            if (def.IsEquippableHelmet && (def.HelmetAttackBonus ?? 0) != 0)
+            {
+                int hb = EquippedHelmetAttackBonus(state);
+                string sign = hb > 0 ? "+" : "";
+                lines.Add(
+                    $"Helmet attack bonus is now {sign}{hb} (adds to weapon damage on each hit you land).");
+            }
+
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        if (action == InventoryItemDetailAction.Unequip)
+        {
+            if (canEquipWeapon && isWeaponEquipped)
+                state.EquippedWeaponId = null;
+            if (canEquipHelmet && isHelmetEquipped)
+                state.EquippedHelmetId = null;
+
+            var defForUnequip = def!;
+            string unequipNote = defForUnequip switch
+            {
+                { IsEquippableHelmet: true, IsEquippableWeapon: false } =>
+                    $"You take off the {defForUnequip.Name.ToLowerInvariant()}.",
+                _ => "You put the weapon away.",
+            };
+            var lines = new List<string> { unequipNote };
+            if (canEquipHelmet && isHelmetEquipped
+                && ((defForUnequip.Armor ?? 0) > 0 || (defForUnequip.HelmetAttackBonus ?? 0) != 0))
+            {
+                int ar = EquippedArmorRating(state);
+                int hb = EquippedHelmetAttackBonus(state);
+                lines.Add(
+                    $"Without that helmet, your Armor is {ar} and helmet attack bonus is {(hb >= 0 ? "+" : "")}{hb}.");
+            }
+
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        InventoryUseResult useResult = TryUseInventoryItem(state, index);
+        return useResult.Message;
     }
 
-    /// <summary>Eats an edible item when the player chose (E)at. When consumed, the list shrinks at <paramref name="index"/>—caller should return to the list.</summary>
+    /// <summary>Eats an edible item when the player chose (E)at. When consumed, the list shrinks at <paramref name="index"/>.</summary>
     private InventoryUseResult TryUseInventoryItem(GameState state, int index)
     {
         string id = state.Inventory[index];
