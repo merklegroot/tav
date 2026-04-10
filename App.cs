@@ -420,7 +420,11 @@ public class App(
         return left + paddedBody + right;
     }
 
-    private static string[] BuildRoomPanel(Room room, int outerWidth, bool isCurrentRoom = false)
+    private static string[] BuildRoomPanel(
+        Room room,
+        int outerWidth,
+        bool isCurrentRoom = false,
+        bool forMapOverview = false)
     {
         int inner = outerWidth - 2;
 
@@ -464,19 +468,27 @@ public class App(
             innerRows.Add(BuildSideWallLine(body, inner, w, e, useWestEastMarkers: useMarkers));
         }
 
-        var panel = new[]
+        var plain = new[]
         {
-            Terminal.Border(top),
-            Terminal.Border(innerRows[0]),
-            Terminal.Border(innerRows[1]),
-            Terminal.Border(innerRows[2]),
-            Terminal.Border(bottom),
+            top,
+            innerRows[0],
+            innerRows[1],
+            innerRows[2],
+            bottom,
         };
 
-        if (isCurrentRoom)
-            return panel.Select(Terminal.Accent).ToArray();
+        if (forMapOverview)
+        {
+            if (isCurrentRoom)
+                return plain.Select(Terminal.MapHere).ToArray();
+            return plain.Select(Terminal.Border).ToArray();
+        }
 
-        return panel;
+        var bordered = plain.Select(Terminal.Border).ToArray();
+        if (isCurrentRoom)
+            return bordered.Select(Terminal.Accent).ToArray();
+
+        return bordered;
     }
 
     /// <summary>Room art, two blank rows, then the compass (see README).</summary>
@@ -990,7 +1002,8 @@ public class App(
         ClearConsole();
         Console.WriteLine(Terminal.Title("== Map =="));
         Console.WriteLine();
-        Console.WriteLine(Terminal.Muted("Rough layout of the grounds. Highlighted room is where you stand."));
+        Console.WriteLine(
+            Terminal.Muted("Rough layout of the grounds. Your room is drawn in yellow."));
         Console.WriteLine();
 
         // Map overview: a 3×3 window centered on the current room, drawn using the same room box as the right panel.
@@ -999,7 +1012,8 @@ public class App(
         var roomsById = allRooms.ToDictionary(r => r.Id.ToLowerInvariant());
 
         int outerW = AdventureLayout.MapPanelOuterWidth;
-        int outerH = BuildRoomPanel(state.CurrentRoom, outerW, isCurrentRoom: true).Length;
+        int outerH = BuildRoomPanel(state.CurrentRoom, outerW, isCurrentRoom: true, forMapOverview: true)
+            .Length;
         const int maxRadius = 1; // 3×3
         const int gap = 2;
         const int indent = 2;
@@ -1068,7 +1082,7 @@ public class App(
             if (!placed.TryGetValue(cell, out var room))
                 return BlankPanel();
             bool isCurrent = room.Id.Equals(state.CurrentRoom.Id, StringComparison.OrdinalIgnoreCase);
-            return BuildRoomPanel(room, outerW, isCurrentRoom: isCurrent);
+            return BuildRoomPanel(room, outerW, isCurrentRoom: isCurrent, forMapOverview: true);
         }
 
         // Render rows y=-1..1 (north to south), columns x=-1..1 (west to east).

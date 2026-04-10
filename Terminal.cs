@@ -16,6 +16,9 @@ public static class Terminal
 
     public static string Border(string text) => Wrap(text, "\x1b[36m");
 
+    /// <summary>Map overview: the room you stand in (yellow foreground; neighbors use <see cref="Border"/>).</summary>
+    public static string MapHere(string text) => Wrap(text, "\x1b[1m\x1b[93m");
+
     public static string Combat(string text) => Wrap(text, "\x1b[91m");
 
     public static string Ok(string text) => Wrap(text, "\x1b[92m");
