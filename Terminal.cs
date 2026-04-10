@@ -2,6 +2,7 @@ using System.Text;
 
 namespace Tav;
 
+/// <summary>ANSI SGR helpers and string measurements; full-screen layout should compose via <see cref="ScreenBuffer"/>.</summary>
 public static class Terminal
 {
     public static bool UseAnsi => !Console.IsOutputRedirected;

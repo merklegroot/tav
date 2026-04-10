@@ -52,11 +52,92 @@ public class App(
         Console.Out.Flush();
     }
 
+    /// <summary>
+    /// Full-width title bar plus blank line(s) plus wide or stacked two-column body (same rules as legacy
+    /// <c>WriteFullWidthTitleBar</c> + <c>WriteTextAndRightImagePanel</c>).
+    /// </summary>
+    private void PresentTitleAndTwoColumnPanel(
+        string title,
+        GameState state,
+        IReadOnlyList<string> leftLines,
+        IReadOnlyList<string> portraitLines,
+        int rightPanelTopOffset,
+        int blankLinesAfterTitle,
+        bool trailingBlankLine)
+    {
+        int panelOuter = AdventureLayout.MapPanelOuterWidth;
+        string[] panel = portraitLines.Count > 0
+            ? AdventureLayout.BuildPortraitPanelCells(portraitLines, panelOuter)
+            : [];
+
+        bool wide = !Console.IsOutputRedirected && AdventureLayout.CanUseWideLayout(AdventureLayout.ScreenWidth);
+        int leftColWidth = AdventureLayout.LeftColumnWidth;
+        int screenWidth = AdventureLayout.ScreenWidth;
+        int arm = EquippedArmorRating(state);
+
+        int bodyRows;
+        if (wide)
+        {
+            int imageH = panel.Length;
+            int leftCount = leftLines.Count;
+            bodyRows = Math.Max(leftCount, rightPanelTopOffset + imageH);
+        }
+        else
+            bodyRows = AdventureLayout.CountStackedContentRows(leftLines.Count, panel.Length, rightPanelTopOffset);
+
+        int rowCount = 1 + blankLinesAfterTitle + bodyRows + (trailingBlankLine ? 1 : 0);
+        var buffer = ScreenBuffer.ForGameLayout(rowCount);
+        buffer.DrawText(0, 0, AdventureLayout.BuildTitleBar(title, state, screenWidth, arm));
+        for (int b = 0; b < blankLinesAfterTitle; b++)
+            buffer.DrawText(0, 1 + b, "");
+
+        int bodyY = 1 + blankLinesAfterTitle;
+        if (wide)
+        {
+            AdventureLayout.DrawTwoColumnRegion(
+                buffer,
+                bodyY,
+                leftColWidth,
+                AdventureLayout.Gap,
+                panelOuter,
+                screenWidth,
+                leftLines,
+                panel,
+                rightPanelTopOffset);
+        }
+        else
+            AdventureLayout.DrawStackedTwoColumnFallback(buffer, bodyY, leftLines, panel, rightPanelTopOffset);
+
+        if (trailingBlankLine)
+            buffer.DrawText(0, bodyY + bodyRows, "");
+
+        buffer.RenderToConsole();
+    }
+
     private void PrintScreen(GameState state, IReadOnlyList<MenuItem> menuItems)
     {
-        ClearConsole();
-        foreach (var line in BuildScreenLines(state, menuItems))
-            Console.WriteLine(line);
+        int equipped = EquippedArmorRating(state);
+        int leftCol = AdventureLayout.LeftColumnWidth;
+        var leftLines = AdventureLayout.BuildMainViewLeftPanelLines(state, menuItems, leftCol);
+        bool showCompass = menuItems.Count > 0;
+        var panel = showCompass
+            ? AdventureLayout.BuildMainViewRightPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, true)
+            : AdventureLayout.BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, true);
+
+        int rowCount;
+        if (AdventureLayout.CanUseWideLayout(AdventureLayout.ScreenWidth))
+        {
+            int h = Math.Max(leftLines.Count, AdventureLayout.MainViewRightPanelTopOffset + panel.Length);
+            rowCount = 3 + h;
+        }
+        else
+        {
+            rowCount = 4 + leftLines.Count + panel.Length;
+        }
+
+        var buffer = ScreenBuffer.ForGameLayout(rowCount);
+        AdventureLayout.DrawInto(buffer, state, menuItems, equipped);
+        buffer.RenderToConsole();
     }
 
     private void PauseForContinue()
@@ -112,101 +193,14 @@ public class App(
         if (def?.Image is { Length: > 0 } stem)
             portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
-        WriteFullWidthTitleBar("== Victory ==", state);
-        Console.WriteLine();
-        WriteTextAndRightImagePanel(left, portrait);
-        Console.WriteLine();
-    }
-
-    /// <summary>
-    /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width.
-    /// <paramref name="rightPanelTopOffset"/> 1 keeps row 0 left-only (room name vs map / inventory). Use 0 to start the portrait on the first left row (fight).
-    /// Inventory detail pads the left column (before <c>(ESC) Back</c>) when needed so the portrait stays contiguous and the ESC row has no art.
-    /// Fight / victory / defeat use <see cref="BuildFightMonsterPortraitPanel"/> (thin box + inner canvas); inventory uses unboxed art in the same column width.
-    /// </summary>
-    private static void WriteTextAndRightImagePanel(
-        IReadOnlyList<string> leftLines,
-        IReadOnlyList<string> portraitLines,
-        int rightPanelTopOffset = 1)
-    {
-        int panelOuter = AdventureLayout.MapPanelOuterWidth;
-        string[] panel = portraitLines.Count > 0
-            ? BuildPortraitPanelCells(portraitLines, panelOuter)
-            : [];
-
-        if (Console.IsOutputRedirected || !CanUseWideLayout(AdventureLayout.ScreenWidth))
-        {
-            foreach (string line in leftLines)
-                Console.WriteLine(line);
-            if (panel.Length > 0)
-            {
-                if (rightPanelTopOffset > 0)
-                    Console.WriteLine();
-                foreach (string line in panel)
-                    Console.WriteLine(line);
-            }
-
-            return;
-        }
-
-        int leftColWidth = AdventureLayout.LeftColumnWidth;
-        int screenWidth = AdventureLayout.ScreenWidth;
-
-        int imageH = panel.Length;
-        int leftCount = leftLines.Count;
-        string blankPanelRow = new string(' ', panelOuter);
-
-        int h = Math.Max(leftCount, rightPanelTopOffset + imageH);
-
-        for (int i = 0; i < h; i++)
-        {
-            string left = i < leftCount ? leftLines[i] : "";
-            int legacyPi = i - rightPanelTopOffset;
-            int pi = legacyPi >= 0 && legacyPi < imageH ? legacyPi : -1;
-
-            string right = pi >= 0 ? panel[pi] : blankPanelRow;
-            right = PadRightVisual(right, panelOuter);
-
-            string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
-            Console.WriteLine(PadRightVisual(row, screenWidth));
-        }
-    }
-
-    /// <summary>
-    /// Every row is truncated to <paramref name="panelOuter"/> visible columns, then centered in that fixed width.
-    /// Monster/item art lines vary in width; HP and name lines do too — the panel is always the same width so each line
-    /// is centered in the canvas (see <see cref="AdventureLayout.MapPanelOuterWidth"/>).
-    /// </summary>
-    private static string[] BuildPortraitPanelCells(IReadOnlyList<string> borderedLines, int panelOuter)
-    {
-        int n = borderedLines.Count;
-        var panel = new string[n];
-        for (int i = 0; i < n; i++)
-        {
-            string clipped = Terminal.TruncateVisible(borderedLines[i], panelOuter);
-            panel[i] = CenterVisual(clipped, panelOuter);
-        }
-
-        return panel;
-    }
-
-    /// <summary>Room-style thin box: <paramref name="innerRows"/> are each padded to <c>outerWidth - 2</c> visible columns; total width is <paramref name="outerWidth"/>.</summary>
-    private static string[] WrapThinBoxAroundInnerRows(string[] innerRows, int outerWidth)
-    {
-        int inner = outerWidth - 2;
-        string top = Terminal.Border("┌" + new string('─', inner) + "┐");
-        string bottom = Terminal.Border("└" + new string('─', inner) + "┘");
-        int n = innerRows.Length;
-        var result = new string[n + 2];
-        result[0] = top;
-        for (int i = 0; i < n; i++)
-        {
-            string body = PadRightVisual(innerRows[i], inner);
-            result[i + 1] = Terminal.Border("│") + body + Terminal.Border("│");
-        }
-
-        result[n + 1] = bottom;
-        return result;
+        PresentTitleAndTwoColumnPanel(
+            "== Victory ==",
+            state,
+            left,
+            portrait,
+            rightPanelTopOffset: 1,
+            blankLinesAfterTitle: 1,
+            trailingBlankLine: true);
     }
 
     /// <summary>Very dim dark red X on both diagonals across the art block; non-X glyphs muted so the body stays visible underneath.</summary>
@@ -270,135 +264,7 @@ public class App(
             return [line];
 
         string plain = Terminal.StripAnsi(line);
-        return WrapText(plain, columnWidth).Select(Terminal.Muted).ToList();
-    }
-
-    /// <summary>Screen as lines. <paramref name="forceWide"/> builds the 72-column map+text layout even if the window is narrow (for slide snapshots).</summary>
-    private List<string> BuildScreenLines(GameState state, IReadOnlyList<MenuItem> menuItems, bool forceWide = false)
-    {
-        int leftColWidth = AdventureLayout.LeftColumnWidth;
-        int panelOuter = AdventureLayout.MapPanelOuterWidth;
-        int screenWidth = AdventureLayout.ScreenWidth;
-
-        // Layout spec: a single title bar line with game title + basic stats, then two panels beneath.
-        string titleBar = BuildTitleBar("== Adventure Game ==", state, screenWidth);
-
-        var leftLines = BuildMainViewLeftPanelLines(state, menuItems, leftColWidth);
-
-        bool showCompass = menuItems.Count > 0;
-        var panel = showCompass
-            ? BuildMainViewRightPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true)
-            : BuildRoomPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true);
-
-        int minWidth = screenWidth;
-        if (forceWide || CanUseWideLayout(minWidth))
-        {
-            var lines = new List<string>();
-            lines.Add(titleBar);
-            lines.Add("");
-            const int rightPanelTopOffset = 1; // fixed: room vertical start in wide layout (below title + gap)
-            int H = Math.Max(leftLines.Count, rightPanelTopOffset + panel.Length);
-            string blankPanelRow = new string(' ', panelOuter);
-
-            for (int i = 0; i < H; i++)
-            {
-                string left = i < leftLines.Count ? leftLines[i] : "";
-                int pi = i - rightPanelTopOffset;
-                string right = pi >= 0 && pi < panel.Length ? panel[pi] : blankPanelRow;
-                right = PadRightVisual(right, panelOuter);
-
-                string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
-                lines.Add(PadRightVisual(row, screenWidth));
-            }
-
-            lines.Add(new string(' ', screenWidth));
-            return lines;
-        }
-
-        var stacked = new List<string>();
-        stacked.Add(titleBar);
-        stacked.Add("");
-        foreach (var line in leftLines)
-            stacked.Add(line);
-        stacked.Add("");
-        foreach (var line in panel)
-            stacked.Add(line);
-        stacked.Add("");
-        return stacked;
-    }
-
-    private static List<string> BuildMainViewLeftPanelLines(
-        GameState state,
-        IReadOnlyList<MenuItem> menuItems,
-        int leftColWidth)
-    {
-        var lines = BuildLeftColumnLines(state, leftColWidth);
-        if (menuItems.Count == 0)
-            return lines;
-
-        lines.Add("");
-        int i = 0;
-        if (IsGroundMenuLine(menuItems[0]))
-        {
-            lines.Add(FormatMenuLine(menuItems[0].Text, menuItems[0].Key, leftColWidth));
-            lines.Add("");
-            i = 1;
-        }
-
-        for (; i < menuItems.Count; i++)
-            lines.Add(FormatMenuLine(menuItems[i].Text, menuItems[i].Key, leftColWidth));
-        return lines;
-    }
-
-    private static bool IsGroundMenuLine(MenuItem item) =>
-        item.Key == 'g' && item.Text.StartsWith("(G)round", StringComparison.Ordinal);
-
-    private static string FormatMenuLine(string text, char key, int maxWidth)
-    {
-        // Mirror Terminal.WriteMenuLine, but return a single formatted line.
-        if (!Terminal.UseAnsi)
-            return Truncate(text, maxWidth);
-
-        char ku = char.ToUpperInvariant(key);
-        string needle = $"({ku})";
-        int i = text.IndexOf(needle, StringComparison.Ordinal);
-        if (i < 0)
-            return Truncate(text, maxWidth);
-
-        string before = Terminal.Muted(text[..i]);
-        string hotkey = Terminal.MenuParenKey(ku);
-        string after = Terminal.Muted(text[(i + needle.Length)..]);
-        return Terminal.TruncateVisible(before + hotkey + after, maxWidth);
-    }
-
-    private string BuildTitleBar(string screenTitle, GameState state, int screenWidth)
-    {
-        string left = Terminal.Title(screenTitle);
-        int armor = EquippedArmorRating(state);
-        string right = Terminal.HpStatus(state.HitPoints, state.MaxHitPoints)
-                       + Terminal.Muted("  Gold: ")
-                       + Terminal.Gold(state.Gold.ToString());
-        if (armor > 0)
-        {
-            right += Terminal.Muted("  Armor ") + Terminal.Accent(armor.ToString());
-        }
-
-        // Keep the title on the left; right-align the basic stats.
-        int leftV = Terminal.VisibleLength(left);
-        int rightV = Terminal.VisibleLength(right);
-        int spaces = Math.Max(1, screenWidth - leftV - rightV);
-        return PadRightVisual(left + new string(' ', spaces) + right, screenWidth);
-    }
-
-    private static List<string> BuildLeftColumnLines(GameState state, int leftColWidth)
-    {
-        var leftLines = new List<string>
-        {
-            Terminal.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
-        };
-        leftLines.Add("");
-        leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
-        return leftLines;
+        return AdventureLayout.WrapText(plain, columnWidth).Select(Terminal.Muted).ToList();
     }
 
     /// <summary>
@@ -414,15 +280,19 @@ public class App(
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         int screenWidth = AdventureLayout.ScreenWidth;
 
-        if (!CanUseWideLayout(screenWidth))
+        if (!AdventureLayout.CanUseWideLayout(screenWidth))
             return;
 
-        var newLeft = BuildLeftColumnLines(afterNavigate, leftColWidth);
+        var newLeft = AdventureLayout.BuildLeftColumnLines(afterNavigate, leftColWidth);
         int panelRows = oldPanel.Length;
         const int rightPanelTopOffset = 1; // fixed: match main view
         int H = Math.Max(newLeft.Count, rightPanelTopOffset + panelRows);
 
-        string titleBar = BuildTitleBar("== Adventure Game ==", afterNavigate, screenWidth);
+        string titleBar = AdventureLayout.BuildTitleBar(
+            "== Adventure Game ==",
+            afterNavigate,
+            screenWidth,
+            EquippedArmorRating(afterNavigate));
         string blankRight = new string(' ', panelOuter);
 
         var oldRows = PadPanelRows(oldPanel, panelOuter);
@@ -431,13 +301,14 @@ public class App(
         var oldRowsPlain = PadPanelRows(oldPanel.Select(Terminal.StripAnsi).ToArray(), panelOuter);
         var newRowsPlain = PadPanelRows(newPanel.Select(Terminal.StripAnsi).ToArray(), panelOuter);
 
+        int rowCount = 2 + H;
         const int frames = 22;
         for (int f = 0; f < frames; f++)
         {
             double t = frames <= 1 ? 1 : f / (double)(frames - 1);
-            ClearConsole();
-            Console.WriteLine(titleBar);
-            Console.WriteLine();
+            var buffer = ScreenBuffer.ForGameLayout(rowCount);
+            buffer.DrawText(0, 0, titleBar);
+            buffer.DrawText(0, 1, "");
 
             // North: new map above old in the strip; scroll down. South: old above new; scroll down.
             if (direction is not 'e' and not 'w')
@@ -453,7 +324,7 @@ public class App(
                 for (int r = 0; r < H; r++)
                 {
                     string left = r < newLeft.Count
-                        ? PadRightVisual(newLeft[r], leftColWidth)
+                        ? AdventureLayout.PadRightVisual(newLeft[r], leftColWidth)
                         : new string(' ', leftColWidth);
 
                     int pi = r - rightPanelTopOffset;
@@ -461,7 +332,15 @@ public class App(
                     if (pi >= 0 && pi < panelRows)
                         right = strip[scroll + pi];
 
-                    Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
+                    AdventureLayout.DrawWideCompositeRow(
+                        buffer,
+                        2 + r,
+                        left,
+                        right,
+                        leftColWidth,
+                        AdventureLayout.Gap,
+                        panelOuter,
+                        screenWidth);
                 }
             }
 
@@ -476,7 +355,7 @@ public class App(
                 for (int r = 0; r < H; r++)
                 {
                     string left = r < newLeft.Count
-                        ? PadRightVisual(newLeft[r], leftColWidth)
+                        ? AdventureLayout.PadRightVisual(newLeft[r], leftColWidth)
                         : new string(' ', leftColWidth);
 
                     int pi = r - rightPanelTopOffset;
@@ -490,10 +369,19 @@ public class App(
                         right = Terminal.Border(rightPlain);
                     }
 
-                    Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
+                    AdventureLayout.DrawWideCompositeRow(
+                        buffer,
+                        2 + r,
+                        left,
+                        right,
+                        leftColWidth,
+                        AdventureLayout.Gap,
+                        panelOuter,
+                        screenWidth);
                 }
             }
 
+            buffer.RenderToConsole();
             Thread.Sleep(28);
         }
     }
@@ -502,7 +390,7 @@ public class App(
     {
         var list = new List<string>(panel.Length);
         foreach (string line in panel)
-            list.Add(PadRightVisual(line, panelOuter));
+            list.Add(AdventureLayout.PadRightVisual(line, panelOuter));
         return list;
     }
 
@@ -514,255 +402,15 @@ public class App(
         return strip;
     }
 
-    private static bool CanUseWideLayout(int minWidth)
-    {
-        if (Console.IsOutputRedirected)
-            return false;
-        try
-        {
-            return Console.WindowWidth >= minWidth + 1;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static string PadRightVisual(string s, int totalWidth)
-    {
-        int v = Terminal.VisibleLength(s);
-        if (v > totalWidth)
-            return Terminal.TruncateVisible(s, totalWidth);
-        if (v == totalWidth)
-            return s;
-        return s + new string(' ', totalWidth - v);
-    }
-
-    private static string Truncate(string s, int maxChars)
-    {
-        if (s.Length <= maxChars)
-            return s;
-        if (maxChars <= 1)
-            return s[..1];
-        return s[..(maxChars - 1)] + "…";
-    }
-
-    private static List<string> WrapText(string text, int width)
-    {
-        var lines = new List<string>();
-        if (width <= 0)
-        {
-            lines.Add(text);
-            return lines;
-        }
-
-        foreach (var rawLine in text.Split('\n'))
-        {
-            var words = rawLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var current = new StringBuilder();
-            foreach (var word in words)
-            {
-                if (current.Length == 0)
-                {
-                    current.Append(word);
-                    continue;
-                }
-
-                if (current.Length + 1 + word.Length <= width)
-                {
-                    current.Append(' ').Append(word);
-                    continue;
-                }
-
-                lines.Add(current.ToString());
-                current.Clear().Append(word);
-            }
-
-            if (current.Length > 0)
-            {
-                lines.Add(current.ToString());
-                continue;
-            }
-
-            if (words.Length == 0)
-                lines.Add("");
-        }
-
-        if (lines.Count == 0)
-            lines.Add("");
-        return lines;
-    }
-
-    private static bool HasExit(Room room, char dir) =>
-        room.Exits?.ContainsKey(dir.ToString()) == true;
-
-    /// <summary>Horizontal wall; optional centered <c>| |</c> for north (top) or south (bottom) exit (see README).</summary>
-    private static string BuildHorizontalWall(
-        char leftCorner,
-        char rightCorner,
-        int innerWidth,
-        bool hasNorthSouthDoor)
-    {
-        if (!hasNorthSouthDoor || innerWidth < 3)
-            return leftCorner + new string('─', innerWidth) + rightCorner;
-
-        int dashTotal = innerWidth - 3;
-        int leftDashes = dashTotal / 2;
-        int rightDashes = dashTotal - leftDashes;
-        return leftCorner
-            + new string('─', leftDashes)
-            + "| |"
-            + new string('─', rightDashes)
-            + rightCorner;
-    }
-
-    /// <summary>Inner rows: │ walls; <c>=</c> on the first title row when west/east exit (see README).</summary>
-    private static string BuildSideWallLine(
-        string paddedBody,
-        int inner,
-        bool openWest,
-        bool openEast,
-        bool useWestEastMarkers)
-    {
-        char left = openWest && useWestEastMarkers ? '=' : '│';
-        char right = openEast && useWestEastMarkers ? '=' : '│';
-        return left + paddedBody + right;
-    }
-
-    private static string[] BuildRoomPanel(
-        Room room,
-        int outerWidth,
-        bool isCurrentRoom = false,
-        bool forMapOverview = false)
-    {
-        int inner = outerWidth - 2;
-
-        bool n = HasExit(room, 'n');
-        bool e = HasExit(room, 'e');
-        bool s = HasExit(room, 's');
-        bool w = HasExit(room, 'w');
-
-        // Title wrapping: center, up to 3 lines (spec in README).
-        var titleLines = WrapText(room.Name, Math.Max(1, inner));
-        if (titleLines.Count > 3)
-        {
-            titleLines = titleLines.Take(3).ToList();
-            titleLines[2] = Truncate(titleLines[2], Math.Max(1, inner));
-        }
-        for (int i = 0; i < titleLines.Count; i++)
-            titleLines[i] = Truncate(titleLines[i], Math.Max(1, inner));
-
-        string top = BuildHorizontalWall('┌', '┐', inner, hasNorthSouthDoor: n);
-        string bottom = BuildHorizontalWall('└', '┘', inner, hasNorthSouthDoor: s);
-
-        // Height spec: 5 total rows: top, 3 inner, bottom.
-        // Vertically center title within the 3 inner rows.
-        string blankInner = new string(' ', inner);
-        var innerRows = new List<string>(capacity: 3);
-
-        int titleCount = Math.Clamp(titleLines.Count, 1, 3);
-        // For 3 inner rows, bias "centering" downward so 2-line titles look like the README example:
-        // blank row, then line 1, then line 2 (startRow = 1).
-        int startRow = (3 - titleCount + 1) / 2;
-        int titleLineIndex = 0;
-        for (int r = 0; r < 3; r++)
-        {
-            bool isTitleRow = r >= startRow && r < startRow + titleCount;
-            string body = isTitleRow
-                ? PadInner(titleLines[titleLineIndex++], inner)
-                : blankInner;
-
-            // East/West door marker: '=' replaces the wall character on the first title row (matches example).
-            bool useMarkers = r == startRow;
-            innerRows.Add(BuildSideWallLine(body, inner, w, e, useWestEastMarkers: useMarkers));
-        }
-
-        var plain = new[]
-        {
-            top,
-            innerRows[0],
-            innerRows[1],
-            innerRows[2],
-            bottom,
-        };
-
-        if (forMapOverview)
-        {
-            if (isCurrentRoom)
-                return plain.Select(Terminal.MapHere).ToArray();
-            return plain.Select(Terminal.Border).ToArray();
-        }
-
-        var bordered = plain.Select(Terminal.Border).ToArray();
-        if (isCurrentRoom)
-            return bordered.Select(Terminal.Accent).ToArray();
-
-        return bordered;
-    }
-
-    /// <summary>Room art, two blank rows, then the compass (see README).</summary>
-    private static string[] BuildMainViewRightPanel(Room room, int outerWidth, bool isCurrentRoom = true)
-    {
-        string[] roomLines = BuildRoomPanel(room, outerWidth, isCurrentRoom);
-        string[] compassLines = BuildCompassPanel(room, outerWidth);
-        string blankRow = new string(' ', outerWidth);
-        var combined = new string[roomLines.Length + 2 + compassLines.Length];
-        int c = 0;
-        for (int i = 0; i < roomLines.Length; i++)
-            combined[c++] = roomLines[i];
-        combined[c++] = blankRow;
-        combined[c++] = blankRow;
-        for (int i = 0; i < compassLines.Length; i++)
-            combined[c++] = compassLines[i];
-        return combined;
-    }
-
-    /// <summary>README compass: N/|/W-E row/|/S; available directions show as <c>(N)</c> etc.</summary>
-    private static string[] BuildCompassPanel(Room room, int outerWidth)
-    {
-        bool n = HasExit(room, 'n');
-        bool e = HasExit(room, 'e');
-        bool s = HasExit(room, 's');
-        bool w = HasExit(room, 'w');
-
-        string DirLetter(bool open, char letter) =>
-            open ? Terminal.MenuParenKey(letter) : Terminal.Muted(letter.ToString());
-
-        string rowN = CenterVisual(DirLetter(n, 'N'), outerWidth);
-        string rowS = CenterVisual(DirLetter(s, 'S'), outerWidth);
-        string pipe = CenterVisual(Terminal.Muted("|"), outerWidth);
-        string rowWe = CenterVisual(
-            DirLetter(w, 'W') + Terminal.Muted(" -   - ") + DirLetter(e, 'E'),
-            outerWidth);
-
-        return new[] { rowN, pipe, rowWe, pipe, rowS };
-    }
-
-    private static string CenterVisual(string content, int totalWidth)
-    {
-        int v = Terminal.VisibleLength(content);
-        if (v >= totalWidth)
-            return PadRightVisual(content, totalWidth);
-
-        int pad = totalWidth - v;
-        int left = pad / 2;
-        int right = pad - left;
-        return new string(' ', left) + content + new string(' ', right);
-    }
-
-    private static string PadInner(string content, int innerWidth)
-    {
-        if (content.Length > innerWidth)
-            return content[..innerWidth];
-        int pad = innerWidth - content.Length;
-        int left = pad / 2;
-        return new string(' ', left) + content + new string(' ', pad - left);
-    }
-
     /// <summary>Full-width title line: screen title (left) and HP, gold, armor (right), matching the adventure view.</summary>
     private void WriteFullWidthTitleBar(string screenTitle, GameState state)
     {
-        Console.WriteLine(BuildTitleBar(screenTitle, state, AdventureLayout.ScreenWidth));
+        Console.WriteLine(
+            AdventureLayout.BuildTitleBar(
+                screenTitle,
+                state,
+                AdventureLayout.ScreenWidth,
+                EquippedArmorRating(state)));
     }
 
     private string FormatGroundStackLine(GroundItemStack stack)
@@ -905,12 +553,12 @@ public class App(
     {
         int w = AdventureLayout.LeftColumnWidth;
         if (canEat)
-            left.Add(FormatMenuLine("(E)at", 'e', w));
+            left.Add(AdventureLayout.FormatMenuLine("(E)at", 'e', w));
         if (offerEquip)
-            left.Add(FormatMenuLine("(E)quip", 'e', w));
+            left.Add(AdventureLayout.FormatMenuLine("(E)quip", 'e', w));
         if (offerUnequip)
-            left.Add(FormatMenuLine("(U)nequip", 'u', w));
-        left.Add(FormatMenuLine("(D)rop", 'd', w));
+            left.Add(AdventureLayout.FormatMenuLine("(U)nequip", 'u', w));
+        left.Add(AdventureLayout.FormatMenuLine("(D)rop", 'd', w));
         if (!omitBlankLineBeforeEsc)
             left.Add("");
         left.Add(Terminal.EscBackHint());
@@ -937,8 +585,6 @@ public class App(
         bool offerUnequip = (canEquipWeapon && isWeaponEquipped) || (canEquipHelmet && isHelmetEquipped);
 
         ClearConsole();
-        WriteFullWidthTitleBar("== Inventory ==", state);
-        Console.WriteLine();
 
         bool withImage = def?.Image is { Length: > 0 };
 
@@ -982,8 +628,14 @@ public class App(
                 left.Insert(left.Count - 1, "");
         }
 
-        Console.WriteLine();
-        WriteTextAndRightImagePanel(left, portrait);
+        PresentTitleAndTwoColumnPanel(
+            "== Inventory ==",
+            state,
+            left,
+            portrait,
+            rightPanelTopOffset: 1,
+            blankLinesAfterTitle: 2,
+            trailingBlankLine: false);
 
         var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
         if (action == InventoryItemDetailAction.BackToList)
@@ -1406,19 +1058,21 @@ public class App(
         Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
         int helpW = HelpScreenMenuLineWidth();
         Console.WriteLine(
-            FormatMenuLine(
+            AdventureLayout.FormatMenuLine(
                 "(I)nventory: select an item. Edible gear shows healing; helmets (including crowns) show Armor and attack bonus; then Eat, Equip, Drop, or Esc.",
                 'i',
                 helpW));
-        Console.WriteLine(FormatMenuLine("(G)round appears when something lies on the ground here.", 'g', helpW));
-        Console.WriteLine(FormatMenuLine("(M)ap: overview of how the areas connect.", 'm', helpW));
         Console.WriteLine(
-            FormatMenuLine("(F)ight: Attack or Run. Wins yield gold; sometimes a find.", 'f', helpW));
+            AdventureLayout.FormatMenuLine("(G)round appears when something lies on the ground here.", 'g', helpW));
+        Console.WriteLine(
+            AdventureLayout.FormatMenuLine("(M)ap: overview of how the areas connect.", 'm', helpW));
+        Console.WriteLine(
+            AdventureLayout.FormatMenuLine("(F)ight: Attack or Run. Wins yield gold; sometimes a find.", 'f', helpW));
         Console.WriteLine();
         PauseForContinue();
     }
 
-    /// <summary>Width for <see cref="FormatMenuLine"/> on the help screen so long lines are not clipped too aggressively.</summary>
+    /// <summary>Width for <see cref="AdventureLayout.FormatMenuLine"/> on the help screen so long lines are not clipped too aggressively.</summary>
     private static int HelpScreenMenuLineWidth()
     {
         try
@@ -1449,7 +1103,7 @@ public class App(
         var roomsById = allRooms.ToDictionary(r => r.Id.ToLowerInvariant());
 
         int outerW = AdventureLayout.MapPanelOuterWidth;
-        int outerH = BuildRoomPanel(state.CurrentRoom, outerW, isCurrentRoom: true, forMapOverview: true)
+        int outerH = AdventureLayout.BuildRoomPanel(state.CurrentRoom, outerW, isCurrentRoom: true, forMapOverview: true)
             .Length;
         const int maxRadius = 1; // 3×3
         const int gap = 2;
@@ -1519,7 +1173,7 @@ public class App(
             if (!placed.TryGetValue(cell, out var room))
                 return BlankPanel();
             bool isCurrent = room.Id.Equals(state.CurrentRoom.Id, StringComparison.OrdinalIgnoreCase);
-            return BuildRoomPanel(room, outerW, isCurrentRoom: isCurrent, forMapOverview: true);
+            return AdventureLayout.BuildRoomPanel(room, outerW, isCurrentRoom: isCurrent, forMapOverview: true);
         }
 
         // Render rows y=-1..1 (north to south), columns x=-1..1 (west to east).
@@ -1627,11 +1281,11 @@ public class App(
         if (!roomsById.TryGetValue(destId.ToLowerInvariant(), out var destRoom))
             return false;
 
-        var oldRoomPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
+        var oldRoomPanel = AdventureLayout.BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
         state.CurrentRoom = destRoom;
         AnimateRoomSlide(
             oldRoomPanel,
-            BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
+            AdventureLayout.BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
             state,
             normalized);
         return true;
@@ -1667,9 +1321,6 @@ public class App(
 
         while (monsterHp > 0 && state.HitPoints > 0)
         {
-            ClearConsole();
-            WriteFullWidthTitleBar("== Fight ==", state);
-            Console.WriteLine();
             var left = BuildFightLeftColumn(
                 monster,
                 state,
@@ -1677,7 +1328,14 @@ public class App(
                 showIntro,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            WriteTextAndRightImagePanel(left, BuildFightMonsterPortraitPanel(monsterHp, monster), rightPanelTopOffset: 0);
+            PresentTitleAndTwoColumnPanel(
+                "== Fight ==",
+                state,
+                left,
+                BuildFightMonsterPortraitPanel(monsterHp, monster),
+                rightPanelTopOffset: 0,
+                blankLinesAfterTitle: 1,
+                trailingBlankLine: false);
 
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'r')
@@ -1729,11 +1387,11 @@ public class App(
         int outer = AdventureLayout.MapPanelOuterWidth;
         int inner = outer - 2;
         var raw = BuildFightMonsterPortraitRawLines(currentHp, monster, silhouetteArt, inner);
-        string[] cells = BuildPortraitPanelCells(raw, inner);
+        string[] cells = AdventureLayout.BuildPortraitPanelCells(raw, inner);
         const int fightPortraitArtStartInInnerPanel = 2;
         if (deathCrossPortraitArtRows > 0 && cells.Length > fightPortraitArtStartInInnerPanel)
             ApplyDeathCrossOverlay(cells, fightPortraitArtStartInInnerPanel, deathCrossPortraitArtRows, inner);
-        return WrapThinBoxAroundInnerRows(cells, outer);
+        return AdventureLayout.WrapThinBoxAroundInnerRows(cells, outer);
     }
 
     /// <summary>Inner canvas rows only (no frame): HP, blank, art, blank, name.</summary>
@@ -1744,14 +1402,14 @@ public class App(
         int innerWidth)
     {
         int shown = Math.Max(0, currentHp);
-        string hpLine = CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), innerWidth);
+        string hpLine = AdventureLayout.CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), innerWidth);
         var lines = new List<string> { hpLine, "" };
         lines.AddRange(
             silhouetteArt
                 ? monsterImageStore.Lines(monster.Id).Select(Terminal.Silhouette)
                 : monsterImageStore.Lines(monster.Id).Select(Terminal.Border));
         lines.Add("");
-        lines.Add(CenterVisual(Terminal.Combat(monster.Name), innerWidth));
+        lines.Add(AdventureLayout.CenterVisual(Terminal.Combat(monster.Name), innerWidth));
         return lines;
     }
 
@@ -1762,28 +1420,23 @@ public class App(
         Monster monster,
         GameState fightState)
     {
-        if (!Terminal.UseAnsi)
-        {
-            ClearConsole();
-            WriteFullWidthTitleBar("== Fight ==", fightState);
-            Console.WriteLine();
-            WriteTextAndRightImagePanel(
-                leftAfterStrike,
-                BuildFightMonsterPortraitPanel(monsterHp, monster),
-                rightPanelTopOffset: 0);
-            return;
-        }
-
         void Frame(bool silhouetteArt)
         {
-            ClearConsole();
-            WriteFullWidthTitleBar("== Fight ==", fightState);
-            Console.WriteLine();
-            WriteTextAndRightImagePanel(
+            PresentTitleAndTwoColumnPanel(
+                "== Fight ==",
+                fightState,
                 leftAfterStrike,
                 BuildFightMonsterPortraitPanel(monsterHp, monster, silhouetteArt),
-                rightPanelTopOffset: 0);
+                rightPanelTopOffset: 0,
+                blankLinesAfterTitle: 1,
+                trailingBlankLine: false);
             Console.Out.Flush();
+        }
+
+        if (!Terminal.UseAnsi)
+        {
+            Frame(silhouetteArt: false);
+            return;
         }
 
         Frame(silhouetteArt: true);
@@ -1836,9 +1489,6 @@ public class App(
 
         int goldFound = _random.Next(3, 11);
         state.Gold += goldFound;
-        ClearConsole();
-        WriteFullWidthTitleBar("== Fight ==", state);
-        Console.WriteLine();
         var victoryLeft = new List<string>
         {
             Terminal.Ok($"The {monster.Name} falls."),
@@ -1853,11 +1503,14 @@ public class App(
 
         victoryLeft.Add("");
         int victoryArtRows = monsterImageStore.Lines(monster.Id).Count();
-        WriteTextAndRightImagePanel(
+        PresentTitleAndTwoColumnPanel(
+            "== Fight ==",
+            state,
             victoryLeft,
             BuildFightMonsterPortraitPanel(0, monster, deathCrossPortraitArtRows: victoryArtRows),
-            rightPanelTopOffset: 0);
-        Console.WriteLine();
+            rightPanelTopOffset: 0,
+            blankLinesAfterTitle: 1,
+            trailingBlankLine: true);
         PauseForContinue();
         return true;
     }
@@ -1896,19 +1549,20 @@ public class App(
         if (state.HitPoints > 0)
             return false;
 
-        ClearConsole();
-        WriteFullWidthTitleBar("== Fight ==", state);
-        Console.WriteLine();
         int defeatLogW = AdventureLayout.LeftColumnWidth;
         var defeatLeft = new List<string>();
         defeatLeft.AddRange(BuildFightLogDisplayLines(showIntro: false, monster, defeatLogW, battleLog));
         if (battleLog.Count > 0)
             defeatLeft.Add("");
         defeatLeft.Add("");
-        WriteTextAndRightImagePanel(
+        PresentTitleAndTwoColumnPanel(
+            "== Fight ==",
+            state,
             defeatLeft,
             BuildFightMonsterPortraitPanel(monsterHp, monster),
-            rightPanelTopOffset: 0);
+            rightPanelTopOffset: 0,
+            blankLinesAfterTitle: 1,
+            trailingBlankLine: false);
         Console.WriteLine();
         Console.WriteLine(Terminal.Combat("Everything goes dark…"));
         Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
@@ -1933,7 +1587,7 @@ public class App(
         {
             string nameForWrap = monster.Name.Replace(" ", "\u00A0", StringComparison.Ordinal);
             string plainIntro = $"Something stirs — a {nameForWrap}! {monster.Blurb}";
-            foreach (string rawLine in WrapText(plainIntro, wrapWidth))
+            foreach (string rawLine in AdventureLayout.WrapText(plainIntro, wrapWidth))
             {
                 string line = rawLine.Replace("\u00A0", " ", StringComparison.Ordinal);
                 int idx = line.IndexOf(monster.Name, StringComparison.Ordinal);
@@ -1958,7 +1612,7 @@ public class App(
                 continue;
             }
 
-            buffer.AddRange(WrapText(entry, wrapWidth).Select(Terminal.Muted));
+            buffer.AddRange(AdventureLayout.WrapText(entry, wrapWidth).Select(Terminal.Muted));
         }
 
         if (buffer.Count > FightBattleLogMaxVisibleLines)
@@ -1981,7 +1635,7 @@ public class App(
         {
             string armorPlain =
                 $"Armor {defenderArmorRating}: each enemy hit loses up to {defenderArmorRating} damage (min. 1 per hit).";
-            left.AddRange(WrapText(armorPlain, w).Select(Terminal.Muted));
+            left.AddRange(AdventureLayout.WrapText(armorPlain, w).Select(Terminal.Muted));
         }
 
         if (helmetSlotAttackBonus != 0)
@@ -1989,12 +1643,12 @@ public class App(
             string sign = helmetSlotAttackBonus > 0 ? "+" : "";
             string helmetPlain =
                 $"Attack {sign}{helmetSlotAttackBonus} from helmet — stacks with weapon on each hit you land.";
-            left.AddRange(WrapText(helmetPlain, w).Select(Terminal.Muted));
+            left.AddRange(AdventureLayout.WrapText(helmetPlain, w).Select(Terminal.Muted));
         }
 
         left.Add("");
-        left.Add(FormatMenuLine("(A)ttack", 'a', w));
-        left.Add(FormatMenuLine("(R)un", 'r', w));
+        left.Add(AdventureLayout.FormatMenuLine("(A)ttack", 'a', w));
+        left.Add(AdventureLayout.FormatMenuLine("(R)un", 'r', w));
         if (showIntro || battleLog.Count > 0)
         {
             left.Add("");
