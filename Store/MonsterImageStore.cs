@@ -1,9 +1,14 @@
 namespace Tav.Store;
 
-public static class MonsterImageStore
+public interface IMonsterImageStore
 {
     /// <summary>Lines of the portrait file, or empty when missing.</summary>
-    public static IEnumerable<string> Lines(string monsterId)
+    IEnumerable<string> Lines(string monsterId);
+}
+
+public class MonsterImageStore : IMonsterImageStore
+{
+    public IEnumerable<string> Lines(string monsterId)
     {
         var assembly = typeof(MonsterImageStore).Assembly;
         var suffix = $"{monsterId}.img.txt";

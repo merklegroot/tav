@@ -1,7 +1,12 @@
 namespace Tav.Store;
 
-public static class MonsterStore
+public interface IMonsterStore
 {
-    public static List<Monster> LoadAll() =>
+    List<Monster> LoadAll();
+}
+
+public class MonsterStore : IMonsterStore
+{
+    public List<Monster> LoadAll() =>
         EmbeddedJsonResource.DeserializeList<Monster>("monsters.json", "res/monsters.json");
 }

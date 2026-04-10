@@ -8,15 +8,20 @@ public interface IApp
     void Run();
 }
 
-public class App(GameState state) : IApp
+public class App(
+    GameState state,
+    IRoomStore roomStore,
+    IMonsterStore monsterStore,
+    IManipulativeStore manipulativeStore,
+    IMonsterImageStore monsterImageStore) : IApp
 {
     private readonly Random _random = new();
 
     public void Run()
     {
-        var rooms = RoomStore.LoadAll();
+        var rooms = roomStore.LoadAll();
         var roomsById = rooms.ToDictionary(r => r.Id.ToLowerInvariant());
-        var monsters = MonsterStore.LoadAll();
+        var monsters = monsterStore.LoadAll();
 
         while (!state.ShouldExit)
         {
@@ -502,7 +507,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {ManipulativeStore.GetDisplayName(state.Inventory[i])}",
+                    $"({num}) {manipulativeStore.GetDisplayName(state.Inventory[i])}",
                     key);
             }
             Console.WriteLine();
@@ -543,17 +548,17 @@ public class App(GameState state) : IApp
                 return false;
 
             string id = state.Inventory[index];
-            var def = ManipulativeStore.Get(id);
+            var def = manipulativeStore.Get(id);
             bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
 
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
-            Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.GetDisplayName(id)}"));
+            Console.WriteLine(Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"));
             if (canEat)
             {
                 Console.WriteLine();
-                ManipulativeStore.WriteEdibleEffectDescription(def!, state);
+                manipulativeStore.WriteEdibleEffectDescription(def!, state);
             }
 
             Console.WriteLine();
@@ -567,7 +572,7 @@ public class App(GameState state) : IApp
                 var dropped = state.DropItemAt(index);
                 Console.WriteLine();
                 Console.WriteLine(
-                    Terminal.Muted($"You drop the {ManipulativeStore.GetDisplayName(dropped)}."));
+                    Terminal.Muted($"You drop the {manipulativeStore.GetDisplayName(dropped)}."));
                 return true;
             }
 
@@ -581,10 +586,10 @@ public class App(GameState state) : IApp
     }
 
     /// <summary>Eats an edible item when the player chose (E)at. When consumed, the list shrinks at <paramref name="index"/>—caller should return to the list.</summary>
-    private static InventoryUseResult TryUseInventoryItem(GameState state, int index)
+    private InventoryUseResult TryUseInventoryItem(GameState state, int index)
     {
         string id = state.Inventory[index];
-        var def = ManipulativeStore.Get(id);
+        var def = manipulativeStore.Get(id);
         if (def is null)
             return new InventoryUseResult(false, "You can't think of a way to use that here.");
 
@@ -728,7 +733,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {ManipulativeStore.GetDisplayName(state.GroundItemsInCurrentRoom[i])}",
+                    $"({num}) {manipulativeStore.GetDisplayName(state.GroundItemsInCurrentRoom[i])}",
                     key);
             }
             Console.WriteLine();
@@ -754,7 +759,7 @@ public class App(GameState state) : IApp
         ClearConsole();
         WritePlayerStatusHeader("== Ground ==", state, includeGold: false);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.GetDisplayName(id)}"));
+        Console.WriteLine(Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"));
         Console.WriteLine();
         Terminal.WriteMenuLine("(T)ake", 't');
         Console.WriteLine();
@@ -769,7 +774,7 @@ public class App(GameState state) : IApp
             return false;
         Console.WriteLine();
         Console.WriteLine(
-            Terminal.Muted($"You pick up the {ManipulativeStore.GetDisplayName(taken)}."));
+            Terminal.Muted($"You pick up the {manipulativeStore.GetDisplayName(taken)}."));
         return true;
     }
 
@@ -850,7 +855,7 @@ public class App(GameState state) : IApp
 
         // Map overview: a 3×3 window centered on the current room, drawn using the same room box as the right panel.
         // Coordinates: (0,0) is current. North is y=-1, south is y=+1.
-        var allRooms = RoomStore.LoadAll();
+        var allRooms = roomStore.LoadAll();
         var roomsById = allRooms.ToDictionary(r => r.Id.ToLowerInvariant());
 
         int outerW = AdventureLayout.MapPanelOuterWidth;
@@ -992,7 +997,7 @@ public class App(GameState state) : IApp
         {
             string groundList = string.Join(
                 ", ",
-                state.GroundItemsInCurrentRoom.Select(ManipulativeStore.GetDisplayName));
+                state.GroundItemsInCurrentRoom.Select(manipulativeStore.GetDisplayName));
             items.Add(new MenuItem
             {
                 Text = $"(G)round - {groundList}",
@@ -1044,7 +1049,7 @@ public class App(GameState state) : IApp
     {
         var monster = monsters[_random.Next(monsters.Count)];
         int monsterHp = monster.HitPoints;
-        var portraitLines = MonsterImageStore.Lines(monster.Id).ToList();
+        var portraitLines = monsterImageStore.Lines(monster.Id).ToList();
         var battleLog = new List<string>();
         bool showIntro = true;
 

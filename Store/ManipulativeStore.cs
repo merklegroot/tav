@@ -1,10 +1,17 @@
 namespace Tav.Store;
 
-public static class ManipulativeStore
+public interface IManipulativeStore
 {
-    private static readonly Lazy<Dictionary<string, ManipulativeDefinition>> ByIdLower = new(Load);
+    string GetDisplayName(string manipulativeId);
+    ManipulativeDefinition? Get(string manipulativeId);
+    void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state);
+}
 
-    public static string GetDisplayName(string manipulativeId)
+public class ManipulativeStore : IManipulativeStore
+{
+    private readonly Lazy<Dictionary<string, ManipulativeDefinition>> _byIdLower = new(Load);
+
+    public string GetDisplayName(string manipulativeId)
     {
         var def = Get(manipulativeId);
         if (def is not null)
@@ -13,17 +20,17 @@ public static class ManipulativeStore
         return manipulativeId.Replace('_', ' ');
     }
 
-    public static ManipulativeDefinition? Get(string manipulativeId)
+    public ManipulativeDefinition? Get(string manipulativeId)
     {
         if (string.IsNullOrEmpty(manipulativeId))
             return null;
-        return ByIdLower.Value.TryGetValue(manipulativeId.ToLowerInvariant(), out var def)
+        return _byIdLower.Value.TryGetValue(manipulativeId.ToLowerInvariant(), out var def)
             ? def
             : null;
     }
 
     /// <summary>Prints what eating would do, from <see cref="ConsumeEffects"/>. Caller ensures <paramref name="definition"/> is edible with a positive heal cap.</summary>
-    public static void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state)
+    public void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state)
     {
         int cap = definition.ConsumeEffects?.HealthRestored ?? 0;
         if (cap <= 0)

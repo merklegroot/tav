@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Tav;
+using Tav.Store;
 
 namespace Tav.Registry;
 
@@ -7,9 +9,13 @@ public static class GameRegistry
     public static IServiceCollection RegisterGame(this IServiceCollection collection)
     {
         return collection
-            .AddSingleton<GameState>(_ =>
+            .AddSingleton<IRoomStore, RoomStore>()
+            .AddSingleton<IMonsterStore, MonsterStore>()
+            .AddSingleton<IManipulativeStore, ManipulativeStore>()
+            .AddSingleton<IMonsterImageStore, MonsterImageStore>()
+            .AddSingleton<GameState>(sp =>
             {
-                var rooms = RoomStore.LoadAll();
+                var rooms = sp.GetRequiredService<IRoomStore>().LoadAll();
                 var initialRooms = rooms.Where(r => r.IsInitialRoom).ToList();
                 if (initialRooms.Count != 1)
                 {

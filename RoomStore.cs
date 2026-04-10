@@ -1,7 +1,12 @@
 namespace Tav;
 
-public static class RoomStore
+public interface IRoomStore
 {
-    public static List<Room> LoadAll() =>
+    List<Room> LoadAll();
+}
+
+public class RoomStore : IRoomStore
+{
+    public List<Room> LoadAll() =>
         EmbeddedJsonResource.DeserializeList<Room>("rooms.json", "res/rooms.json");
 }
