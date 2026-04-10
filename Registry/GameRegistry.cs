@@ -35,7 +35,9 @@ public static class GameRegistry
                     if (room.GroundItems is not { Count: > 0 })
                         continue;
                     state.GroundItemsByRoomId[room.Id.ToLowerInvariant()] =
-                        new List<string>(room.GroundItems);
+                        room.GroundItems
+                            .Select(s => new GroundItemStack { Id = s.Id, Quantity = s.Quantity })
+                            .ToList();
                 }
 
                 return state;

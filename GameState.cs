@@ -14,18 +14,18 @@ public record GameState
     /// <summary>Canonical manipulative id for the wielded weapon, or null.</summary>
     public string? EquippedWeaponId { get; set; }
 
-    /// <summary>Items on the floor, keyed by lowercase room id.</summary>
-    public Dictionary<string, List<string>> GroundItemsByRoomId { get; } =
+    /// <summary>Item stacks on the floor, keyed by lowercase room id.</summary>
+    public Dictionary<string, List<GroundItemStack>> GroundItemsByRoomId { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public IReadOnlyList<string> GroundItemsInCurrentRoom
+    public IReadOnlyList<GroundItemStack> GroundStacksInCurrentRoom
     {
         get
         {
             var id = CurrentRoom.Id.ToLowerInvariant();
             return GroundItemsByRoomId.TryGetValue(id, out var list)
                 ? list
-                : Array.Empty<string>();
+                : Array.Empty<GroundItemStack>();
         }
     }
 
@@ -57,7 +57,18 @@ public record GameState
             ground = [];
             GroundItemsByRoomId[roomId] = ground;
         }
-        ground.Add(name);
+
+        for (int i = 0; i < ground.Count; i++)
+        {
+            if (!string.Equals(ground[i].Id, name, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            GroundItemStack s = ground[i];
+            ground[i] = s with { Quantity = s.Quantity + 1 };
+            return name;
+        }
+
+        ground.Add(new GroundItemStack { Id = name, Quantity = 1 });
         return name;
     }
 
@@ -70,11 +81,20 @@ public record GameState
         if (index < 0 || index >= ground.Count)
             return null;
 
-        string name = ground[index];
-        ground.RemoveAt(index);
-        if (ground.Count == 0)
-            GroundItemsByRoomId.Remove(roomId);
-        Inventory.Add(name);
-        return name;
+        GroundItemStack stack = ground[index];
+        string id = stack.Id;
+        if (stack.Quantity <= 1)
+        {
+            ground.RemoveAt(index);
+            if (ground.Count == 0)
+                GroundItemsByRoomId.Remove(roomId);
+        }
+        else
+        {
+            ground[index] = stack with { Quantity = stack.Quantity - 1 };
+        }
+
+        Inventory.Add(id);
+        return id;
     }
 }

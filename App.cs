@@ -548,6 +548,15 @@ public class App(
         Console.WriteLine(Terminal.Muted($"Gold: {state.Gold}"));
     }
 
+    private string FormatGroundStackLine(GroundItemStack stack)
+    {
+        string name = manipulativeStore.GetDisplayName(stack.Id);
+        if (stack.Quantity <= 1)
+            return name;
+
+        return $"{name} (x{stack.Quantity})";
+    }
+
     private void RunInventoryScreen(GameState state)
     {
         while (true)
@@ -809,7 +818,7 @@ public class App(
     {
         while (true)
         {
-            int n = state.GroundItemsInCurrentRoom.Count;
+            int n = state.GroundStacksInCurrentRoom.Count;
             if (n == 0)
             {
                 ClearConsole();
@@ -828,7 +837,7 @@ public class App(
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {manipulativeStore.GetDisplayName(state.GroundItemsInCurrentRoom[i])}",
+                    $"({num}) {FormatGroundStackLine(state.GroundStacksInCurrentRoom[i])}",
                     key);
             }
             Console.WriteLine();
@@ -846,15 +855,15 @@ public class App(
     /// <returns><see langword="true"/> if an item was taken (caller should leave the Ground screen).</returns>
     private bool RunSelectedGroundItem(GameState state, int index)
     {
-        var ground = state.GroundItemsInCurrentRoom;
+        var ground = state.GroundStacksInCurrentRoom;
         if (index < 0 || index >= ground.Count)
             return false;
 
-        string id = ground[index];
+        GroundItemStack stack = ground[index];
         ClearConsole();
         WritePlayerStatusHeader("== Ground ==", state, includeGold: false);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"));
+        Console.WriteLine(Terminal.Accent($"Selected: {FormatGroundStackLine(stack)}"));
         Console.WriteLine();
         Terminal.WriteMenuLine("(T)ake", 't');
         Console.WriteLine();
@@ -1096,11 +1105,11 @@ public class App(
     {
         var items = new List<MenuItem>();
 
-        if (state.GroundItemsInCurrentRoom.Count > 0)
+        if (state.GroundStacksInCurrentRoom.Count > 0)
         {
             string groundList = string.Join(
                 ", ",
-                state.GroundItemsInCurrentRoom.Select(manipulativeStore.GetDisplayName));
+                state.GroundStacksInCurrentRoom.Select(FormatGroundStackLine));
             items.Add(new MenuItem
             {
                 Text = $"(G)round - {groundList}",
