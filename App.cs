@@ -119,14 +119,15 @@ public class App(
     }
 
     /// <summary>
-    /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
-    /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is item art when present, otherwise blank (same column geometry).
+    /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width.
+    /// <paramref name="rightPanelTopOffset"/> 1 keeps row 0 left-only (room name vs map / inventory). Use 0 to start the portrait on the first left row (fight).
     /// Inventory detail pads the left column (before <c>(ESC) Back</c>) when needed so the portrait stays contiguous and the ESC row has no art.
     /// Fight / victory / defeat use <see cref="BuildFightMonsterPortraitPanel"/> (thin box + inner canvas); inventory uses unboxed art in the same column width.
     /// </summary>
     private static void WriteTextAndRightImagePanel(
         IReadOnlyList<string> leftLines,
-        IReadOnlyList<string> portraitLines)
+        IReadOnlyList<string> portraitLines,
+        int rightPanelTopOffset = 1)
     {
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         string[] panel = portraitLines.Count > 0
@@ -139,7 +140,8 @@ public class App(
                 Console.WriteLine(line);
             if (panel.Length > 0)
             {
-                Console.WriteLine();
+                if (rightPanelTopOffset > 0)
+                    Console.WriteLine();
                 foreach (string line in panel)
                     Console.WriteLine(line);
             }
@@ -149,7 +151,6 @@ public class App(
 
         int leftColWidth = AdventureLayout.LeftColumnWidth;
         int screenWidth = AdventureLayout.ScreenWidth;
-        const int rightPanelTopOffset = 1;
 
         int imageH = panel.Length;
         int leftCount = leftLines.Count;
@@ -1676,7 +1677,7 @@ public class App(
                 showIntro,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            WriteTextAndRightImagePanel(left, BuildFightMonsterPortraitPanel(monsterHp, monster));
+            WriteTextAndRightImagePanel(left, BuildFightMonsterPortraitPanel(monsterHp, monster), rightPanelTopOffset: 0);
 
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'r')
@@ -1766,7 +1767,10 @@ public class App(
             ClearConsole();
             WriteFullWidthTitleBar("== Fight ==", fightState);
             Console.WriteLine();
-            WriteTextAndRightImagePanel(leftAfterStrike, BuildFightMonsterPortraitPanel(monsterHp, monster));
+            WriteTextAndRightImagePanel(
+                leftAfterStrike,
+                BuildFightMonsterPortraitPanel(monsterHp, monster),
+                rightPanelTopOffset: 0);
             return;
         }
 
@@ -1777,7 +1781,8 @@ public class App(
             Console.WriteLine();
             WriteTextAndRightImagePanel(
                 leftAfterStrike,
-                BuildFightMonsterPortraitPanel(monsterHp, monster, silhouetteArt));
+                BuildFightMonsterPortraitPanel(monsterHp, monster, silhouetteArt),
+                rightPanelTopOffset: 0);
             Console.Out.Flush();
         }
 
@@ -1850,7 +1855,8 @@ public class App(
         int victoryArtRows = monsterImageStore.Lines(monster.Id).Count();
         WriteTextAndRightImagePanel(
             victoryLeft,
-            BuildFightMonsterPortraitPanel(0, monster, deathCrossPortraitArtRows: victoryArtRows));
+            BuildFightMonsterPortraitPanel(0, monster, deathCrossPortraitArtRows: victoryArtRows),
+            rightPanelTopOffset: 0);
         Console.WriteLine();
         PauseForContinue();
         return true;
@@ -1899,7 +1905,10 @@ public class App(
         if (battleLog.Count > 0)
             defeatLeft.Add("");
         defeatLeft.Add("");
-        WriteTextAndRightImagePanel(defeatLeft, BuildFightMonsterPortraitPanel(monsterHp, monster));
+        WriteTextAndRightImagePanel(
+            defeatLeft,
+            BuildFightMonsterPortraitPanel(monsterHp, monster),
+            rightPanelTopOffset: 0);
         Console.WriteLine();
         Console.WriteLine(Terminal.Combat("Everything goes dark…"));
         Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));

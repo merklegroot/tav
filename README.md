@@ -1,6 +1,6 @@
-# Text Adventure
+# ASCII Adventure
 
-A simple text adventure game.
+A simple ASCII adventure game.
 
 ![screenshot](img/2026-04-10-14-34-49.png)
 
