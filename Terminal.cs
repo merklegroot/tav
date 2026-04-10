@@ -24,6 +24,9 @@ public static class Terminal
 
     public static string Combat(string text) => Wrap(text, "\x1b[91m");
 
+    /// <summary>Very dim dark red for combat marks (e.g. death cross on portraits).</summary>
+    public static string CombatDark(string text) => Wrap(text, "\x1b[2m\x1b[38;5;52m");
+
     public static string Ok(string text) => Wrap(text, "\x1b[92m");
 
     public static string Warn(string text) => Wrap(text, "\x1b[93m");

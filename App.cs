@@ -76,8 +76,6 @@ public class App(
     {
         var left = new List<string>
         {
-            Terminal.Title("== Victory =="),
-            "",
             Terminal.Ok("The crown fits cold and sure."),
             Terminal.Ok(
                 "Banners you never hung stir in a wind that has waited ages for an heir."),
@@ -114,6 +112,7 @@ public class App(
         if (def?.Image is { Length: > 0 } stem)
             portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
+        WriteFullWidthTitleBar("== Victory ==", state);
         Console.WriteLine();
         WriteTextAndRightImagePanel(left, portrait);
         Console.WriteLine();
@@ -124,15 +123,21 @@ public class App(
     /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is item art when present, otherwise blank (same column geometry).
     /// Inventory detail pads the left column (before <c>(ESC) Back</c>) when needed so the portrait stays contiguous and the ESC row has no art.
     /// Fight and victory/defeat screens use the same layout with bordered monster portrait lines.
+    /// When <paramref name="deathCrossPortraitArtRows"/> &gt; 0, that many portrait rows starting at index 2 (below HP + blank) get a very dim dark red X overlay and dimmed art (victory).
     /// </summary>
     private static void WriteTextAndRightImagePanel(
         IReadOnlyList<string> leftLines,
-        IReadOnlyList<string> portraitLines)
+        IReadOnlyList<string> portraitLines,
+        int deathCrossPortraitArtRows = 0)
     {
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         string[] panel = portraitLines.Count > 0
             ? BuildPortraitPanelCells(portraitLines, panelOuter)
             : [];
+
+        const int fightPortraitArtStartRow = 2;
+        if (deathCrossPortraitArtRows > 0 && panel.Length > fightPortraitArtStartRow)
+            ApplyDeathCrossOverlay(panel, fightPortraitArtStartRow, deathCrossPortraitArtRows, panelOuter);
 
         if (Console.IsOutputRedirected || !CanUseWideLayout(AdventureLayout.ScreenWidth))
         {
@@ -203,6 +208,60 @@ public class App(
         return panel;
     }
 
+    /// <summary>Very dim dark red X on both diagonals across the art block; non-X glyphs muted so the body stays visible underneath.</summary>
+    private static void ApplyDeathCrossOverlay(string[] panel, int artStartIndex, int artRowCount, int panelOuter)
+    {
+        if (artRowCount <= 0)
+            return;
+
+        for (int r = 0; r < artRowCount; r++)
+        {
+            int idx = artStartIndex + r;
+            if (idx < panel.Length)
+                panel[idx] = OverlayDeathCrossOnPanelLine(panel[idx], r, artRowCount, panelOuter);
+        }
+    }
+
+    private static bool VisibleCellOnDeathCross(int row, int col, int artRows, int cols)
+    {
+        if (cols <= 1)
+            return col == 0;
+        if (artRows <= 1)
+            return col >= cols / 5 && col < cols - cols / 5;
+
+        int backslashCol = (int)Math.Round((double)row * (cols - 1) / (artRows - 1));
+        int forwardCol = (int)Math.Round((cols - 1) - (double)row * (cols - 1) / (artRows - 1));
+        const int thickness = 2;
+        return Math.Abs(col - backslashCol) <= thickness
+               || Math.Abs(col - forwardCol) <= thickness;
+    }
+
+    private static string OverlayDeathCrossOnPanelLine(string panelLine, int rowInArt, int artRows, int outer)
+    {
+        string plain = Terminal.StripAnsi(panelLine);
+        if (plain.Length > outer)
+            plain = plain[..outer];
+        plain = plain.PadRight(outer);
+
+        var sb = new StringBuilder();
+        for (int c = 0; c < outer; c++)
+        {
+            if (VisibleCellOnDeathCross(rowInArt, c, artRows, outer))
+            {
+                sb.Append(Terminal.CombatDark("X"));
+                continue;
+            }
+
+            char ch = plain[c];
+            if (ch == ' ')
+                sb.Append(' ');
+            else
+                sb.Append(Terminal.Muted(ch.ToString()));
+        }
+
+        return sb.ToString();
+    }
+
     /// <summary>Word-wraps one description line to the adventure left column width (plain-word wrap; re-applies muted style).</summary>
     private static List<string> WrapInventoryDescriptionLineToColumn(string line, int columnWidth)
     {
@@ -221,7 +280,7 @@ public class App(
         int screenWidth = AdventureLayout.ScreenWidth;
 
         // Layout spec: a single title bar line with game title + basic stats, then two panels beneath.
-        string titleBar = BuildTitleBar(state, screenWidth);
+        string titleBar = BuildTitleBar("== Adventure Game ==", state, screenWidth);
 
         var leftLines = BuildMainViewLeftPanelLines(state, menuItems, leftColWidth);
 
@@ -311,9 +370,9 @@ public class App(
         return Terminal.TruncateVisible(before + hotkey + after, maxWidth);
     }
 
-    private string BuildTitleBar(GameState state, int screenWidth)
+    private string BuildTitleBar(string screenTitle, GameState state, int screenWidth)
     {
-        string left = Terminal.Title("== Adventure Game ==");
+        string left = Terminal.Title(screenTitle);
         int armor = EquippedArmorRating(state);
         string right = Terminal.HpStatus(state.HitPoints, state.MaxHitPoints)
                        + Terminal.Muted("  Gold: ")
@@ -362,7 +421,7 @@ public class App(
         const int rightPanelTopOffset = 1; // fixed: match main view
         int H = Math.Max(newLeft.Count, rightPanelTopOffset + panelRows);
 
-        string titleBar = BuildTitleBar(afterNavigate, screenWidth);
+        string titleBar = BuildTitleBar("== Adventure Game ==", afterNavigate, screenWidth);
         string blankRight = new string(' ', panelOuter);
 
         var oldRows = PadPanelRows(oldPanel, panelOuter);
@@ -699,14 +758,10 @@ public class App(
         return new string(' ', left) + content + new string(' ', pad - left);
     }
 
-    private static void WritePlayerStatusHeader(string screenTitle, GameState state, bool includeGold = true)
+    /// <summary>Full-width title line: screen title (left) and HP, gold, armor (right), matching the adventure view.</summary>
+    private void WriteFullWidthTitleBar(string screenTitle, GameState state)
     {
-        Console.WriteLine(Terminal.Title(screenTitle));
-        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-        if (!includeGold)
-            return;
-
-        Console.WriteLine(Terminal.Muted("Gold: ") + Terminal.Gold(state.Gold.ToString()));
+        Console.WriteLine(BuildTitleBar(screenTitle, state, AdventureLayout.ScreenWidth));
     }
 
     private string FormatGroundStackLine(GroundItemStack stack)
@@ -779,7 +834,7 @@ public class App(
         while (true)
         {
             ClearConsole();
-            WritePlayerStatusHeader("== Inventory ==", state);
+            WriteFullWidthTitleBar("== Inventory ==", state);
             Console.WriteLine();
             if (!string.IsNullOrEmpty(listFeedback))
             {
@@ -881,7 +936,7 @@ public class App(
         bool offerUnequip = (canEquipWeapon && isWeaponEquipped) || (canEquipHelmet && isHelmetEquipped);
 
         ClearConsole();
-        WritePlayerStatusHeader("== Inventory ==", state);
+        WriteFullWidthTitleBar("== Inventory ==", state);
         Console.WriteLine();
 
         bool withImage = def?.Image is { Length: > 0 };
@@ -1149,7 +1204,8 @@ public class App(
             if (n == 0)
             {
                 ClearConsole();
-                Console.WriteLine(Terminal.Title("== Ground =="));
+                WriteFullWidthTitleBar("== Ground ==", state);
+                Console.WriteLine();
                 Console.WriteLine(Terminal.Muted("Nothing on the ground."));
                 Console.WriteLine();
                 PauseForContinue();
@@ -1157,7 +1213,7 @@ public class App(
             }
 
             ClearConsole();
-            WritePlayerStatusHeader("== Ground ==", state);
+            WriteFullWidthTitleBar("== Ground ==", state);
             Console.WriteLine();
             for (int i = 0; i < n; i++)
             {
@@ -1188,7 +1244,7 @@ public class App(
 
         GroundItemStack stack = ground[index];
         ClearConsole();
-        WritePlayerStatusHeader("== Ground ==", state, includeGold: false);
+        WriteFullWidthTitleBar("== Ground ==", state);
         Console.WriteLine();
         Console.WriteLine(Terminal.Accent($"Selected: {FormatGroundStackLine(stack)}"));
         Console.WriteLine();
@@ -1249,10 +1305,8 @@ public class App(
     private void PrintCharacter(GameState state)
     {
         ClearConsole();
-        Console.WriteLine(Terminal.Title("== Character =="));
+        WriteFullWidthTitleBar("== Character ==", state);
         Console.WriteLine();
-        Console.WriteLine(Terminal.HpStatus(state.HitPoints, state.MaxHitPoints));
-        Console.WriteLine(Terminal.Muted("Gold: ") + Terminal.Gold(state.Gold.ToString()));
         Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
         Console.WriteLine(
@@ -1346,7 +1400,7 @@ public class App(
     private void PrintHelp()
     {
         ClearConsole();
-        Console.WriteLine(Terminal.Title("== Help =="));
+        WriteFullWidthTitleBar("== Help ==", state);
         Console.WriteLine();
         Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
         int helpW = HelpScreenMenuLineWidth();
@@ -1382,7 +1436,7 @@ public class App(
     private void PrintMapScreen(GameState state)
     {
         ClearConsole();
-        Console.WriteLine(Terminal.Title("== Map =="));
+        WriteFullWidthTitleBar("== Map ==", state);
         Console.WriteLine();
         Console.WriteLine(
             Terminal.Muted("Rough layout of the grounds. Your room is drawn in yellow."));
@@ -1613,6 +1667,8 @@ public class App(
         while (monsterHp > 0 && state.HitPoints > 0)
         {
             ClearConsole();
+            WriteFullWidthTitleBar("== Fight ==", state);
+            Console.WriteLine();
             var left = BuildFightLeftColumn(
                 monster,
                 state,
@@ -1625,6 +1681,8 @@ public class App(
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'r')
             {
+                ClearConsole();
+                WriteFullWidthTitleBar("== Fight ==", state);
                 Console.WriteLine();
                 Console.WriteLine(Terminal.Muted("You slip away and put distance between you and the creature."));
                 PauseForContinue();
@@ -1677,11 +1735,17 @@ public class App(
     }
 
     /// <summary>Brief silhouette flash on portrait art only (HP/name stay normal); ends on full color.</summary>
-    private void FlashMonsterPortraitOnHit(IReadOnlyList<string> leftAfterStrike, int monsterHp, Monster monster)
+    private void FlashMonsterPortraitOnHit(
+        IReadOnlyList<string> leftAfterStrike,
+        int monsterHp,
+        Monster monster,
+        GameState fightState)
     {
         if (!Terminal.UseAnsi)
         {
             ClearConsole();
+            WriteFullWidthTitleBar("== Fight ==", fightState);
+            Console.WriteLine();
             WriteTextAndRightImagePanel(leftAfterStrike, BuildFightMonsterPortraitLines(monsterHp, monster));
             return;
         }
@@ -1689,6 +1753,8 @@ public class App(
         void Frame(bool silhouetteArt)
         {
             ClearConsole();
+            WriteFullWidthTitleBar("== Fight ==", fightState);
+            Console.WriteLine();
             WriteTextAndRightImagePanel(
                 leftAfterStrike,
                 BuildFightMonsterPortraitLines(monsterHp, monster, silhouetteArt));
@@ -1737,7 +1803,7 @@ public class App(
                 showIntro: false,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            FlashMonsterPortraitOnHit(leftAfterStrike, monsterHp, monster);
+            FlashMonsterPortraitOnHit(leftAfterStrike, monsterHp, monster, state);
         }
 
         if (monsterHp > 0)
@@ -1746,10 +1812,10 @@ public class App(
         int goldFound = _random.Next(3, 11);
         state.Gold += goldFound;
         ClearConsole();
+        WriteFullWidthTitleBar("== Fight ==", state);
+        Console.WriteLine();
         var victoryLeft = new List<string>
         {
-            Terminal.Title("== Fight =="),
-            "",
             Terminal.Ok($"The {monster.Name} falls."),
             "",
             Terminal.Muted($"You scrape up {goldFound} gold among the debris."),
@@ -1761,7 +1827,11 @@ public class App(
         }
 
         victoryLeft.Add("");
-        WriteTextAndRightImagePanel(victoryLeft, BuildFightMonsterPortraitLines(0, monster));
+        int victoryArtRows = monsterImageStore.Lines(monster.Id).Count();
+        WriteTextAndRightImagePanel(
+            victoryLeft,
+            BuildFightMonsterPortraitLines(0, monster),
+            deathCrossPortraitArtRows: victoryArtRows);
         Console.WriteLine();
         PauseForContinue();
         return true;
@@ -1802,12 +1872,13 @@ public class App(
             return false;
 
         ClearConsole();
+        WriteFullWidthTitleBar("== Fight ==", state);
+        Console.WriteLine();
         int defeatLogW = AdventureLayout.LeftColumnWidth;
-        var defeatLeft = new List<string> { Terminal.Title("== Fight =="), "" };
+        var defeatLeft = new List<string>();
         defeatLeft.AddRange(BuildFightLogDisplayLines(showIntro: false, monster, defeatLogW, battleLog));
         if (battleLog.Count > 0)
             defeatLeft.Add("");
-        defeatLeft.Add(Terminal.Warn($"You: 0/{state.MaxHitPoints} HP"));
         defeatLeft.Add("");
         WriteTextAndRightImagePanel(defeatLeft, BuildFightMonsterPortraitLines(monsterHp, monster));
         Console.WriteLine();
@@ -1877,8 +1948,7 @@ public class App(
         int helmetSlotAttackBonus)
     {
         int w = AdventureLayout.LeftColumnWidth;
-        var left = new List<string> { Terminal.Title("== Fight =="), "" };
-        left.Add(Terminal.Warn($"You: {state.HitPoints}/{state.MaxHitPoints} HP"));
+        var left = new List<string>();
         if (defenderArmorRating > 0)
         {
             string armorPlain =
