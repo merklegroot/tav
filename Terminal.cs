@@ -16,6 +16,9 @@ public static class Terminal
 
     public static string Border(string text) => Wrap(text, "\x1b[36m");
 
+    /// <summary>Very dim gray for monster portrait hit feedback; stays visible, unlike hiding the art.</summary>
+    public static string Silhouette(string text) => Wrap(text, "\x1b[2m\x1b[90m");
+
     /// <summary>Map overview: the room you stand in (yellow foreground; neighbors use <see cref="Border"/>).</summary>
     public static string MapHere(string text) => Wrap(text, "\x1b[1m\x1b[93m");
 

@@ -1660,16 +1660,48 @@ public class App(
     }
 
     /// <summary>Right panel: HP, blank row, portrait, blank row, monster name (bottom).</summary>
-    private List<string> BuildFightMonsterPortraitLines(int currentHp, Monster monster)
+    /// <param name="silhouetteArt">When true, portrait lines use <see cref="Terminal.Silhouette"/> instead of <see cref="Terminal.Border"/>.</param>
+    private List<string> BuildFightMonsterPortraitLines(int currentHp, Monster monster, bool silhouetteArt = false)
     {
         int shown = Math.Max(0, currentHp);
         int outer = AdventureLayout.MapPanelOuterWidth;
         string hpLine = CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), outer);
         var lines = new List<string> { hpLine, "" };
-        lines.AddRange(monsterImageStore.Lines(monster.Id).Select(Terminal.Border));
+        lines.AddRange(
+            silhouetteArt
+                ? monsterImageStore.Lines(monster.Id).Select(Terminal.Silhouette)
+                : monsterImageStore.Lines(monster.Id).Select(Terminal.Border));
         lines.Add("");
         lines.Add(CenterVisual(Terminal.Combat(monster.Name), outer));
         return lines;
+    }
+
+    /// <summary>Brief silhouette flash on portrait art only (HP/name stay normal); ends on full color.</summary>
+    private void FlashMonsterPortraitOnHit(IReadOnlyList<string> leftAfterStrike, int monsterHp, Monster monster)
+    {
+        if (!Terminal.UseAnsi)
+        {
+            ClearConsole();
+            WriteTextAndRightImagePanel(leftAfterStrike, BuildFightMonsterPortraitLines(monsterHp, monster));
+            return;
+        }
+
+        void Frame(bool silhouetteArt)
+        {
+            ClearConsole();
+            WriteTextAndRightImagePanel(
+                leftAfterStrike,
+                BuildFightMonsterPortraitLines(monsterHp, monster, silhouetteArt));
+            Console.Out.Flush();
+        }
+
+        Frame(silhouetteArt: true);
+        Thread.Sleep(85);
+        Frame(silhouetteArt: false);
+        Thread.Sleep(55);
+        Frame(silhouetteArt: true);
+        Thread.Sleep(85);
+        Frame(silhouetteArt: false);
     }
 
     /// <summary>Player attacks; returns true if the fight ended (victory).</summary>
@@ -1698,7 +1730,6 @@ public class App(
 
         if (!Console.IsOutputRedirected)
         {
-            ClearConsole();
             var leftAfterStrike = BuildFightLeftColumn(
                 monster,
                 state,
@@ -1706,7 +1737,7 @@ public class App(
                 showIntro: false,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            WriteTextAndRightImagePanel(leftAfterStrike, BuildFightMonsterPortraitLines(monsterHp, monster));
+            FlashMonsterPortraitOnHit(leftAfterStrike, monsterHp, monster);
         }
 
         if (monsterHp > 0)
