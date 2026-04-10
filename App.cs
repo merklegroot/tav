@@ -25,12 +25,23 @@ public class App(
         var rooms = roomStore.LoadAll();
         var roomsById = rooms.ToDictionary(r => r.Id.ToLowerInvariant());
         var monsters = monsterStore.LoadAll();
+        bool snapshotExitAfterFirstFrame = string.Equals(
+            Environment.GetEnvironmentVariable("TAV_SNAPSHOT"),
+            "1",
+            StringComparison.Ordinal);
 
         while (!state.ShouldExit)
         {
             var menuItems = BuildMenuItems(monsters, state, () => state.ShouldExit = true);
 
             PrintScreen(state, menuItems);
+
+            if (snapshotExitAfterFirstFrame)
+            {
+                state.ShouldExit = true;
+                Console.Out.Flush();
+                continue;
+            }
 
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);
