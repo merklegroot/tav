@@ -930,7 +930,7 @@ public class App(
         {
             if (!withImage)
                 left.Add("");
-            foreach (string d in manipulativeDescriber.EdibleEffectDescriptionLines(def, state))
+            foreach (string d in manipulativeDescriber.GetEdibleEffectDescriptionLines(def, state))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
@@ -938,7 +938,7 @@ public class App(
         {
             if (!withImage)
                 left.Add("");
-            foreach (string d in manipulativeDescriber.HelmetEffectDescriptionLines(def))
+            foreach (string d in manipulativeDescriber.GetHelmetEffectDescriptionLines(def))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 

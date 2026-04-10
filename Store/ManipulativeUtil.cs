@@ -7,17 +7,11 @@ public interface IManipulativeUtil
 {
     string GetDisplayName(string manipulativeId);
 
-    /// <summary>Prints what eating would do, from <see cref="ConsumeEffects"/>. Caller ensures <paramref name="definition"/> is edible with a positive heal cap.</summary>
-    void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state);
+    /// <summary>Lines describing edible heal effects from <see cref="ConsumeEffects"/>; empty when not applicable.</summary>
+    IEnumerable<string> GetEdibleEffectDescriptionLines(ManipulativeDefinition definition, GameState state);
 
-    /// <summary>Explains armor and optional <c>attackBonus</c>. Caller ensures <paramref name="definition"/> is a helmet (including a crown).</summary>
-    void WriteHelmetEffectDescription(ManipulativeDefinition definition);
-
-    /// <summary>Same text as <see cref="WriteEdibleEffectDescription"/>; empty when not applicable.</summary>
-    IEnumerable<string> EdibleEffectDescriptionLines(ManipulativeDefinition definition, GameState state);
-
-    /// <summary>Same text as <see cref="WriteHelmetEffectDescription"/>; empty when not a helmet.</summary>
-    IEnumerable<string> HelmetEffectDescriptionLines(ManipulativeDefinition definition);
+    /// <summary>Lines describing helmet armor and optional attack bonus; empty when not a helmet.</summary>
+    IEnumerable<string> GetHelmetEffectDescriptionLines(ManipulativeDefinition definition);
 }
 
 public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulativeUtil
@@ -31,19 +25,7 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         return manipulativeId.Replace('_', ' ');
     }
 
-    public void WriteEdibleEffectDescription(ManipulativeDefinition definition, GameState state)
-    {
-        foreach (string line in EdibleEffectDescriptionLines(definition, state))
-            Console.WriteLine(line);
-    }
-
-    public void WriteHelmetEffectDescription(ManipulativeDefinition definition)
-    {
-        foreach (string line in HelmetEffectDescriptionLines(definition))
-            Console.WriteLine(line);
-    }
-
-    public IEnumerable<string> EdibleEffectDescriptionLines(ManipulativeDefinition definition, GameState state)
+    public IEnumerable<string> GetEdibleEffectDescriptionLines(ManipulativeDefinition definition, GameState state)
     {
         int cap = definition.ConsumeEffects?.HealthRestored ?? 0;
         if (cap <= 0)
@@ -61,7 +43,7 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         yield return Terminal.Muted($"If you eat it now, you would restore {wouldHeal} HP.");
     }
 
-    public IEnumerable<string> HelmetEffectDescriptionLines(ManipulativeDefinition definition)
+    public IEnumerable<string> GetHelmetEffectDescriptionLines(ManipulativeDefinition definition)
     {
         if (!definition.IsEquippableHelmet)
             yield break;
