@@ -654,7 +654,7 @@ public class App(
                 return false;
             if (action == InventoryItemDetailAction.Drop)
             {
-                var dropped = state.DropItemAt(index);
+                var dropped = GameStateGroundOps.DropInventoryItemAt(state, index);
                 Console.WriteLine();
                 Console.WriteLine(
                     Terminal.Muted($"You drop the {manipulativeStore.GetDisplayName(dropped)}."));
@@ -831,7 +831,7 @@ public class App(
     {
         while (true)
         {
-            int n = state.GroundStacksInCurrentRoom.Count;
+            int n = GameStateGroundOps.GetStacksInCurrentRoom(state).Count;
             if (n == 0)
             {
                 ClearConsole();
@@ -850,7 +850,7 @@ public class App(
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {FormatGroundStackLine(state.GroundStacksInCurrentRoom[i])}",
+                    $"({num}) {FormatGroundStackLine(GameStateGroundOps.GetStacksInCurrentRoom(state)[i])}",
                     key);
             }
             Console.WriteLine();
@@ -868,7 +868,7 @@ public class App(
     /// <returns><see langword="true"/> if an item was taken (caller should leave the Ground screen).</returns>
     private bool RunSelectedGroundItem(GameState state, int index)
     {
-        var ground = state.GroundStacksInCurrentRoom;
+        var ground = GameStateGroundOps.GetStacksInCurrentRoom(state);
         if (index < 0 || index >= ground.Count)
             return false;
 
@@ -886,7 +886,7 @@ public class App(
         if (action == SelectedGroundItemAction.BackToList)
             return false;
 
-        var taken = state.PickUpGroundItemAt(index);
+        var taken = GameStateGroundOps.PickUpGroundItemAt(state, index);
         if (taken is null)
             return false;
         Console.WriteLine();
@@ -1122,11 +1122,12 @@ public class App(
     {
         var items = new List<MenuItem>();
 
-        if (state.GroundStacksInCurrentRoom.Count > 0)
+        var groundStacks = GameStateGroundOps.GetStacksInCurrentRoom(state);
+        if (groundStacks.Count > 0)
         {
             string groundList = string.Join(
                 ", ",
-                state.GroundStacksInCurrentRoom.Select(FormatGroundStackLine));
+                groundStacks.Select(FormatGroundStackLine));
             items.Add(new MenuItem
             {
                 Text = $"(G)round - {groundList}",
