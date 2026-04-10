@@ -75,7 +75,7 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 
 - **Hit points** — Current and maximum. At 0 HP the character (or monster) is defeated.
 - **Strength** — Physical power. Feeds directly into damage on a hit.
-- **Dexterity** — Speed and coordination. Feeds into who acts first and whether an attack connects.
+- **Dexterity** — Speed and coordination. Feeds into who acts first, whether an attack connects, and how cleanly a connected hit lands (how much of the strike’s potential becomes real damage).
 
 **Weapon damage** comes from the equipped item (for example a flat bonus such as +2 from an axe). Unarmed can be treated as +0.
 
@@ -83,10 +83,23 @@ Core attributes (small integers, roughly 8–18 for a normal adventurer):
 
 1. **Initiative** — Compare attacker and defender Dexterity. The higher value acts first this round. If tied, break ties with a fair random choice (or always let the player win ties—pick one rule and keep it).
 
-2. **Hit roll** — Roll a d20, add the attacker’s Dexterity, subtract the defender’s Dexterity. If the total is **11 or higher**, the blow lands; otherwise it misses.  
+2. **Hit roll** — Roll a d20, add the attacker’s Dexterity, subtract the defender’s Dexterity. Call the result **hit total**. If it is **11 or higher**, the blow lands; otherwise it misses.  
    *Why this shape:* one die keeps variance interesting; the Dex difference makes faster fighters both hit and dodge more reliably without extra tables.
 
-3. **Damage on a hit** — `max(1, weaponDamageBonus + (attackerStrength − 10))`.  
-   Treat 10 Strength as the “baseline” (+0). Each point above 10 adds one damage; each point below 10 subtracts one, but never below 1 damage on a successful hit unless you later add explicit “minimum 0” rules for special cases.
+3. **Damage on a hit** — Treat a landed blow in two parts: how hard it *could* hurt, and how well it actually *landed*.
 
-That is enough to code a first version: initiative → hit roll → damage → subtract HP → repeat until someone reaches 0 HP. You can add armor, critical hits, or status effects later without changing the meaning of the three core stats.
+   - **Potential damage** — The strike at full connection (a jab to the throat, not the shoulder):  
+     `max(1, weaponDamageBonus + (attackerStrength − 10))`.  
+     Treat 10 Strength as baseline (+0); each point above or below adds or subtracts one, before applying placement below.
+
+   - **Placement** — A hit is rarely “all or nothing.” Use **margin** = `hitTotal − 11` (how far past a glancing touch the roll went). Turn that into a fraction between a **graze** and **full potential**, and let Dexterity bend that curve: a precise fighter gets more mileage from the same opening.
+
+     One concrete rule:  
+     `placement = clamp(0.25 + margin / 20 + 0.03 × (attackerDexterity − 10), 0.25, 1.0)`  
+     - A bare success (margin 0) at Dexterity 10 keeps **25%** of potential damage—a sting, not the full wind-up.  
+     - The same bare success at Dexterity 18 adds a **precision** bump, so more of the potential lands without needing a flashier roll.  
+     - A large margin still drives placement toward **100%**, so a wild haymaker that barely connects hurts less than the same strength behind a solid line.
+
+   - **Final damage** — `floor(potentialDamage × placement)`, with a minimum of **1** on any hit if you want every connected blow to matter a little.
+
+That flow is: initiative → hit roll → (potential × placement) → subtract HP → repeat until someone reaches 0 HP. You can add armor, critical hits, or status effects later without changing the meaning of the three core stats.
