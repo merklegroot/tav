@@ -14,6 +14,7 @@ public class App(
     IRoomStore roomStore,
     IMonsterStore monsterStore,
     IManipulativeStore manipulativeStore,
+    IManipulativeUtil manipulativeDescriber,
     IMonsterImageStore monsterImageStore,
     IManipulativeImageStore manipulativeImageStore) : IApp
 {
@@ -745,7 +746,7 @@ public class App(
 
     private string FormatGroundStackLine(GroundItemStack stack)
     {
-        string name = manipulativeStore.GetDisplayName(stack.Id);
+        string name = manipulativeDescriber.GetDisplayName(stack.Id);
         if (stack.Quantity <= 1)
             return name;
 
@@ -852,7 +853,7 @@ public class App(
                     showEquippedYellowE: anyEquipped && rowEquipped,
                     padWhenUnequipped: anyEquipped && !rowEquipped,
                     slotNumber: num,
-                    displayName: manipulativeStore.GetDisplayName(id),
+                    displayName: manipulativeDescriber.GetDisplayName(id),
                     hotkey: key);
             }
             Console.WriteLine();
@@ -922,14 +923,14 @@ public class App(
 
         var left = new List<string>
         {
-            Terminal.Accent($"Selected: {manipulativeStore.GetDisplayName(id)}"),
+            Terminal.Accent($"Selected: {manipulativeDescriber.GetDisplayName(id)}"),
         };
         int descCol = AdventureLayout.LeftColumnWidth;
         if (canEat && def is not null)
         {
             if (!withImage)
                 left.Add("");
-            foreach (string d in manipulativeStore.EdibleEffectDescriptionLines(def, state))
+            foreach (string d in manipulativeDescriber.EdibleEffectDescriptionLines(def, state))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
@@ -937,7 +938,7 @@ public class App(
         {
             if (!withImage)
                 left.Add("");
-            foreach (string d in manipulativeStore.HelmetEffectDescriptionLines(def))
+            foreach (string d in manipulativeDescriber.HelmetEffectDescriptionLines(def))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
@@ -958,7 +959,7 @@ public class App(
         if (action == InventoryItemDetailAction.Drop)
         {
             var dropped = GameStateGroundOps.DropInventoryItemAt(state, index);
-            return $"You drop the {manipulativeStore.GetDisplayName(dropped)}.";
+            return $"You drop the {manipulativeDescriber.GetDisplayName(dropped)}.";
         }
 
         if (action == InventoryItemDetailAction.Equip)
@@ -1243,7 +1244,7 @@ public class App(
             return false;
         Console.WriteLine();
         Console.WriteLine(
-            Terminal.Muted($"You pick up the {manipulativeStore.GetDisplayName(taken)}."));
+            Terminal.Muted($"You pick up the {manipulativeDescriber.GetDisplayName(taken)}."));
         return true;
     }
 
@@ -1317,7 +1318,7 @@ public class App(
         else
         {
             var weaponDef = manipulativeStore.Get(state.EquippedWeaponId);
-            string weaponName = weaponDef?.Name ?? manipulativeStore.GetDisplayName(state.EquippedWeaponId);
+            string weaponName = weaponDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedWeaponId);
             Console.WriteLine(Terminal.Accent($"  Weapon: {weaponName}"));
 
             if (weaponDef is null)
@@ -1347,7 +1348,7 @@ public class App(
         }
 
         var helmetDef = manipulativeStore.Get(state.EquippedHelmetId);
-        string helmetName = helmetDef?.Name ?? manipulativeStore.GetDisplayName(state.EquippedHelmetId);
+        string helmetName = helmetDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedHelmetId);
         Console.WriteLine(Terminal.Accent($"  Helmet: {helmetName}"));
 
         if (helmetDef is null)

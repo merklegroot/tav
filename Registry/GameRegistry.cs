@@ -13,6 +13,7 @@ public static class GameRegistry
             .AddSingleton<IRoomStore, RoomStore>()
             .AddSingleton<IMonsterStore, MonsterStore>()
             .AddSingleton<IManipulativeStore, ManipulativeStore>()
+            .AddSingleton<IManipulativeUtil, ManipulativeUtil>()
             .AddSingleton<IMonsterImageStore, MonsterImageStore>()
             .AddSingleton<IManipulativeImageStore, ManipulativeImageStore>()
             .AddSingleton<GameState>(sp =>
