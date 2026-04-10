@@ -1659,14 +1659,16 @@ public class App(
         }
     }
 
-    /// <summary>Right panel: current/max HP on the first row, then bordered ASCII portrait (fight only).</summary>
+    /// <summary>Right panel: HP, blank row, portrait, blank row, monster name (bottom).</summary>
     private List<string> BuildFightMonsterPortraitLines(int currentHp, Monster monster)
     {
         int shown = Math.Max(0, currentHp);
         int outer = AdventureLayout.MapPanelOuterWidth;
         string hpLine = CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), outer);
-        var lines = new List<string> { hpLine };
+        var lines = new List<string> { hpLine, "" };
         lines.AddRange(monsterImageStore.Lines(monster.Id).Select(Terminal.Border));
+        lines.Add("");
+        lines.Add(CenterVisual(Terminal.Combat(monster.Name), outer));
         return lines;
     }
 
