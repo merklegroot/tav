@@ -14,7 +14,7 @@ There should be a blank space after the title bar.
 
 The left panel should show the room's title, the room's description, and the menu.
 
-The right panel should show the drawn room.
+The right panel should show the drawn room and below it the compass control.
 
 The drawn room should be centered vertically within the right panel.
 
@@ -43,6 +43,16 @@ An = charater represents a door going East or West.
 
 Two pipes with a space between them represent a door going North or South.
 | |
+
+## Compass
+
+The compass control should make it clear which directions are available to the user.
+
+    N
+    |
+W -   - E
+    |
+    S
 
 ## Manipulatives
 

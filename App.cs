@@ -15,6 +15,8 @@ public class App(
     IManipulativeStore manipulativeStore,
     IMonsterImageStore monsterImageStore) : IApp
 {
+    private const int RoomPanelLineCount = 5;
+
     private readonly Random _random = new();
 
     public void Run()
@@ -84,7 +86,7 @@ public class App(
 
         var leftLines = BuildMainViewLeftPanelLines(state, menuItems, leftColWidth);
 
-        var panel = BuildRoomPanel(state.CurrentRoom, panelOuter);
+        var panel = BuildMainViewRightPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true);
 
         int minWidth = screenWidth;
         if (forceWide || CanUseWideLayout(minWidth))
@@ -291,7 +293,10 @@ public class App(
                             ? oldRowsPlain[pi] + newRowsPlain[pi]
                             : newRowsPlain[pi] + oldRowsPlain[pi];
                         string rightPlain = combined.Substring(offset, panelOuter);
-                        right = Terminal.Border(rightPlain);
+                        // Room box lines use border color; blank + compass stay plain (see BuildMainViewRightPanel).
+                        right = pi < RoomPanelLineCount
+                            ? Terminal.Border(rightPlain)
+                            : PadRightVisual(rightPlain, panelOuter);
                     }
 
                     Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
@@ -490,6 +495,54 @@ public class App(
             return panel.Select(Terminal.Accent).ToArray();
 
         return panel;
+    }
+
+    /// <summary>Room art, a blank row, then the compass (see README).</summary>
+    private static string[] BuildMainViewRightPanel(Room room, int outerWidth, bool isCurrentRoom = true)
+    {
+        string[] roomLines = BuildRoomPanel(room, outerWidth, isCurrentRoom);
+        string[] compassLines = BuildCompassPanel(room, outerWidth);
+        var combined = new string[roomLines.Length + 1 + compassLines.Length];
+        int c = 0;
+        for (int i = 0; i < roomLines.Length; i++)
+            combined[c++] = roomLines[i];
+        combined[c++] = new string(' ', outerWidth);
+        for (int i = 0; i < compassLines.Length; i++)
+            combined[c++] = compassLines[i];
+        return combined;
+    }
+
+    /// <summary>README compass: N/|/W-E row/|/S, centered in the panel; open exits emphasized.</summary>
+    private static string[] BuildCompassPanel(Room room, int outerWidth)
+    {
+        bool n = HasExit(room, 'n');
+        bool e = HasExit(room, 'e');
+        bool s = HasExit(room, 's');
+        bool w = HasExit(room, 'w');
+
+        string DirLetter(bool open, char letter) =>
+            open ? Terminal.Accent(letter.ToString()) : Terminal.Muted(letter.ToString());
+
+        string rowN = CenterVisual(DirLetter(n, 'N'), outerWidth);
+        string rowS = CenterVisual(DirLetter(s, 'S'), outerWidth);
+        string pipe = CenterVisual(Terminal.Muted("|"), outerWidth);
+        string rowWe = CenterVisual(
+            DirLetter(w, 'W') + Terminal.Muted(" -   - ") + DirLetter(e, 'E'),
+            outerWidth);
+
+        return new[] { rowN, pipe, rowWe, pipe, rowS };
+    }
+
+    private static string CenterVisual(string content, int totalWidth)
+    {
+        int v = Terminal.VisibleLength(content);
+        if (v >= totalWidth)
+            return PadRightVisual(content, totalWidth);
+
+        int pad = totalWidth - v;
+        int left = pad / 2;
+        int right = pad - left;
+        return new string(' ', left) + content + new string(' ', right);
     }
 
     private static string PadInner(string content, int innerWidth)
@@ -1021,11 +1074,11 @@ public class App(
                 Key = dir,
                 Action = () =>
                 {
-                    var oldPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
+                    var oldPanel = BuildMainViewRightPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
                     navigateTo(destRoom);
                     AnimateRoomSlide(
                         oldPanel,
-                        BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
+                        BuildMainViewRightPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
                         state,
                         dir);
                 },
