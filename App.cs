@@ -122,22 +122,16 @@ public class App(
     /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
     /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is item art when present, otherwise blank (same column geometry).
     /// Inventory detail pads the left column (before <c>(ESC) Back</c>) when needed so the portrait stays contiguous and the ESC row has no art.
-    /// Fight and victory/defeat screens use the same layout with bordered monster portrait lines.
-    /// When <paramref name="deathCrossPortraitArtRows"/> &gt; 0, that many portrait rows starting at index 2 (below HP + blank) get a very dim dark red X overlay and dimmed art (victory).
+    /// Fight / victory / defeat use <see cref="BuildFightMonsterPortraitPanel"/> (thin box + inner canvas); inventory uses unboxed art in the same column width.
     /// </summary>
     private static void WriteTextAndRightImagePanel(
         IReadOnlyList<string> leftLines,
-        IReadOnlyList<string> portraitLines,
-        int deathCrossPortraitArtRows = 0)
+        IReadOnlyList<string> portraitLines)
     {
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         string[] panel = portraitLines.Count > 0
             ? BuildPortraitPanelCells(portraitLines, panelOuter)
             : [];
-
-        const int fightPortraitArtStartRow = 2;
-        if (deathCrossPortraitArtRows > 0 && panel.Length > fightPortraitArtStartRow)
-            ApplyDeathCrossOverlay(panel, fightPortraitArtStartRow, deathCrossPortraitArtRows, panelOuter);
 
         if (Console.IsOutputRedirected || !CanUseWideLayout(AdventureLayout.ScreenWidth))
         {
@@ -193,6 +187,25 @@ public class App(
         }
 
         return panel;
+    }
+
+    /// <summary>Room-style thin box: <paramref name="innerRows"/> are each padded to <c>outerWidth - 2</c> visible columns; total width is <paramref name="outerWidth"/>.</summary>
+    private static string[] WrapThinBoxAroundInnerRows(string[] innerRows, int outerWidth)
+    {
+        int inner = outerWidth - 2;
+        string top = Terminal.Border("┌" + new string('─', inner) + "┐");
+        string bottom = Terminal.Border("└" + new string('─', inner) + "┘");
+        int n = innerRows.Length;
+        var result = new string[n + 2];
+        result[0] = top;
+        for (int i = 0; i < n; i++)
+        {
+            string body = PadRightVisual(innerRows[i], inner);
+            result[i + 1] = Terminal.Border("│") + body + Terminal.Border("│");
+        }
+
+        result[n + 1] = bottom;
+        return result;
     }
 
     /// <summary>Very dim dark red X on both diagonals across the art block; non-X glyphs muted so the body stays visible underneath.</summary>
@@ -1663,7 +1676,7 @@ public class App(
                 showIntro,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            WriteTextAndRightImagePanel(left, BuildFightMonsterPortraitLines(monsterHp, monster));
+            WriteTextAndRightImagePanel(left, BuildFightMonsterPortraitPanel(monsterHp, monster));
 
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'r')
@@ -1704,20 +1717,40 @@ public class App(
         }
     }
 
-    /// <summary>Right panel: HP, blank row, portrait, blank row, monster name (bottom).</summary>
+    /// <summary>Right panel: thin box around HP, blank, portrait art, blank, name (inner width <c><see cref="AdventureLayout.MapPanelOuterWidth"/> - 2</c>).</summary>
     /// <param name="silhouetteArt">When true, portrait lines use <see cref="Terminal.Silhouette"/> instead of <see cref="Terminal.Border"/>.</param>
-    private List<string> BuildFightMonsterPortraitLines(int currentHp, Monster monster, bool silhouetteArt = false)
+    private string[] BuildFightMonsterPortraitPanel(
+        int currentHp,
+        Monster monster,
+        bool silhouetteArt = false,
+        int deathCrossPortraitArtRows = 0)
+    {
+        int outer = AdventureLayout.MapPanelOuterWidth;
+        int inner = outer - 2;
+        var raw = BuildFightMonsterPortraitRawLines(currentHp, monster, silhouetteArt, inner);
+        string[] cells = BuildPortraitPanelCells(raw, inner);
+        const int fightPortraitArtStartInInnerPanel = 2;
+        if (deathCrossPortraitArtRows > 0 && cells.Length > fightPortraitArtStartInInnerPanel)
+            ApplyDeathCrossOverlay(cells, fightPortraitArtStartInInnerPanel, deathCrossPortraitArtRows, inner);
+        return WrapThinBoxAroundInnerRows(cells, outer);
+    }
+
+    /// <summary>Inner canvas rows only (no frame): HP, blank, art, blank, name.</summary>
+    private List<string> BuildFightMonsterPortraitRawLines(
+        int currentHp,
+        Monster monster,
+        bool silhouetteArt,
+        int innerWidth)
     {
         int shown = Math.Max(0, currentHp);
-        int outer = AdventureLayout.MapPanelOuterWidth;
-        string hpLine = CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), outer);
+        string hpLine = CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), innerWidth);
         var lines = new List<string> { hpLine, "" };
         lines.AddRange(
             silhouetteArt
                 ? monsterImageStore.Lines(monster.Id).Select(Terminal.Silhouette)
                 : monsterImageStore.Lines(monster.Id).Select(Terminal.Border));
         lines.Add("");
-        lines.Add(CenterVisual(Terminal.Combat(monster.Name), outer));
+        lines.Add(CenterVisual(Terminal.Combat(monster.Name), innerWidth));
         return lines;
     }
 
@@ -1733,7 +1766,7 @@ public class App(
             ClearConsole();
             WriteFullWidthTitleBar("== Fight ==", fightState);
             Console.WriteLine();
-            WriteTextAndRightImagePanel(leftAfterStrike, BuildFightMonsterPortraitLines(monsterHp, monster));
+            WriteTextAndRightImagePanel(leftAfterStrike, BuildFightMonsterPortraitPanel(monsterHp, monster));
             return;
         }
 
@@ -1744,7 +1777,7 @@ public class App(
             Console.WriteLine();
             WriteTextAndRightImagePanel(
                 leftAfterStrike,
-                BuildFightMonsterPortraitLines(monsterHp, monster, silhouetteArt));
+                BuildFightMonsterPortraitPanel(monsterHp, monster, silhouetteArt));
             Console.Out.Flush();
         }
 
@@ -1817,8 +1850,7 @@ public class App(
         int victoryArtRows = monsterImageStore.Lines(monster.Id).Count();
         WriteTextAndRightImagePanel(
             victoryLeft,
-            BuildFightMonsterPortraitLines(0, monster),
-            deathCrossPortraitArtRows: victoryArtRows);
+            BuildFightMonsterPortraitPanel(0, monster, deathCrossPortraitArtRows: victoryArtRows));
         Console.WriteLine();
         PauseForContinue();
         return true;
@@ -1867,7 +1899,7 @@ public class App(
         if (battleLog.Count > 0)
             defeatLeft.Add("");
         defeatLeft.Add("");
-        WriteTextAndRightImagePanel(defeatLeft, BuildFightMonsterPortraitLines(monsterHp, monster));
+        WriteTextAndRightImagePanel(defeatLeft, BuildFightMonsterPortraitPanel(monsterHp, monster));
         Console.WriteLine();
         Console.WriteLine(Terminal.Combat("Everything goes dark…"));
         Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));

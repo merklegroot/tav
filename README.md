@@ -1,6 +1,8 @@
 # Text Adventure
 
-screenshot
+A simple text adventure game.
+
+![screenshot](img/2026-04-10-14-34-49.png)
 
 ## Layout
 
