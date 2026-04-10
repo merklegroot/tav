@@ -56,7 +56,7 @@ public class ManipulativeStore : IManipulativeStore
         if (cap <= 0)
             yield break;
 
-        yield return Terminal.Muted($"If you eat it, you can restore up to {cap} hit points.");
+        yield return Terminal.Muted($"Restores {cap} HP.");
         if (state.HitPoints >= state.MaxHitPoints)
         {
             yield return Terminal.Muted(
