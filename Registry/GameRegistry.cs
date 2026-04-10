@@ -25,7 +25,11 @@ public static class GameRegistry
                             : "Only one room may have isInitialRoom: true.");
                 }
 
-                var state = new GameState(initialRooms[0]);
+                var initial = EmbeddedJsonResource.DeserializeObject<InitialStatePayload>(
+                    "initial_state.json",
+                    "res/initial_state.json");
+                var startingInventory = initial.Inventory ?? [];
+                var state = new GameState(initialRooms[0], startingInventory);
                 foreach (var room in rooms)
                 {
                     if (room.GroundItems is not { Count: > 0 })

@@ -921,7 +921,41 @@ public class App(
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
         Console.WriteLine(Terminal.Muted("Higher DEX softens enemy hits in a fight."));
         Console.WriteLine();
+        WriteCharacterEquippedSection(state);
+        Console.WriteLine();
         PauseForContinue();
+    }
+
+    private void WriteCharacterEquippedSection(GameState state)
+    {
+        Console.WriteLine(Terminal.Accent("Equipped"));
+        if (state.EquippedWeaponId is null)
+        {
+            Console.WriteLine(Terminal.Muted("  Weapon: none"));
+            return;
+        }
+
+        var weaponDef = manipulativeStore.Get(state.EquippedWeaponId);
+        string weaponName = weaponDef?.Name ?? manipulativeStore.GetDisplayName(state.EquippedWeaponId);
+        Console.WriteLine(Terminal.Accent($"  Weapon: {weaponName}"));
+
+        if (weaponDef is null)
+        {
+            Console.WriteLine(Terminal.Muted("  No effect data for this item."));
+            return;
+        }
+
+        bool wroteAny = false;
+        if (weaponDef.WeaponDamageBonus is int bonus && bonus != 0)
+        {
+            string sign = bonus > 0 ? "+" : "";
+            Console.WriteLine(
+                Terminal.Muted($"  {sign}{bonus} damage on each strike in a fight."));
+            wroteAny = true;
+        }
+
+        if (!wroteAny && weaponDef.IsEquippableWeapon)
+            Console.WriteLine(Terminal.Muted("  No combat bonuses from this weapon."));
     }
 
     private void PrintHelp()

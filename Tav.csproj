@@ -11,6 +11,7 @@
     <EmbeddedResource Include="res/rooms.json" />
     <EmbeddedResource Include="res/monsters.json" />
     <EmbeddedResource Include="res/manipulatives.json" />
+    <EmbeddedResource Include="res/initial_state.json" />
     <EmbeddedResource Include="res/**/*.img.txt" />
   </ItemGroup>
   <ItemGroup>

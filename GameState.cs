@@ -9,7 +9,7 @@ public record GameState
     public int Strength { get; set; }
     public int Dexterity { get; set; }
     public int Gold { get; set; }
-    public List<string> Inventory { get; } = [KnownManipulativeIds.Torch];
+    public List<string> Inventory { get; } = [];
 
     /// <summary>Canonical manipulative id for the wielded weapon, or null.</summary>
     public string? EquippedWeaponId { get; set; }
@@ -29,13 +29,15 @@ public record GameState
         }
     }
 
-    public GameState(Room start)
+    public GameState(Room start, IReadOnlyList<string> startingInventory)
     {
         CurrentRoom = start;
         MaxHitPoints = 20;
         HitPoints = MaxHitPoints;
         Strength = 12;
         Dexterity = 14;
+        foreach (string id in startingInventory)
+            Inventory.Add(id);
     }
 
     /// <summary>Removes the item from inventory and places it in the current room. Returns the item name.</summary>

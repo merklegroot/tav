@@ -8,7 +8,8 @@
       "e": "courtyard"
     },
     "groundItems": [
-      "apple"
+      "apple",
+      "axe"
     ],
     "isInitialRoom": true
   },
