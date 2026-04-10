@@ -8,3 +8,8 @@ Put interfaces in with the same file as their implementation.
 Prefer early returns.
 
 Minimize the use of "else".
+
+Don't create methods with out or ref params.
+It's ok to use existing ones.
+
+Don't declare positional records. Use explicit property syntax instead.
