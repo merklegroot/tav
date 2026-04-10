@@ -4,16 +4,16 @@ public static class ManipulativeStore
 {
     private static readonly Lazy<Dictionary<string, ManipulativeDefinition>> ByIdLower = new(Load);
 
-    public static string DisplayName(string manipulativeId)
+    public static string GetDisplayName(string manipulativeId)
     {
-        var def = Find(manipulativeId);
+        var def = Get(manipulativeId);
         if (def is not null)
             return def.Name;
 
         return manipulativeId.Replace('_', ' ');
     }
 
-    public static ManipulativeDefinition? Find(string manipulativeId)
+    public static ManipulativeDefinition? Get(string manipulativeId)
     {
         if (string.IsNullOrEmpty(manipulativeId))
             return null;

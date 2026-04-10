@@ -502,7 +502,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {ManipulativeStore.DisplayName(state.Inventory[i])}",
+                    $"({num}) {ManipulativeStore.GetDisplayName(state.Inventory[i])}",
                     key);
             }
             Console.WriteLine();
@@ -543,13 +543,13 @@ public class App(GameState state) : IApp
                 return false;
 
             string id = state.Inventory[index];
-            var def = ManipulativeStore.Find(id);
+            var def = ManipulativeStore.Get(id);
             bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
 
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
             Console.WriteLine();
-            Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.DisplayName(id)}"));
+            Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.GetDisplayName(id)}"));
             if (canEat)
             {
                 Console.WriteLine();
@@ -567,7 +567,7 @@ public class App(GameState state) : IApp
                 var dropped = state.DropItemAt(index);
                 Console.WriteLine();
                 Console.WriteLine(
-                    Terminal.Muted($"You drop the {ManipulativeStore.DisplayName(dropped)}."));
+                    Terminal.Muted($"You drop the {ManipulativeStore.GetDisplayName(dropped)}."));
                 return true;
             }
 
@@ -584,7 +584,7 @@ public class App(GameState state) : IApp
     private static InventoryUseResult TryUseInventoryItem(GameState state, int index)
     {
         string id = state.Inventory[index];
-        var def = ManipulativeStore.Find(id);
+        var def = ManipulativeStore.Get(id);
         if (def is null)
             return new InventoryUseResult(false, "You can't think of a way to use that here.");
 
@@ -728,7 +728,7 @@ public class App(GameState state) : IApp
                 int num = i + 1;
                 char key = (char)('0' + num);
                 Terminal.WriteMenuLine(
-                    $"({num}) {ManipulativeStore.DisplayName(state.GroundItemsInCurrentRoom[i])}",
+                    $"({num}) {ManipulativeStore.GetDisplayName(state.GroundItemsInCurrentRoom[i])}",
                     key);
             }
             Console.WriteLine();
@@ -754,7 +754,7 @@ public class App(GameState state) : IApp
         ClearConsole();
         WritePlayerStatusHeader("== Ground ==", state, includeGold: false);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.DisplayName(id)}"));
+        Console.WriteLine(Terminal.Accent($"Selected: {ManipulativeStore.GetDisplayName(id)}"));
         Console.WriteLine();
         Terminal.WriteMenuLine("(T)ake", 't');
         Console.WriteLine();
@@ -769,7 +769,7 @@ public class App(GameState state) : IApp
             return false;
         Console.WriteLine();
         Console.WriteLine(
-            Terminal.Muted($"You pick up the {ManipulativeStore.DisplayName(taken)}."));
+            Terminal.Muted($"You pick up the {ManipulativeStore.GetDisplayName(taken)}."));
         return true;
     }
 
@@ -992,7 +992,7 @@ public class App(GameState state) : IApp
         {
             string groundList = string.Join(
                 ", ",
-                state.GroundItemsInCurrentRoom.Select(ManipulativeStore.DisplayName));
+                state.GroundItemsInCurrentRoom.Select(ManipulativeStore.GetDisplayName));
             items.Add(new MenuItem
             {
                 Text = $"(G)round - {groundList}",
