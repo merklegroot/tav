@@ -84,7 +84,10 @@
     "exits": {
       "s": "courtyard",
       "n": "collapsed_cell"
-    }
+    },
+    "groundItems": [
+      "axe"
+    ]
   },
   {
     "id": "collapsed_cell",

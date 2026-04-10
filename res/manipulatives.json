@@ -18,5 +18,11 @@
   {
     "id": "crown",
     "name": "Crown"
+  },
+  {
+    "id": "axe",
+    "name": "Axe",
+    "isEquippableWeapon": true,
+    "weaponDamageBonus": 3
   }
 ]

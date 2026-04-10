@@ -65,6 +65,8 @@ public record ManipulativeDefinition
     public required string Name { get; init; }
     public bool IsEdible { get; init; }
     public ConsumeEffects? ConsumeEffects { get; init; }
+    public bool IsEquippableWeapon { get; init; }
+    public int? WeaponDamageBonus { get; init; }
 }
 
 public record ConsumeEffects

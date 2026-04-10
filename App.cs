@@ -585,17 +585,14 @@ public class App(
     }
 
     /// <summary>Hotkey lines use <see cref="Terminal.WriteMenuLine"/> like the main adventure menu.</summary>
-    private static void WriteInventoryItemDetailMenu(bool canEat)
+    private static void WriteInventoryItemDetailMenu(bool canEat, bool offerEquip, bool offerUnequip)
     {
         if (canEat)
-        {
             Terminal.WriteMenuLine("(E)at", 'e');
-            Terminal.WriteMenuLine("(D)rop", 'd');
-            Console.WriteLine();
-            Console.WriteLine(Terminal.EscBackHint());
-            return;
-        }
-
+        if (offerEquip)
+            Terminal.WriteMenuLine("(E)quip", 'e');
+        if (offerUnequip)
+            Terminal.WriteMenuLine("(U)nequip", 'u');
         Terminal.WriteMenuLine("(D)rop", 'd');
         Console.WriteLine();
         Console.WriteLine(Terminal.EscBackHint());
@@ -612,6 +609,10 @@ public class App(
             string id = state.Inventory[index];
             var def = manipulativeStore.Get(id);
             bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
+            bool canEquip = def is { IsEquippableWeapon: true };
+            bool isEquipped = canEquip
+                && state.EquippedWeaponId is not null
+                && string.Equals(state.EquippedWeaponId, id, StringComparison.OrdinalIgnoreCase);
 
             ClearConsole();
             WritePlayerStatusHeader("== Inventory ==", state);
@@ -624,9 +625,9 @@ public class App(
             }
 
             Console.WriteLine();
-            WriteInventoryItemDetailMenu(canEat);
+            WriteInventoryItemDetailMenu(canEat, offerEquip: canEquip && !isEquipped, offerUnequip: isEquipped);
 
-            var action = ReadInventoryItemDetailAction(canEat);
+            var action = ReadInventoryItemDetailAction(canEat, offerEquip: canEquip && !isEquipped, offerUnequip: isEquipped);
             if (action == InventoryItemDetailAction.BackToList)
                 return false;
             if (action == InventoryItemDetailAction.Drop)
@@ -636,6 +637,25 @@ public class App(
                 Console.WriteLine(
                     Terminal.Muted($"You drop the {manipulativeStore.GetDisplayName(dropped)}."));
                 return true;
+            }
+
+            if (action == InventoryItemDetailAction.Equip)
+            {
+                state.EquippedWeaponId = def!.Id;
+                Console.WriteLine();
+                Console.WriteLine(
+                    Terminal.Muted($"You equip the {def.Name.ToLowerInvariant()}."));
+                PauseForContinue();
+                continue;
+            }
+
+            if (action == InventoryItemDetailAction.Unequip)
+            {
+                state.EquippedWeaponId = null;
+                Console.WriteLine();
+                Console.WriteLine(Terminal.Muted("You put the weapon away."));
+                PauseForContinue();
+                continue;
             }
 
             var useResult = TryUseInventoryItem(state, index);
@@ -699,10 +719,15 @@ public class App(
         BackToList,
         Drop,
         UseOrEat,
+        Equip,
+        Unequip,
     }
 
     // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
-    private static InventoryItemDetailAction ReadInventoryItemDetailAction(bool offerEat)
+    private static InventoryItemDetailAction ReadInventoryItemDetailAction(
+        bool offerEat,
+        bool offerEquip,
+        bool offerUnequip)
     {
         if (Console.IsInputRedirected)
         {
@@ -721,6 +746,10 @@ public class App(
                     return InventoryItemDetailAction.Drop;
                 if (offerEat && (t is "e" or "eat"))
                     return InventoryItemDetailAction.UseOrEat;
+                if (offerEquip && (t == "equip" || (!offerEat && t == "e")))
+                    return InventoryItemDetailAction.Equip;
+                if (offerUnequip && (t is "u" or "unequip"))
+                    return InventoryItemDetailAction.Unequip;
             }
         }
 
@@ -734,6 +763,10 @@ public class App(
                 return InventoryItemDetailAction.Drop;
             if (offerEat && c == 'e')
                 return InventoryItemDetailAction.UseOrEat;
+            if (offerEquip && c == 'e' && !offerEat)
+                return InventoryItemDetailAction.Equip;
+            if (offerUnequip && c == 'u')
+                return InventoryItemDetailAction.Unequip;
         }
     }
 
@@ -1107,6 +1140,13 @@ public class App(
         return true;
     }
 
+    private int EquippedWeaponDamageBonus(GameState state)
+    {
+        if (state.EquippedWeaponId is null)
+            return 0;
+        return manipulativeStore.Get(state.EquippedWeaponId)?.WeaponDamageBonus ?? 0;
+    }
+
     private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
     {
         var monster = monsters[_random.Next(monsters.Count)];
@@ -1136,7 +1176,8 @@ public class App(
             showIntro = false;
 
             var leftBeforeStrike = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro);
-            int playerDamage = _random.Next(1, 4) + state.Strength / 6;
+            int weaponBonus = EquippedWeaponDamageBonus(state);
+            int playerDamage = _random.Next(1, 4) + state.Strength / 6 + weaponBonus;
             monsterHp -= playerDamage;
 
             AnimatePlayerHit(leftBeforeStrike, portraitLines, playerDamage);

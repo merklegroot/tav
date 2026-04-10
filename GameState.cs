@@ -11,6 +11,9 @@ public record GameState
     public int Gold { get; set; }
     public List<string> Inventory { get; } = [KnownManipulativeIds.Torch];
 
+    /// <summary>Canonical manipulative id for the wielded weapon, or null.</summary>
+    public string? EquippedWeaponId { get; set; }
+
     /// <summary>Items on the floor, keyed by lowercase room id.</summary>
     public Dictionary<string, List<string>> GroundItemsByRoomId { get; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -40,6 +43,12 @@ public record GameState
     {
         string name = Inventory[index];
         Inventory.RemoveAt(index);
+        if (EquippedWeaponId is not null
+            && string.Equals(EquippedWeaponId, name, StringComparison.OrdinalIgnoreCase))
+        {
+            EquippedWeaponId = null;
+        }
+
         var roomId = CurrentRoom.Id.ToLowerInvariant();
         if (!GroundItemsByRoomId.TryGetValue(roomId, out var ground))
         {
