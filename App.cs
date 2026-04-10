@@ -92,7 +92,7 @@ public class App(
             var lines = new List<string>();
             lines.Add(titleBar);
             lines.Add("");
-            const int rightPanelTopOffset = 5; // fixed: room starts 5 lines below the title bar
+            const int rightPanelTopOffset = 1; // fixed: room vertical start in wide layout (below title + gap)
             int H = Math.Max(leftLines.Count, rightPanelTopOffset + panel.Length);
             string blankPanelRow = new string(' ', panelOuter);
 
@@ -210,7 +210,7 @@ public class App(
 
         var newLeft = BuildLeftColumnLines(afterNavigate, leftColWidth);
         int panelRows = oldPanel.Length;
-        const int rightPanelTopOffset = 5; // fixed: match main view
+        const int rightPanelTopOffset = 1; // fixed: match main view
         int H = Math.Max(newLeft.Count, rightPanelTopOffset + panelRows);
 
         string titleBar = BuildTitleBar(afterNavigate, screenWidth);
@@ -479,16 +479,18 @@ public class App(
         return panel;
     }
 
-    /// <summary>Room art, a blank row, then the compass (see README).</summary>
+    /// <summary>Room art, two blank rows, then the compass (see README).</summary>
     private static string[] BuildMainViewRightPanel(Room room, int outerWidth, bool isCurrentRoom = true)
     {
         string[] roomLines = BuildRoomPanel(room, outerWidth, isCurrentRoom);
         string[] compassLines = BuildCompassPanel(room, outerWidth);
-        var combined = new string[roomLines.Length + 1 + compassLines.Length];
+        string blankRow = new string(' ', outerWidth);
+        var combined = new string[roomLines.Length + 2 + compassLines.Length];
         int c = 0;
         for (int i = 0; i < roomLines.Length; i++)
             combined[c++] = roomLines[i];
-        combined[c++] = new string(' ', outerWidth);
+        combined[c++] = blankRow;
+        combined[c++] = blankRow;
         for (int i = 0; i < compassLines.Length; i++)
             combined[c++] = compassLines[i];
         return combined;
