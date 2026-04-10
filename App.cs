@@ -928,7 +928,9 @@ public class App(
         Console.WriteLine(Terminal.Accent($"Gold: {state.Gold}"));
         Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
-        Console.WriteLine(Terminal.Muted("Higher DEX softens enemy hits in a fight."));
+        Console.WriteLine(
+            Terminal.Muted(
+                "Higher DEX helps you act first, dodge, and land cleaner hits in a fight."));
         Console.WriteLine();
         WriteCharacterEquippedSection(state);
         Console.WriteLine();
@@ -1218,70 +1220,125 @@ public class App(
 
             showIntro = false;
 
-            var leftBeforeStrike = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro);
-            int weaponBonus = EquippedWeaponDamageBonus(state);
-            int playerDamage = _random.Next(1, 4) + state.Strength / 6 + weaponBonus;
-            monsterHp -= playerDamage;
+            bool playerActsFirst = state.Dexterity > monster.Dexterity;
+            if (state.Dexterity == monster.Dexterity)
+                playerActsFirst = _random.Next(2) == 0;
 
-            AnimatePlayerHit(leftBeforeStrike, portraitLines, playerDamage);
-
-            AppendBattleLog(battleLog, $"You strike for {playerDamage} damage.");
-
-            if (monsterHp <= 0)
+            if (playerActsFirst)
             {
-                int goldFound = _random.Next(3, 11);
-                state.Gold += goldFound;
-                ClearConsole();
-                var victoryLeft = new List<string>
-                {
-                    Terminal.Title("== Fight =="),
-                    "",
-                    Terminal.Ok($"The {monster.Name} falls."),
-                    "",
-                    Terminal.Muted($"You scrape up {goldFound} gold among the debris."),
-                };
-                if (_random.NextDouble() < 0.35)
-                {
-                    state.Inventory.Add(KnownManipulativeIds.BoneShard);
-                    victoryLeft.Add(Terminal.Ok("Something worth taking: a sharp bone shard."));
-                }
-                victoryLeft.Add("");
-                RenderFightScreen(victoryLeft, portraitLines);
-                Console.WriteLine();
-                PauseForContinue();
-                return;
+                if (TryCompletePlayerAttack(state, monster, ref monsterHp, portraitLines, battleLog))
+                    return;
+                if (TryCompleteMonsterAttack(state, monster, monsterHp, portraitLines, battleLog))
+                    return;
             }
-
-            int rawDamage = _random.Next(1, monster.MaxDamage + 1);
-            int mitigated = Math.Max(1, rawDamage - state.Dexterity / 8);
-            state.HitPoints = Math.Max(0, state.HitPoints - mitigated);
-            AppendBattleLog(
-                battleLog,
-                mitigated < rawDamage
-                    ? $"It strikes for {mitigated} damage (you slip part of the blow)."
-                    : $"It strikes back for {mitigated} damage.");
-
-            if (state.HitPoints <= 0)
+            else
             {
-                ClearConsole();
-                var defeatLeft = new List<string> { Terminal.Title("== Fight =="), "" };
-                defeatLeft.AddRange(battleLog.Select(Terminal.Muted));
-                if (battleLog.Count > 0)
-                    defeatLeft.Add("");
-                defeatLeft.Add(
-                    Terminal.Warn($"You: 0/{state.MaxHitPoints} HP    ")
-                    + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
-                defeatLeft.Add("");
-                RenderFightScreen(defeatLeft, portraitLines);
-                Console.WriteLine();
-                Console.WriteLine(Terminal.Combat("Everything goes dark…"));
-                Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
-                state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
-                Console.WriteLine();
-                PauseForContinue();
-                return;
+                if (TryCompleteMonsterAttack(state, monster, monsterHp, portraitLines, battleLog))
+                    return;
+                if (TryCompletePlayerAttack(state, monster, ref monsterHp, portraitLines, battleLog))
+                    return;
             }
         }
+    }
+
+    /// <summary>Player attacks; returns true if the fight ended (victory).</summary>
+    private bool TryCompletePlayerAttack(
+        GameState state,
+        Monster monster,
+        ref int monsterHp,
+        IReadOnlyList<string> portraitLines,
+        List<string> battleLog)
+    {
+        int weaponBonus = EquippedWeaponDamageBonus(state);
+        AttackResolution res = CombatMath.ResolveAttack(
+            _random,
+            state.Strength,
+            state.Dexterity,
+            weaponBonus,
+            monster.Dexterity);
+
+        if (!res.Hit)
+        {
+            AppendBattleLog(battleLog, "You miss.");
+            return false;
+        }
+
+        var leftBeforeStrike = BuildFightLeftColumn(monster, monsterHp, state, battleLog, showIntro: false);
+        monsterHp -= res.Damage;
+        AnimatePlayerHit(leftBeforeStrike, portraitLines, res.Damage);
+        AppendBattleLog(battleLog, $"You hit for {res.Damage} damage.");
+
+        if (monsterHp > 0)
+            return false;
+
+        int goldFound = _random.Next(3, 11);
+        state.Gold += goldFound;
+        ClearConsole();
+        var victoryLeft = new List<string>
+        {
+            Terminal.Title("== Fight =="),
+            "",
+            Terminal.Ok($"The {monster.Name} falls."),
+            "",
+            Terminal.Muted($"You scrape up {goldFound} gold among the debris."),
+        };
+        if (_random.NextDouble() < 0.35)
+        {
+            state.Inventory.Add(KnownManipulativeIds.BoneShard);
+            victoryLeft.Add(Terminal.Ok("Something worth taking: a sharp bone shard."));
+        }
+
+        victoryLeft.Add("");
+        RenderFightScreen(victoryLeft, portraitLines);
+        Console.WriteLine();
+        PauseForContinue();
+        return true;
+    }
+
+    /// <summary>Monster attacks; returns true if the fight ended (defeat).</summary>
+    private bool TryCompleteMonsterAttack(
+        GameState state,
+        Monster monster,
+        int monsterHp,
+        IReadOnlyList<string> portraitLines,
+        List<string> battleLog)
+    {
+        AttackResolution res = CombatMath.ResolveAttack(
+            _random,
+            monster.Strength,
+            monster.Dexterity,
+            monster.WeaponDamageBonus,
+            state.Dexterity);
+
+        if (!res.Hit)
+        {
+            AppendBattleLog(battleLog, $"The {monster.Name} misses.");
+            return false;
+        }
+
+        state.HitPoints = Math.Max(0, state.HitPoints - res.Damage);
+        AppendBattleLog(battleLog, $"The {monster.Name} hits you for {res.Damage} damage.");
+
+        if (state.HitPoints > 0)
+            return false;
+
+        ClearConsole();
+        var defeatLeft = new List<string> { Terminal.Title("== Fight =="), "" };
+        defeatLeft.AddRange(battleLog.Select(Terminal.Muted));
+        if (battleLog.Count > 0)
+            defeatLeft.Add("");
+        defeatLeft.Add(
+            Terminal.Warn($"You: 0/{state.MaxHitPoints} HP    ")
+            + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
+        defeatLeft.Add("");
+        RenderFightScreen(defeatLeft, portraitLines);
+        Console.WriteLine();
+        Console.WriteLine(Terminal.Combat("Everything goes dark…"));
+        Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
+        state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
+        Console.WriteLine();
+        PauseForContinue();
+        return true;
     }
 
     private const int FightBattleLogMaxLines = 12;

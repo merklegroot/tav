@@ -4,13 +4,17 @@
     "name": "Rot Hound",
     "blurb": "Its breath reeks of the grave.",
     "hitPoints": 10,
-    "maxDamage": 4
+    "strength": 12,
+    "dexterity": 11,
+    "weaponDamageBonus": 2
   },
   {
     "id": "bone_gnawer",
     "name": "Bone Gnawer",
     "blurb": "Too many joints click when it moves.",
     "hitPoints": 6,
-    "maxDamage": 3
+    "strength": 10,
+    "dexterity": 13,
+    "weaponDamageBonus": 1
   }
 ]
