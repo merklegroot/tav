@@ -575,6 +575,61 @@ public class App(
         return $"{name} (x{stack.Quantity})";
     }
 
+    private static bool IsInventoryItemEquipped(GameState state, string manipulativeId)
+    {
+        if (state.EquippedWeaponId is not null
+            && string.Equals(state.EquippedWeaponId, manipulativeId, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (state.EquippedHelmetId is not null
+            && string.Equals(state.EquippedHelmetId, manipulativeId, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    /// <summary>Inventory list line: optional yellow <c>E</c> for equipped rows, muted padding when another row is equipped.</summary>
+    private static void WriteInventoryListLine(
+        bool showEquippedYellowE,
+        bool padWhenUnequipped,
+        int slotNumber,
+        string displayName,
+        char hotkey)
+    {
+        string menuText = $"({slotNumber}) {displayName}";
+        if (!Terminal.UseAnsi)
+        {
+            if (showEquippedYellowE)
+                Console.Write("E ");
+            else if (padWhenUnequipped)
+                Console.Write("  ");
+            Console.WriteLine(menuText);
+            return;
+        }
+
+        if (showEquippedYellowE)
+        {
+            Console.Write(Terminal.Warn("E"));
+            Console.Write(Terminal.Muted(" "));
+        }
+        else if (padWhenUnequipped)
+        {
+            Console.Write(Terminal.Muted("  "));
+        }
+
+        char ku = char.ToUpperInvariant(hotkey);
+        string needle = $"({ku})";
+        int i = menuText.IndexOf(needle, StringComparison.Ordinal);
+        if (i < 0)
+        {
+            Console.WriteLine(menuText);
+            return;
+        }
+
+        Console.Write(Terminal.Muted(menuText[..i]));
+        Console.Write(Terminal.MenuParenKey(ku));
+        Console.Write(Terminal.Muted(menuText[(i + needle.Length)..]));
+        Console.WriteLine();
+    }
+
     private void RunInventoryScreen(GameState state)
     {
         while (true)
@@ -591,13 +646,28 @@ public class App(
                 return;
             }
 
+            bool anyEquipped = false;
+            for (int j = 0; j < n; j++)
+            {
+                if (IsInventoryItemEquipped(state, state.Inventory[j]))
+                {
+                    anyEquipped = true;
+                    break;
+                }
+            }
+
             for (int i = 0; i < n; i++)
             {
                 int num = i + 1;
                 char key = (char)('0' + num);
-                Terminal.WriteMenuLine(
-                    $"({num}) {manipulativeStore.GetDisplayName(state.Inventory[i])}",
-                    key);
+                string id = state.Inventory[i];
+                bool rowEquipped = IsInventoryItemEquipped(state, id);
+                WriteInventoryListLine(
+                    showEquippedYellowE: anyEquipped && rowEquipped,
+                    padWhenUnequipped: anyEquipped && !rowEquipped,
+                    slotNumber: num,
+                    displayName: manipulativeStore.GetDisplayName(id),
+                    hotkey: key);
             }
             Console.WriteLine();
             Console.WriteLine(Terminal.EscBackHint());
