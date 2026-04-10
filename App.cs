@@ -115,21 +115,18 @@ public class App(
             portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
         Console.WriteLine();
-        WriteTextAndRightImagePanel(left, portrait, reserveLastLeftRowForRightPanel: false);
+        WriteTextAndRightImagePanel(left, portrait);
         Console.WriteLine();
     }
 
     /// <summary>
     /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
     /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is item art when present, otherwise blank (same column geometry).
-    /// When <paramref name="reserveLastLeftRowForRightPanel"/> is false (e.g. victory), the image starts at row 1 like the map.
-    /// When true (inventory item with <c>(ESC) Back</c> last), art starts at row 1; the ESC row stays panel-free, and
-    /// any extra portrait lines continue below on rows with blank left text (tall art is not clipped to menu height).
+    /// Inventory detail pads the left column (before <c>(ESC) Back</c>) when needed so the portrait stays contiguous and the ESC row has no art.
     /// </summary>
     private static void WriteTextAndRightImagePanel(
         IReadOnlyList<string> leftLines,
-        IReadOnlyList<string> portraitLines,
-        bool reserveLastLeftRowForRightPanel)
+        IReadOnlyList<string> portraitLines)
     {
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         string[] panel = portraitLines.Count > 0
@@ -158,60 +155,15 @@ public class App(
         int leftCount = leftLines.Count;
         string blankPanelRow = new string(' ', panelOuter);
 
-        int h;
-        int[]? portraitPanelIndexByScreenRow = null;
-
-        if (reserveLastLeftRowForRightPanel && leftCount >= 2)
-        {
-            int escRow = leftCount - 1;
-            if (imageH == 0)
-            {
-                h = leftCount;
-            }
-            else
-            {
-                int sr = rightPanelTopOffset;
-                int maxPortraitRow = -1;
-                for (int p = 0; p < imageH; p++)
-                {
-                    while (sr == escRow)
-                        sr++;
-                    maxPortraitRow = Math.Max(maxPortraitRow, sr);
-                    sr++;
-                }
-
-                h = Math.Max(leftCount, maxPortraitRow + 1);
-                portraitPanelIndexByScreenRow = new int[h];
-                Array.Fill(portraitPanelIndexByScreenRow, -1);
-                sr = rightPanelTopOffset;
-                for (int p = 0; p < imageH; p++)
-                {
-                    while (sr == escRow)
-                        sr++;
-                    portraitPanelIndexByScreenRow[sr] = p;
-                    sr++;
-                }
-            }
-        }
-        else
-        {
-            h = Math.Max(leftCount, rightPanelTopOffset + imageH);
-        }
+        int h = Math.Max(leftCount, rightPanelTopOffset + imageH);
 
         for (int i = 0; i < h; i++)
         {
             string left = i < leftCount ? leftLines[i] : "";
-            int pi = -1;
-            if (portraitPanelIndexByScreenRow is not null)
-                pi = portraitPanelIndexByScreenRow[i];
-            else if (!reserveLastLeftRowForRightPanel || leftCount < 2)
-            {
-                int legacyPi = i - rightPanelTopOffset;
-                if (legacyPi >= 0 && legacyPi < imageH)
-                    pi = legacyPi;
-            }
+            int legacyPi = i - rightPanelTopOffset;
+            int pi = legacyPi >= 0 && legacyPi < imageH ? legacyPi : -1;
 
-            string right = pi >= 0 && pi < imageH ? panel[pi] : blankPanelRow;
+            string right = pi >= 0 ? panel[pi] : blankPanelRow;
             right = PadRightVisual(right, panelOuter);
 
             string row = PadRightVisual(left, leftColWidth) + new string(' ', AdventureLayout.Gap) + right;
@@ -962,8 +914,19 @@ public class App(
         if (withImage && def is not null && def.Image is { Length: > 0 } stem)
             portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
 
+        if (withImage && portrait.Count > 0)
+        {
+            // Keep portrait lines contiguous: ESC is last left row with a blank right panel. Without padding, skipping
+            // ESC would leave a visible gap in the art between the last pre-ESC row and the rest of the image.
+            const int rightPanelTopOffset = 1;
+            int targetLeftLineCount = rightPanelTopOffset + portrait.Count + 1;
+            int pad = targetLeftLineCount - left.Count;
+            for (int i = 0; i < pad; i++)
+                left.Insert(left.Count - 1, "");
+        }
+
         Console.WriteLine();
-        WriteTextAndRightImagePanel(left, portrait, reserveLastLeftRowForRightPanel: true);
+        WriteTextAndRightImagePanel(left, portrait);
 
         var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
         if (action == InventoryItemDetailAction.BackToList)

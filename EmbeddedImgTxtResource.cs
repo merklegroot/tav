@@ -20,8 +20,17 @@ public static class EmbeddedImgTxtResource
             yield break;
 
         using var reader = new StreamReader(stream);
+        var lines = new List<string>();
         string? line;
         while ((line = reader.ReadLine()) is not null)
-            yield return line;
+            lines.Add(line);
+
+        while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[0]))
+            lines.RemoveAt(0);
+        while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[^1]))
+            lines.RemoveAt(lines.Count - 1);
+
+        foreach (string l in lines)
+            yield return l;
     }
 }
