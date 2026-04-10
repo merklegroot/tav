@@ -45,6 +45,18 @@ public static class Terminal
     public static string DamageNumber(int damage) =>
         UseAnsi ? $"\x1b[1m\x1b[93m     -{damage}{Reset}" : $"     -{damage}";
 
+    /// <summary>Styled <c>(X)</c> / <c>(ESC)</c>: white parentheses, bright green action text.</summary>
+    public static string MenuParenKey(char key) =>
+        MenuParenKey(char.ToUpperInvariant(key).ToString());
+
+    /// <summary>Styled <c>(TEXT)</c> e.g. <c>(ESC)</c>: white parentheses, bright green inner text.</summary>
+    public static string MenuParenKey(string inner)
+    {
+        if (!UseAnsi)
+            return $"({inner})";
+        return $"\x1b[37m(\x1b[92m{inner}\x1b[37m){Reset}";
+    }
+
     public static void WriteMenuLine(string text, char key)
     {
         if (!UseAnsi)
@@ -62,25 +74,18 @@ public static class Terminal
             return;
         }
 
-        // Menu spec: parentheses brighter than text; action key even brighter than parentheses.
         Console.Write(Muted(text[..i]));
-        Console.Write("\x1b[37m(");
-        Console.Write($"\x1b[1m\x1b[97m{ku}{Reset}");
-        Console.Write("\x1b[37m)");
-        Console.Write(Reset);
+        Console.Write(MenuParenKey(ku));
         Console.Write(Muted(text[(i + needle.Length)..]));
         Console.WriteLine();
     }
 
-    /// <summary>Footer line: <c>(ESC)</c> uses the same paren + bright-key treatment as <see cref="WriteMenuLine"/>.</summary>
+    /// <summary>Footer line: <c>(ESC)</c> matches <see cref="WriteMenuLine"/> styling.</summary>
     public static string EscBackHint()
     {
         if (!UseAnsi)
             return "(ESC) Back";
-        return "\x1b[37m(\x1b[0m"
-            + "\x1b[1m\x1b[97mESC\x1b[0m"
-            + "\x1b[37m)\x1b[0m"
-            + Muted(" Back");
+        return MenuParenKey("ESC") + Muted(" Back");
     }
 
     public static int VisibleLength(string s)

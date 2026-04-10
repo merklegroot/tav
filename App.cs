@@ -25,18 +25,15 @@ public class App(
 
         while (!state.ShouldExit)
         {
-            var menuItems = BuildMenuItems(
-                state.CurrentRoom,
-                roomsById,
-                monsters,
-                state,
-                r => state.CurrentRoom = r,
-                () => state.ShouldExit = true);
+            var menuItems = BuildMenuItems(monsters, state, () => state.ShouldExit = true);
 
             PrintScreen(state, menuItems);
 
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);
+            if (TryNavigateCompass(normalized, roomsById, state))
+                continue;
+
             menuItems.FirstOrDefault(m => m.Key == normalized)?.Action.Invoke();
         }
     }
@@ -144,17 +141,6 @@ public class App(
             i = 1;
         }
 
-        int directionLines = 0;
-        while (i < menuItems.Count && IsCompassDirectionKey(menuItems[i].Key))
-        {
-            lines.Add(FormatMenuLine(menuItems[i].Text, menuItems[i].Key, leftColWidth));
-            directionLines++;
-            i++;
-        }
-
-        if (directionLines > 0 && i < menuItems.Count)
-            lines.Add("");
-
         for (; i < menuItems.Count; i++)
             lines.Add(FormatMenuLine(menuItems[i].Text, menuItems[i].Key, leftColWidth));
         return lines;
@@ -162,9 +148,6 @@ public class App(
 
     private static bool IsGroundMenuLine(MenuItem item) =>
         item.Key == 'g' && item.Text.StartsWith("(G)round", StringComparison.Ordinal);
-
-    private static bool IsCompassDirectionKey(char key) =>
-        key is 'n' or 'e' or 's' or 'w';
 
     private static string FormatMenuLine(string text, char key, int maxWidth)
     {
@@ -179,7 +162,7 @@ public class App(
             return Truncate(text, maxWidth);
 
         string before = Terminal.Muted(text[..i]);
-        string hotkey = "\x1b[37m(" + $"\x1b[1m\x1b[97m{ku}{Terminal.Reset}" + "\x1b[37m)" + Terminal.Reset;
+        string hotkey = Terminal.MenuParenKey(ku);
         string after = Terminal.Muted(text[(i + needle.Length)..]);
         return Terminal.TruncateVisible(before + hotkey + after, maxWidth);
     }
@@ -511,7 +494,7 @@ public class App(
         return combined;
     }
 
-    /// <summary>README compass: N/|/W-E row/|/S, centered in the panel; open exits emphasized.</summary>
+    /// <summary>README compass: N/|/W-E row/|/S; available directions show as <c>(N)</c> etc.</summary>
     private static string[] BuildCompassPanel(Room room, int outerWidth)
     {
         bool n = HasExit(room, 'n');
@@ -520,7 +503,7 @@ public class App(
         bool w = HasExit(room, 'w');
 
         string DirLetter(bool open, char letter) =>
-            open ? Terminal.Accent(letter.ToString()) : Terminal.Muted(letter.ToString());
+            open ? Terminal.MenuParenKey(letter) : Terminal.Muted(letter.ToString());
 
         string rowN = CenterVisual(DirLetter(n, 'N'), outerWidth);
         string rowS = CenterVisual(DirLetter(s, 'S'), outerWidth);
@@ -911,7 +894,7 @@ public class App(
         ClearConsole();
         Console.WriteLine(Terminal.Title("== Help =="));
         Console.WriteLine();
-        Console.WriteLine(Terminal.Muted("Move with compass keys shown in the menu."));
+        Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
         Console.WriteLine(
             Terminal.Muted(
                 "(I)nventory: select an item. Edible ones list eating effects; then Eat, Drop, or Esc."));
@@ -1038,11 +1021,8 @@ public class App(
     }
 
     private List<MenuItem> BuildMenuItems(
-        Room currentRoom,
-        IReadOnlyDictionary<string, Room> roomsById,
         IReadOnlyList<Monster> monsters,
         GameState state,
-        Action<Room> navigateTo,
         Action exit)
     {
         var items = new List<MenuItem>();
@@ -1057,30 +1037,6 @@ public class App(
                 Text = $"(G)round - {groundList}",
                 Key = 'g',
                 Action = () => RunPickUpScreen(state),
-            });
-        }
-
-        foreach (var dir in "nesw")
-        {
-            if (currentRoom.Exits is null ||
-                !currentRoom.Exits.TryGetValue(dir.ToString(), out var destId))
-                continue;
-            if (!roomsById.TryGetValue(destId.ToLowerInvariant(), out var destRoom))
-                continue;
-            items.Add(new MenuItem
-            {
-                Text = FormatDirectionOption(dir, destRoom.Name),
-                Key = dir,
-                Action = () =>
-                {
-                    var oldRoomPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
-                    navigateTo(destRoom);
-                    AnimateRoomSlide(
-                        oldRoomPanel,
-                        BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
-                        state,
-                        dir);
-                },
             });
         }
 
@@ -1121,6 +1077,32 @@ public class App(
             Action = exit,
         });
         return items;
+    }
+
+    private bool TryNavigateCompass(
+        char normalized,
+        IReadOnlyDictionary<string, Room> roomsById,
+        GameState state)
+    {
+        if (normalized is not ('n' or 'e' or 's' or 'w'))
+            return false;
+
+        var room = state.CurrentRoom;
+        if (room.Exits is null ||
+            !room.Exits.TryGetValue(normalized.ToString(), out var destId))
+            return false;
+
+        if (!roomsById.TryGetValue(destId.ToLowerInvariant(), out var destRoom))
+            return false;
+
+        var oldRoomPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
+        state.CurrentRoom = destRoom;
+        AnimateRoomSlide(
+            oldRoomPanel,
+            BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
+            state,
+            normalized);
+        return true;
     }
 
     private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
@@ -1360,16 +1342,6 @@ public class App(
             Console.WriteLine(PadRightVisual(left, leftW) + new string(' ', AdventureLayout.Gap) + right);
         }
     }
-
-    private static string FormatDirectionOption(char direction, string destinationName) =>
-        direction switch
-        {
-            'n' => $"(N)orth - {destinationName}",
-            'e' => $"(E)ast - {destinationName}",
-            's' => $"(S)outh - {destinationName}",
-            'w' => $"(W)est - {destinationName}",
-            _ => $"({char.ToUpperInvariant(direction)}) - {destinationName}",
-        };
 
     // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
     private static char ReadInputChar()
