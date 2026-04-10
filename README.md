@@ -71,16 +71,22 @@ When an edible item from the inventory is selected
 
 ## Stats
 
-Hitpoints
-Strength
-Dexterity
+Core attributes (small integers, roughly 8–18 for a normal adventurer):
 
-The attacker's dexterity affects how likely they are to land a blow and how well a landed blow hits.  
+- **Hit points** — Current and maximum. At 0 HP the character (or monster) is defeated.
+- **Strength** — Physical power. Feeds directly into damage on a hit.
+- **Dexterity** — Speed and coordination. Feeds into who acts first and whether an attack connects.
 
-The defender's dexterity affects how likely they are to dodge a blow adn how poorly a landed blow hits.  
+**Weapon damage** comes from the equipped item (for example a flat bonus such as +2 from an axe). Unarmed can be treated as +0.
 
-Dexterity also affects who attacks first.
+### Combat loop (one round)
 
-The weapon's stats and strength should also combine somehow to determine how much damage is done.  
+1. **Initiative** — Compare attacker and defender Dexterity. The higher value acts first this round. If tied, break ties with a fair random choice (or always let the player win ties—pick one rule and keep it).
 
-Improve this concept so that we have more something to build an algorithm on.
+2. **Hit roll** — Roll a d20, add the attacker’s Dexterity, subtract the defender’s Dexterity. If the total is **11 or higher**, the blow lands; otherwise it misses.  
+   *Why this shape:* one die keeps variance interesting; the Dex difference makes faster fighters both hit and dodge more reliably without extra tables.
+
+3. **Damage on a hit** — `max(1, weaponDamageBonus + (attackerStrength − 10))`.  
+   Treat 10 Strength as the “baseline” (+0). Each point above 10 adds one damage; each point below 10 subtracts one, but never below 1 damage on a successful hit unless you later add explicit “minimum 0” rules for special cases.
+
+That is enough to code a first version: initiative → hit roll → damage → subtract HP → repeat until someone reaches 0 HP. You can add armor, critical hits, or status effects later without changing the meaning of the three core stats.
