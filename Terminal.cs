@@ -38,9 +38,6 @@ public static class Terminal
         return open + plain + Reset;
     }
 
-    public static string DamageNumber(int damage) =>
-        UseAnsi ? $"\x1b[1m\x1b[93m     -{damage}{Reset}" : $"     -{damage}";
-
     /// <summary>Styled <c>(X)</c> / <c>(ESC)</c>: white parentheses, bright green action text.</summary>
     public static string MenuParenKey(char key) =>
         MenuParenKey(char.ToUpperInvariant(key).ToString());
