@@ -15,8 +15,6 @@ public class App(
     IManipulativeStore manipulativeStore,
     IMonsterImageStore monsterImageStore) : IApp
 {
-    private const int RoomPanelLineCount = 5;
-
     private readonly Random _random = new();
 
     public void Run()
@@ -86,7 +84,10 @@ public class App(
 
         var leftLines = BuildMainViewLeftPanelLines(state, menuItems, leftColWidth);
 
-        var panel = BuildMainViewRightPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true);
+        bool showCompass = menuItems.Count > 0;
+        var panel = showCompass
+            ? BuildMainViewRightPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true)
+            : BuildRoomPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true);
 
         int minWidth = screenWidth;
         if (forceWide || CanUseWideLayout(minWidth))
@@ -209,7 +210,8 @@ public class App(
     }
 
     /// <summary>
-    /// Slides only the map panel (right column); left column shows the new room’s text immediately.
+    /// Slides only the room box (five lines); compass is omitted here — same as when the main menu is hidden.
+    /// Left column uses description only (no menu), matching that layout.
     /// </summary>
     private void AnimateRoomSlide(string[] oldPanel, string[] newPanel, GameState afterNavigate, char direction)
     {
@@ -293,10 +295,7 @@ public class App(
                             ? oldRowsPlain[pi] + newRowsPlain[pi]
                             : newRowsPlain[pi] + oldRowsPlain[pi];
                         string rightPlain = combined.Substring(offset, panelOuter);
-                        // Room box lines use border color; blank + compass stay plain (see BuildMainViewRightPanel).
-                        right = pi < RoomPanelLineCount
-                            ? Terminal.Border(rightPlain)
-                            : PadRightVisual(rightPlain, panelOuter);
+                        right = Terminal.Border(rightPlain);
                     }
 
                     Console.WriteLine(left + new string(' ', AdventureLayout.Gap) + right);
@@ -1074,11 +1073,11 @@ public class App(
                 Key = dir,
                 Action = () =>
                 {
-                    var oldPanel = BuildMainViewRightPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
+                    var oldRoomPanel = BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true);
                     navigateTo(destRoom);
                     AnimateRoomSlide(
-                        oldPanel,
-                        BuildMainViewRightPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
+                        oldRoomPanel,
+                        BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
                         state,
                         dir);
                 },
