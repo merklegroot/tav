@@ -123,6 +123,7 @@ public class App(
     /// Same two-column rules as <see cref="BuildScreenLines"/> wide layout: fixed left width, fixed right panel width,
     /// <c>rightPanelTopOffset</c> 1 so row 0 is left-only (like room name vs map). Right column is item art when present, otherwise blank (same column geometry).
     /// Inventory detail pads the left column (before <c>(ESC) Back</c>) when needed so the portrait stays contiguous and the ESC row has no art.
+    /// Fight and victory/defeat screens use the same layout with bordered monster portrait lines.
     /// </summary>
     private static void WriteTextAndRightImagePanel(
         IReadOnlyList<string> leftLines,
@@ -1348,14 +1349,34 @@ public class App(
         Console.WriteLine(Terminal.Title("== Help =="));
         Console.WriteLine();
         Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
+        int helpW = HelpScreenMenuLineWidth();
         Console.WriteLine(
-            Terminal.Muted(
-                "(I)nventory: select an item. Edible gear shows healing; helmets (including crowns) show Armor and attack bonus; then Eat, Equip, Drop, or Esc."));
-        Console.WriteLine(Terminal.Muted("(G)round appears when something lies on the ground here."));
-        Console.WriteLine(Terminal.Muted("(M)ap: overview of how the areas connect."));
-        Console.WriteLine(Terminal.Muted("(F)ight: Attack or Run. Wins yield gold; sometimes a find."));
+            FormatMenuLine(
+                "(I)nventory: select an item. Edible gear shows healing; helmets (including crowns) show Armor and attack bonus; then Eat, Equip, Drop, or Esc.",
+                'i',
+                helpW));
+        Console.WriteLine(FormatMenuLine("(G)round appears when something lies on the ground here.", 'g', helpW));
+        Console.WriteLine(FormatMenuLine("(M)ap: overview of how the areas connect.", 'm', helpW));
+        Console.WriteLine(
+            FormatMenuLine("(F)ight: Attack or Run. Wins yield gold; sometimes a find.", 'f', helpW));
         Console.WriteLine();
         PauseForContinue();
+    }
+
+    /// <summary>Width for <see cref="FormatMenuLine"/> on the help screen so long lines are not clipped too aggressively.</summary>
+    private static int HelpScreenMenuLineWidth()
+    {
+        try
+        {
+            int window = Console.WindowWidth;
+            if (window > 1)
+                return Math.Max(window - 1, AdventureLayout.ScreenWidth);
+        }
+        catch
+        {
+        }
+
+        return Math.Max(96, AdventureLayout.ScreenWidth);
     }
 
     private void PrintMapScreen(GameState state)
@@ -1586,7 +1607,7 @@ public class App(
     {
         var monster = monsters[_random.Next(monsters.Count)];
         int monsterHp = monster.HitPoints;
-        var portraitLines = monsterImageStore.Lines(monster.Id).ToList();
+        var portraitLines = monsterImageStore.Lines(monster.Id).Select(Terminal.Border).ToList();
         var battleLog = new List<string>();
         bool showIntro = true;
 
@@ -1601,7 +1622,7 @@ public class App(
                 showIntro,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            RenderFightScreen(left, portraitLines);
+            WriteTextAndRightImagePanel(left, portraitLines);
 
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'r')
@@ -1674,7 +1695,7 @@ public class App(
                 showIntro: false,
                 EquippedArmorRating(state),
                 EquippedHelmetSlotAttackBonus(state));
-            RenderFightScreen(leftAfterStrike, portraitLines);
+            WriteTextAndRightImagePanel(leftAfterStrike, portraitLines);
         }
 
         if (monsterHp > 0)
@@ -1698,7 +1719,7 @@ public class App(
         }
 
         victoryLeft.Add("");
-        RenderFightScreen(victoryLeft, portraitLines);
+        WriteTextAndRightImagePanel(victoryLeft, portraitLines);
         Console.WriteLine();
         PauseForContinue();
         return true;
@@ -1748,7 +1769,7 @@ public class App(
             Terminal.Warn($"You: 0/{state.MaxHitPoints} HP    ")
             + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
         defeatLeft.Add("");
-        RenderFightScreen(defeatLeft, portraitLines);
+        WriteTextAndRightImagePanel(defeatLeft, portraitLines);
         Console.WriteLine();
         Console.WriteLine(Terminal.Combat("Everything goes dark…"));
         Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
@@ -1769,17 +1790,34 @@ public class App(
         int defenderArmorRating,
         int helmetSlotAttackBonus)
     {
+        int w = AdventureLayout.LeftColumnWidth;
         var left = new List<string> { Terminal.Title("== Fight =="), "" };
         if (showIntro)
         {
-            left.Add(
-                Terminal.Muted("Something stirs — a ")
-                + Terminal.Combat(monster.Name)
-                + Terminal.Muted($"! {monster.Blurb}"));
+            // Keep multi-word names from wrapping in the middle when possible; same word-wrap rules as room text.
+            string nameForWrap = monster.Name.Replace(" ", "\u00A0", StringComparison.Ordinal);
+            string plainIntro = $"Something stirs — a {nameForWrap}! {monster.Blurb}";
+            foreach (string rawLine in WrapText(plainIntro, w))
+            {
+                string line = rawLine.Replace("\u00A0", " ", StringComparison.Ordinal);
+                int idx = line.IndexOf(monster.Name, StringComparison.Ordinal);
+                if (idx >= 0)
+                {
+                    left.Add(
+                        Terminal.Muted(line[..idx])
+                        + Terminal.Combat(monster.Name)
+                        + Terminal.Muted(line[(idx + monster.Name.Length)..]));
+                    continue;
+                }
+
+                left.Add(Terminal.Muted(line));
+            }
+
             left.Add("");
         }
 
-        left.AddRange(battleLog.Select(Terminal.Muted));
+        foreach (string entry in battleLog)
+            left.AddRange(WrapText(entry, w).Select(Terminal.Muted));
         if (battleLog.Count > 0)
             left.Add("");
         left.Add(
@@ -1787,20 +1825,22 @@ public class App(
             + Terminal.Combat($"{monster.Name}: {monsterHp} HP"));
         if (defenderArmorRating > 0)
         {
-            left.Add(
-                Terminal.Muted(
-                    $"Armor {defenderArmorRating}: each enemy hit loses up to {defenderArmorRating} damage (min. 1 per hit)."));
+            string armorPlain =
+                $"Armor {defenderArmorRating}: each enemy hit loses up to {defenderArmorRating} damage (min. 1 per hit).";
+            left.AddRange(WrapText(armorPlain, w).Select(Terminal.Muted));
         }
 
         if (helmetSlotAttackBonus != 0)
         {
             string sign = helmetSlotAttackBonus > 0 ? "+" : "";
-            left.Add(
-                Terminal.Muted(
-                    $"Attack {sign}{helmetSlotAttackBonus} from helmet — stacks with weapon on each hit you land."));
+            string helmetPlain =
+                $"Attack {sign}{helmetSlotAttackBonus} from helmet — stacks with weapon on each hit you land.";
+            left.AddRange(WrapText(helmetPlain, w).Select(Terminal.Muted));
         }
 
-        left.Add(Terminal.Muted("(A)ttack  (R)un"));
+        left.Add("");
+        left.Add(FormatMenuLine("(A)ttack", 'a', w));
+        left.Add(FormatMenuLine("(R)un", 'r', w));
         left.Add("");
         return left;
     }
@@ -1810,42 +1850,6 @@ public class App(
         battleLog.Add(line);
         while (battleLog.Count > FightBattleLogMaxLines)
             battleLog.RemoveAt(0);
-    }
-
-    /// <summary>Left column text with portrait on the right. Uses two columns whenever stdout is a TTY.</summary>
-    private void RenderFightScreen(IReadOnlyList<string> leftLines, IReadOnlyList<string> portraitLines)
-    {
-        int minLeftWidth = AdventureLayout.LeftColumnWidth;
-
-        if (portraitLines.Count == 0)
-        {
-            foreach (var line in leftLines)
-                Console.WriteLine(line);
-            return;
-        }
-
-        // Stacked layout only when redirected (e.g. piped); interactive always side-by-side so the image stays on the right.
-        if (Console.IsOutputRedirected)
-        {
-            foreach (var line in leftLines)
-                Console.WriteLine(line);
-            Console.WriteLine();
-            foreach (var line in portraitLines)
-                Console.WriteLine(line);
-            return;
-        }
-
-        int leftW = leftLines.Count == 0
-            ? minLeftWidth
-            : Math.Max(minLeftWidth, leftLines.Max(l => l.Length));
-
-        int rows = Math.Max(leftLines.Count, portraitLines.Count);
-        for (int i = 0; i < rows; i++)
-        {
-            string left = i < leftLines.Count ? leftLines[i] : "";
-            string right = i < portraitLines.Count ? portraitLines[i] : "";
-            Console.WriteLine(PadRightVisual(left, leftW) + new string(' ', AdventureLayout.Gap) + right);
-        }
     }
 
     // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
