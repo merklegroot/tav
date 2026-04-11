@@ -600,7 +600,13 @@ public class App(
 
         List<string> portrait = [];
         if (withImage && def is not null && def.Image is { Length: > 0 } stem)
-            portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
+        {
+            portrait.AddRange(
+                InventoryManipulativePortraitPanelBuilder.Build(
+                    manipulativeImageStore,
+                    manipulativeDescriber.GetDisplayName(id),
+                    stem));
+        }
 
         if (withImage && portrait.Count > 0)
         {
