@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Tav.Tests/Tav.Tests.csproj" />
+  <Project Path="Tav/Tav.csproj" />
+</Solution>

@@ -1,4 +1,3 @@
-using System.Text;
 using Tav.Models;
 using Tav.Store;
 
@@ -212,60 +211,6 @@ public class App(
             rightPanelTopOffset: 1,
             blankLinesAfterTitle: 1,
             trailingBlankLine: true);
-    }
-
-    /// <summary>Very dim dark red X on both diagonals across the art block; non-X glyphs muted so the body stays visible underneath.</summary>
-    private static void ApplyDeathCrossOverlay(string[] panel, int artStartIndex, int artRowCount, int panelOuter)
-    {
-        if (artRowCount <= 0)
-            return;
-
-        for (int r = 0; r < artRowCount; r++)
-        {
-            int idx = artStartIndex + r;
-            if (idx < panel.Length)
-                panel[idx] = OverlayDeathCrossOnPanelLine(panel[idx], r, artRowCount, panelOuter);
-        }
-    }
-
-    private static bool VisibleCellOnDeathCross(int row, int col, int artRows, int cols)
-    {
-        if (cols <= 1)
-            return col == 0;
-        if (artRows <= 1)
-            return col >= cols / 5 && col < cols - cols / 5;
-
-        int backslashCol = (int)Math.Round((double)row * (cols - 1) / (artRows - 1));
-        int forwardCol = (int)Math.Round((cols - 1) - (double)row * (cols - 1) / (artRows - 1));
-        const int thickness = 2;
-        return Math.Abs(col - backslashCol) <= thickness
-               || Math.Abs(col - forwardCol) <= thickness;
-    }
-
-    private static string OverlayDeathCrossOnPanelLine(string panelLine, int rowInArt, int artRows, int outer)
-    {
-        string plain = Terminal.StripAnsi(panelLine);
-        if (plain.Length > outer)
-            plain = plain[..outer];
-        plain = plain.PadRight(outer);
-
-        var sb = new StringBuilder();
-        for (int c = 0; c < outer; c++)
-        {
-            if (VisibleCellOnDeathCross(rowInArt, c, artRows, outer))
-            {
-                sb.Append(Terminal.CombatDark("X"));
-                continue;
-            }
-
-            char ch = plain[c];
-            if (ch == ' ')
-                sb.Append(' ');
-            else
-                sb.Append(Terminal.Muted(ch.ToString()));
-        }
-
-        return sb.ToString();
     }
 
     /// <summary>Word-wraps one description line to the adventure left column width (plain-word wrap; re-applies muted style).</summary>
@@ -1343,7 +1288,7 @@ public class App(
                 "== Fight ==",
                 state,
                 left,
-                BuildFightMonsterPortraitPanel(monsterHp, monster),
+                FightMonsterPortraitPanelBuilder.Build(monsterImageStore, monsterHp, monster),
                 rightPanelTopOffset: 0,
                 blankLinesAfterTitle: 1,
                 trailingBlankLine: false);
@@ -1387,43 +1332,6 @@ public class App(
         }
     }
 
-    /// <summary>Right panel: thin box around HP, blank, portrait art, blank, name (inner width <c><see cref="AdventureLayout.MapPanelOuterWidth"/> - 2</c>).</summary>
-    /// <param name="silhouetteArt">When true, portrait lines use <see cref="Terminal.Silhouette"/> instead of <see cref="Terminal.Border"/>.</param>
-    private string[] BuildFightMonsterPortraitPanel(
-        int currentHp,
-        Monster monster,
-        bool silhouetteArt = false,
-        int deathCrossPortraitArtRows = 0)
-    {
-        int outer = AdventureLayout.MapPanelOuterWidth;
-        int inner = outer - 2;
-        var raw = BuildFightMonsterPortraitRawLines(currentHp, monster, silhouetteArt, inner);
-        string[] cells = AdventureLayout.BuildPortraitPanelCells(raw, inner);
-        const int fightPortraitArtStartInInnerPanel = 2;
-        if (deathCrossPortraitArtRows > 0 && cells.Length > fightPortraitArtStartInInnerPanel)
-            ApplyDeathCrossOverlay(cells, fightPortraitArtStartInInnerPanel, deathCrossPortraitArtRows, inner);
-        return AdventureLayout.WrapThinBoxAroundInnerRows(cells, outer);
-    }
-
-    /// <summary>Inner canvas rows only (no frame): HP, blank, art, blank, name.</summary>
-    private List<string> BuildFightMonsterPortraitRawLines(
-        int currentHp,
-        Monster monster,
-        bool silhouetteArt,
-        int innerWidth)
-    {
-        int shown = Math.Max(0, currentHp);
-        string hpLine = AdventureLayout.CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), innerWidth);
-        var lines = new List<string> { hpLine, "" };
-        lines.AddRange(
-            silhouetteArt
-                ? monsterImageStore.Lines(monster.Id).Select(Terminal.Silhouette)
-                : monsterImageStore.Lines(monster.Id).Select(Terminal.Border));
-        lines.Add("");
-        lines.Add(AdventureLayout.CenterVisual(Terminal.Combat(monster.Name), innerWidth));
-        return lines;
-    }
-
     /// <summary>Brief silhouette flash on portrait art only (HP/name stay normal); ends on full color.</summary>
     private void FlashMonsterPortraitOnHit(
         IReadOnlyList<string> leftAfterStrike,
@@ -1437,7 +1345,7 @@ public class App(
                 "== Fight ==",
                 fightState,
                 leftAfterStrike,
-                BuildFightMonsterPortraitPanel(monsterHp, monster, silhouetteArt),
+                FightMonsterPortraitPanelBuilder.Build(monsterImageStore, monsterHp, monster, silhouetteArt),
                 rightPanelTopOffset: 0,
                 blankLinesAfterTitle: 1,
                 trailingBlankLine: false);
@@ -1518,7 +1426,7 @@ public class App(
             "== Fight ==",
             state,
             victoryLeft,
-            BuildFightMonsterPortraitPanel(0, monster, deathCrossPortraitArtRows: victoryArtRows),
+            FightMonsterPortraitPanelBuilder.Build(monsterImageStore, 0, monster, deathCrossPortraitArtRows: victoryArtRows),
             rightPanelTopOffset: 0,
             blankLinesAfterTitle: 1,
             trailingBlankLine: true);
@@ -1570,7 +1478,7 @@ public class App(
             "== Fight ==",
             state,
             defeatLeft,
-            BuildFightMonsterPortraitPanel(monsterHp, monster),
+            FightMonsterPortraitPanelBuilder.Build(monsterImageStore, monsterHp, monster),
             rightPanelTopOffset: 0,
             blankLinesAfterTitle: 1,
             trailingBlankLine: false);
