@@ -37,7 +37,7 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
         panel[4].ShouldBe(@"│    o    o    │");
         panel[5].ShouldBe(@"│    \  ^  /   │");
         panel[6].ShouldBe(@"│     [===]    │");
-        panel[7].ShouldBe(@"│  /       \s  │");
+        panel[7].ShouldBe(@"│   /       \s │");
         panel[8].ShouldBe(@"│              │");
         panel[9].ShouldBe(@"│ Bone Gnawer  │");
         panel[10].ShouldBe(@"└──────────────┘");

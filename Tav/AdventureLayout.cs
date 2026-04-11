@@ -369,7 +369,9 @@ public static class AdventureLayout
                 ? line
                 : PadRightVisual(line, blockW);
             string clipped = Terminal.TruncateVisible(sized, panelOuter);
-            bool widenedToBlock = v > 0 && v < panelOuter && v < blockW;
+            // Include v == blockW so the widest sprite row uses the same odd-padding rule as padded
+            // shorter rows; otherwise one row shifts a space (inventory + fight portraits).
+            bool widenedToBlock = v > 0 && v < panelOuter && v <= blockW;
             panel[i] = widenedToBlock
                 ? CenterVisualBiasOddLeft(clipped, panelOuter)
                 : CenterVisual(clipped, panelOuter);
