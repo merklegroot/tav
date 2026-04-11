@@ -195,7 +195,7 @@ public class App(
         left.Add("");
         left.Add(
             Terminal.Muted(
-                $"You stand crowned. HP {state.HitPoints}/{state.MaxHitPoints}, gold {state.Gold}. The story ends here."));
+                $"You stand crowned. HP {state.HitPoints}/{state.MaxHitPoints}, gold {state.Gold}, XP {state.Experience}. The story ends here."));
 
         string? helmetId = state.EquippedHelmetId;
         var def = helmetId is not null ? manipulativeStore.Get(helmetId) : null;
@@ -918,6 +918,7 @@ public class App(
         Console.WriteLine();
         Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
+        Console.WriteLine(Terminal.Accent($"Experience: {state.Experience}"));
         Console.WriteLine(
             Terminal.Muted(
                 "Higher DEX helps you act first, dodge, and land cleaner hits in a fight."));
@@ -1420,11 +1421,14 @@ public class App(
     {
         int goldFound = _random.Next(3, 11);
         state.Gold += goldFound;
+        int xpGain = monster.GetExperienceReward();
+        state.Experience += xpGain;
         var victoryLeft = new List<string>
         {
             Terminal.Ok($"The {monster.Name} falls."),
             "",
             Terminal.Muted($"You scrape up {goldFound} gold among the debris."),
+            Terminal.Muted($"You gain {xpGain} experience."),
         };
         if (_random.NextDouble() < 0.35)
         {

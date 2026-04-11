@@ -14,6 +14,10 @@ public record GameState
     public int Strength { get; set; }
     public int Dexterity { get; set; }
     public int Gold { get; set; }
+
+    /// <summary>Total experience from defeated monsters; leveling is not implemented yet.</summary>
+    public int Experience { get; set; }
+
     public List<string> Inventory { get; } = [];
 
     /// <summary>Canonical manipulative id for the wielded weapon, or null.</summary>

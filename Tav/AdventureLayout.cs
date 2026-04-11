@@ -127,7 +127,9 @@ public static class AdventureLayout
         string left = Terminal.Title(screenTitle);
         string right = Terminal.HpStatus(state.HitPoints, state.MaxHitPoints)
                        + Terminal.Muted("  Gold: ")
-                       + Terminal.Gold(state.Gold.ToString());
+                       + Terminal.Gold(state.Gold.ToString())
+                       + Terminal.Muted("  XP: ")
+                       + Terminal.Accent(state.Experience.ToString());
         if (equippedArmorRating > 0)
         {
             right += Terminal.Muted("  Armor ") + Terminal.Accent(equippedArmorRating.ToString());
