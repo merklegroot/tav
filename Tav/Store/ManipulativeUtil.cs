@@ -2,7 +2,7 @@ using Tav;
 
 namespace Tav.Store;
 
-/// <summary>Builds player-facing text for manipulatives (display names, edible and helmet effect copy).</summary>
+/// <summary>Builds player-facing text for manipulatives (display names, edible and equip effect copy).</summary>
 public interface IManipulativeUtil
 {
     string GetDisplayName(string manipulativeId);
@@ -15,6 +15,9 @@ public interface IManipulativeUtil
 
     /// <summary>Lines describing body armor; empty when not body armor.</summary>
     IEnumerable<string> GetBodyArmorEffectDescriptionLines(ManipulativeDefinition definition);
+
+    /// <summary>Lines describing weapon attack bonus; empty when not a weapon.</summary>
+    IEnumerable<string> GetWeaponEffectDescriptionLines(ManipulativeDefinition definition);
 }
 
 public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulativeUtil
@@ -89,6 +92,28 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         else
         {
             yield return Terminal.Muted("Armor 0 — this piece does not reduce damage from hits.");
+        }
+    }
+
+    public IEnumerable<string> GetWeaponEffectDescriptionLines(ManipulativeDefinition definition)
+    {
+        if (!definition.IsEquippableWeapon)
+            yield break;
+
+        int atk = definition.AttackBonus ?? 0;
+        if (atk > 0)
+        {
+            yield return Terminal.Muted(
+                $"Attack +{atk}: adds {atk} to strike damage when you land a hit (stacks with attack bonus from your equipped helmet, if any).");
+        }
+        else if (atk < 0)
+        {
+            yield return Terminal.Muted(
+                $"Attack {atk}: subtracts {-atk} from strike damage when you land a hit.");
+        }
+        else
+        {
+            yield return Terminal.Muted("No combat bonuses from this weapon.");
         }
     }
 }

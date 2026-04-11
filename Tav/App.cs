@@ -586,6 +586,14 @@ public class App(
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
+        if (canEquipWeapon && def is not null)
+        {
+            if (!withImage)
+                left.Add("");
+            foreach (string d in manipulativeDescriber.GetWeaponEffectDescriptionLines(def))
+                left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
+        }
+
         if (!withImage)
             left.Add("");
         AddInventoryItemDetailMenuLines(left, canEat, offerEquip, offerUnequip, omitBlankLineBeforeEsc: withImage);
