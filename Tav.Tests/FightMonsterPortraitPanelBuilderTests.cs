@@ -26,8 +26,36 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
         string[] panel = FightMonsterPortraitPanelBuilder.Build(store, 5, monster);
 
         panel.ShouldNotBeEmpty();
-        string joined = string.Join('\n', panel);
+        string joined = string.Join(Environment.NewLine, panel);
         joined.ShouldNotBeNullOrWhiteSpace();
+
+/*
+        ┌──────────────┐
+        │    5/6 HP    │
+        │              │
+        │    .-----.   │
+        │    o    o    │
+        │    \  ^  /   │
+        │     [===]   │
+        │  /       \s  │
+        │              │
+        │ Bone Gnawer  │
+        └──────────────┘
+*/
+
+// line 6 is off. this test shows that.
+        outputHelper.WriteLine(panel[6]);
+        panel[0].ShouldBe(@"┌──────────────┐");
+        panel[1].ShouldBe(@"│    5/6 HP    │");
+        panel[2].ShouldBe(@"│              │");
+        panel[3].ShouldBe(@"│    .-----.   │");
+        panel[4].ShouldBe(@"│    o    o    │");
+        panel[5].ShouldBe(@"│    \  ^  /   │");
+        panel[6].ShouldBe(@"│     [===]    │");
+        panel[7].ShouldBe(@"│  /       \s  │");
+        panel[8].ShouldBe(@"│              │");
+        panel[9].ShouldBe(@"│ Bone Gnawer  │");
+        panel[10].ShouldBe(@"└──────────────┘");
 
         outputHelper.WriteLine(joined);
     }
