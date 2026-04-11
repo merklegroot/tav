@@ -124,14 +124,12 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
     {
         int heal = definition.ConsumeEffects?.HealthRestored ?? 0;
         if (definition.IsEdible && heal > 0)
-            return $"Restores {heal} HP";
+            return $"Heal {heal} HP";
 
         if (definition.IsEquippableWeapon)
         {
             int atk = definition.AttackBonus ?? 0;
-            if (atk > 0)
-                return $"Attack +{atk}";
-            if (atk < 0)
+            if (atk != 0)
                 return $"Attack {atk}";
             return null;
         }
@@ -141,10 +139,7 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
             int a = definition.Armor ?? 0;
             int atk = definition.AttackBonus ?? 0;
             if (atk != 0)
-            {
-                string sign = atk > 0 ? "+" : "";
-                return $"Armor {a}, Atk {sign}{atk}";
-            }
+                return $"Armor {a}, Atk {atk}";
 
             if (a != 0)
                 return $"Armor {a}";

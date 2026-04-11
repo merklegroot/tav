@@ -12,7 +12,7 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
     {
         var store = new ManipulativeImageStore();
 
-        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Apple", "apple", "Restores 6 HP");
+        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Apple", "apple", "Heal 6 HP");
 
         panel.ShouldNotBeEmpty();
         outputHelper.WriteLine(string.Join(Environment.NewLine, panel));
@@ -21,7 +21,7 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
         panel[^1].ShouldBe(@"└──────────────┘");
         panel[1].ShouldBe(@"│    Apple     │");
         panel[2].ShouldBe(@"│              │");
-        panel[^2].ShouldBe(@"│Restores 6 HP │");
+        panel[^2].ShouldBe(@"│  Heal 6 HP   │");
 
         int artRows = store.Lines("apple").Count();
         panel.Length.ShouldBe(artRows + 4 + 2);
@@ -35,5 +35,26 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
         string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Torch", "torch", null);
 
         panel[^2].ShouldBe(@"│              │");
+    }
+
+    [Fact]
+    public void Build_portrait_effect_shows_atk_without_plus_when_it_fits_one_line()
+    {
+        var store = new ManipulativeImageStore();
+
+        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Crown", "crown", "Armor 1, Atk 1");
+
+        panel[^2].ShouldBe(@"│Armor 1, Atk 1│");
+    }
+
+    [Fact]
+    public void Build_splits_armor_atk_on_comma_when_summary_wider_than_inner_panel()
+    {
+        var store = new ManipulativeImageStore();
+
+        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Crown", "crown", "Armor 10, Atk 12");
+
+        panel[^2].ShouldBe(@"│    Atk 12    │");
+        panel[^3].ShouldBe(@"│   Armor 10   │");
     }
 }
