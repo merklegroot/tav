@@ -605,7 +605,8 @@ public class App(
                 InventoryManipulativePortraitPanelBuilder.Build(
                     manipulativeImageStore,
                     manipulativeDescriber.GetDisplayName(id),
-                    stem));
+                    stem,
+                    manipulativeDescriber.GetInventoryPortraitEffectSummaryLine(def, state)));
         }
 
         if (withImage && portrait.Count > 0)

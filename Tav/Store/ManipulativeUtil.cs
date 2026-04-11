@@ -18,6 +18,9 @@ public interface IManipulativeUtil
 
     /// <summary>Lines describing weapon attack bonus; empty when not a weapon.</summary>
     IEnumerable<string> GetWeaponEffectDescriptionLines(ManipulativeDefinition definition);
+
+    /// <summary>One short plain line for the inventory portrait footer, or null when there is nothing to show.</summary>
+    string? GetInventoryPortraitEffectSummaryLine(ManipulativeDefinition definition, GameState state);
 }
 
 public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulativeUtil
@@ -115,5 +118,47 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         {
             yield return Terminal.Muted("No combat bonuses from this weapon.");
         }
+    }
+
+    public string? GetInventoryPortraitEffectSummaryLine(ManipulativeDefinition definition, GameState state)
+    {
+        int heal = definition.ConsumeEffects?.HealthRestored ?? 0;
+        if (definition.IsEdible && heal > 0)
+            return $"Restores {heal} HP";
+
+        if (definition.IsEquippableWeapon)
+        {
+            int atk = definition.AttackBonus ?? 0;
+            if (atk > 0)
+                return $"Attack +{atk}";
+            if (atk < 0)
+                return $"Attack {atk}";
+            return null;
+        }
+
+        if (definition.IsEquippableHelmet)
+        {
+            int a = definition.Armor ?? 0;
+            int atk = definition.AttackBonus ?? 0;
+            if (atk != 0)
+            {
+                string sign = atk > 0 ? "+" : "";
+                return $"Armor {a}, Atk {sign}{atk}";
+            }
+
+            if (a != 0)
+                return $"Armor {a}";
+            return null;
+        }
+
+        if (definition.IsEquippableBodyArmor)
+        {
+            int a = definition.Armor ?? 0;
+            if (a != 0)
+                return $"Armor {a}";
+            return null;
+        }
+
+        return null;
     }
 }
