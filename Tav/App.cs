@@ -259,6 +259,8 @@ public class App(
 
         int rowCount = 2 + H;
         const int frames = 22;
+        bool northSouth = direction is not 'e' and not 'w';
+        int frameDelayMs = northSouth ? 22 : 28; // north/south ~20% shorter per frame than previous 28ms
         for (int f = 0; f < frames; f++)
         {
             double t = frames <= 1 ? 1 : f / (double)(frames - 1);
@@ -338,7 +340,7 @@ public class App(
             }
 
             buffer.RenderToConsole();
-            Thread.Sleep(28);
+            Thread.Sleep(frameDelayMs);
         }
     }
 
