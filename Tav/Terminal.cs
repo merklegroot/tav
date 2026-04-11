@@ -15,7 +15,14 @@ public static class Terminal
 
     public static string Muted(string text) => Wrap(text, "\x1b[2m\x1b[37m");
 
+    /// <summary>Map and room walls; neighbor rooms on the overview (cyan).</summary>
     public static string Border(string text) => Wrap(text, "\x1b[36m");
+
+    /// <summary>Monster and item portrait sprite glyphs (bright white).</summary>
+    public static string PortraitArt(string text) => Wrap(text, "\x1b[97m");
+
+    /// <summary>Thin portrait panel frame (<c>┌┐└┘─│</c>).</summary>
+    public static string PortraitFrame(string text) => Wrap(text, "\x1b[90m");
 
     /// <summary>Very dim gray for monster portrait hit feedback; stays visible, unlike hiding the art.</summary>
     public static string Silhouette(string text) => Wrap(text, "\x1b[2m\x1b[90m");

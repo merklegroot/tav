@@ -201,7 +201,7 @@ public class App(
         var def = helmetId is not null ? manipulativeStore.Get(helmetId) : null;
         List<string> portrait = [];
         if (def?.Image is { Length: > 0 } stem)
-            portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.Border));
+            portrait.AddRange(manipulativeImageStore.Lines(stem).Select(Terminal.PortraitArt));
 
         PresentTitleAndTwoColumnPanel(
             "== Victory ==",

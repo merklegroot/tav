@@ -4,7 +4,7 @@ using Tav.Store;
 
 namespace Tav;
 
-/// <summary>Builds the fight UI right column: HP, portrait art from <see cref="IMonsterImageStore"/>, name, thin frame.</summary>
+/// <summary>Builds the fight UI right column: HP, white portrait art from <see cref="IMonsterImageStore"/>, name, gray thin frame.</summary>
 public static class FightMonsterPortraitPanelBuilder
 {
     public static string[] Build(
@@ -37,7 +37,7 @@ public static class FightMonsterPortraitPanelBuilder
         lines.AddRange(
             silhouetteArt
                 ? monsterImages.Lines(monster.Id).Select(Terminal.Silhouette)
-                : monsterImages.Lines(monster.Id).Select(Terminal.Border));
+                : monsterImages.Lines(monster.Id).Select(Terminal.PortraitArt));
         lines.Add("");
         lines.Add(AdventureLayout.CenterVisual(Terminal.Combat(monster.Name), innerWidth));
         return lines;

@@ -14,8 +14,8 @@ public class BuildPortraitPanelCellsTests(ITestOutputHelper outputHelper)
         [
             Terminal.Combat("5/6 HP"),
             "",
-            Terminal.Border(" >< "),
-            Terminal.Border("(xx)"),
+            Terminal.PortraitArt(" >< "),
+            Terminal.PortraitArt("(xx)"),
             "",
             Terminal.Combat("Bone Gnawer"),
         ];

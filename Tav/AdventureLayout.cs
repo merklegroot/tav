@@ -384,15 +384,15 @@ public static class AdventureLayout
     public static string[] WrapThinBoxAroundInnerRows(string[] innerRows, int outerWidth)
     {
         int inner = outerWidth - 2;
-        string top = Terminal.Border("┌" + new string('─', inner) + "┐");
-        string bottom = Terminal.Border("└" + new string('─', inner) + "┘");
+        string top = Terminal.PortraitFrame("┌" + new string('─', inner) + "┐");
+        string bottom = Terminal.PortraitFrame("└" + new string('─', inner) + "┘");
         int n = innerRows.Length;
         var result = new string[n + 2];
         result[0] = top;
         for (int i = 0; i < n; i++)
         {
             string body = PadRightVisual(innerRows[i], inner);
-            result[i + 1] = Terminal.Border("│") + body + Terminal.Border("│");
+            result[i + 1] = Terminal.PortraitFrame("│") + body + Terminal.PortraitFrame("│");
         }
 
         result[n + 1] = bottom;
