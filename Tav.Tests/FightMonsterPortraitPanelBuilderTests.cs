@@ -1,4 +1,5 @@
 using Shouldly;
+using Tav;
 using Tav.Models;
 using Tav.Store;
 using Xunit;
@@ -29,19 +30,21 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
         string joined = string.Join(Environment.NewLine, panel);
         joined.ShouldNotBeNullOrWhiteSpace();
 
-        outputHelper.WriteLine(panel[6]);
-        panel[0].ShouldBe(@"┌──────────────┐");
-        panel[1].ShouldBe(@"│    5/6 HP    │");
-        panel[2].ShouldBe(@"│              │");
-        panel[3].ShouldBe(@"│   .-----.    │");
-        panel[4].ShouldBe(@"│   o    o     │");
-        panel[5].ShouldBe(@"│   \  ^  /    │");
-        panel[6].ShouldBe(@"│    [===]     │");
-        panel[7].ShouldBe(@"│  /       \s  │");
-        panel[8].ShouldBe(@"│              │");
-        panel[9].ShouldBe(@"│ Bone Gnawer  │");
-        panel[10].ShouldBe(@"└──────────────┘");
-
+        panel.Length.ShouldBe(AdventureLayout.PortraitCardInnerLineCount + 2);
         outputHelper.WriteLine(joined);
+
+        panel[0].ShouldBe(@"┌──────────────┐");
+        panel[1].ShouldBe(@"│              │");
+        panel[2].ShouldBe(@"│    5/6 HP    │");
+        panel[3].ShouldBe(@"│              │");
+        panel[4].ShouldBe(@"│   .-----.    │");
+        panel[5].ShouldBe(@"│   o    o     │");
+        panel[6].ShouldBe(@"│   \  ^  /    │");
+        panel[7].ShouldBe(@"│    [===]     │");
+        panel[8].ShouldBe(@"│  /       \s  │");
+        panel[9].ShouldBe(@"│              │");
+        panel[10].ShouldBe(@"│ Bone Gnawer  │");
+        panel[11].ShouldBe(@"│              │");
+        panel[12].ShouldBe(@"└──────────────┘");
     }
 }

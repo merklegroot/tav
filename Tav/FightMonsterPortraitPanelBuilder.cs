@@ -14,13 +14,17 @@ public static class FightMonsterPortraitPanelBuilder
         bool silhouetteArt = false,
         int deathCrossPortraitArtRows = 0)
     {
-        int outer = AdventureLayout.MapPanelOuterWidth;
-        int inner = outer - 2;
+        int outer = AdventureLayout.PortraitCardOuterWidth;
+        int inner = AdventureLayout.PortraitCardInnerWidth;
         var raw = BuildRawLines(monsterImages, currentHp, monster, silhouetteArt, inner);
-        string[] cells = AdventureLayout.BuildPortraitPanelCells(raw, inner);
-        const int fightPortraitArtStartInInnerPanel = 2;
-        if (deathCrossPortraitArtRows > 0 && cells.Length > fightPortraitArtStartInInnerPanel)
-            ApplyDeathCrossOverlay(cells, fightPortraitArtStartInInnerPanel, deathCrossPortraitArtRows, inner);
+        string[] fitted = AdventureLayout.FitPortraitCardInnerLines(raw, inner);
+        string[] cells = AdventureLayout.BuildPortraitPanelCells(fitted, inner);
+        int artLineCount = monsterImages.Lines(monster.Id).Count();
+        int contentLines = 4 + artLineCount;
+        int topPad = Math.Max(0, (AdventureLayout.PortraitCardInnerLineCount - contentLines) / 2);
+        int artStartInCells = topPad + 2;
+        if (deathCrossPortraitArtRows > 0 && cells.Length > artStartInCells)
+            ApplyDeathCrossOverlay(cells, artStartInCells, deathCrossPortraitArtRows, inner);
         return AdventureLayout.WrapThinBoxAroundInnerRows(cells, outer);
     }
 

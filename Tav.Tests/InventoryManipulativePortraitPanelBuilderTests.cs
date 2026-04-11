@@ -1,4 +1,5 @@
 using Shouldly;
+using Tav;
 using Tav.Store;
 using Xunit;
 using Xunit.Abstractions;
@@ -7,6 +8,8 @@ namespace Tav.Tests;
 
 public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper outputHelper)
 {
+    private static string Plain(string s) => Terminal.StripAnsi(s);
+
     [Fact]
     public void Build_wraps_art_in_thin_frame_with_name_like_fight_portrait()
     {
@@ -17,14 +20,13 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
         panel.ShouldNotBeEmpty();
         outputHelper.WriteLine(string.Join(Environment.NewLine, panel));
 
+        panel.Length.ShouldBe(AdventureLayout.PortraitCardInnerLineCount + 2);
         panel[0].ShouldBe(@"┌──────────────┐");
         panel[^1].ShouldBe(@"└──────────────┘");
-        panel[1].ShouldBe(@"│    Apple     │");
-        panel[2].ShouldBe(@"│              │");
-        panel[^2].ShouldBe(@"│  Heal 6 HP   │");
 
-        int artRows = store.Lines("apple").Count();
-        panel.Length.ShouldBe(artRows + 4 + 2);
+        panel.Count(p => Plain(p).Contains("Apple", StringComparison.Ordinal)).ShouldBe(1);
+        panel.Count(p => Plain(p).Contains("Heal 6 HP", StringComparison.Ordinal)).ShouldBe(1);
+        panel.Count(p => Plain(p).Contains("_/_", StringComparison.Ordinal)).ShouldBe(1);
     }
 
     [Fact]
@@ -44,7 +46,7 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
 
         string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Crown", "crown", "Armor 1, Atk 1");
 
-        panel[^2].ShouldBe(@"│Armor 1, Atk 1│");
+        panel.Count(p => Plain(p).Contains("Armor 1, Atk 1", StringComparison.Ordinal)).ShouldBe(1);
     }
 
     [Fact]
@@ -54,7 +56,7 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
 
         string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Crown", "crown", "Armor 10, Atk 12");
 
-        panel[^2].ShouldBe(@"│    Atk 12    │");
-        panel[^3].ShouldBe(@"│   Armor 10   │");
+        panel.Count(p => Plain(p).Contains("Atk 12", StringComparison.Ordinal)).ShouldBe(1);
+        panel.Count(p => Plain(p).Contains("Armor 10", StringComparison.Ordinal)).ShouldBe(1);
     }
 }

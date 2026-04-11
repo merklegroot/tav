@@ -10,6 +10,20 @@ public static class AdventureLayout
     public const int LeftColumnWidth = 46;
     // Room panel spec (see README): 16 chars wide, 5 chars tall.
     public const int MapPanelOuterWidth = 16;
+
+    /// <summary>Monster/item portrait frame matches <see cref="MapPanelOuterWidth"/>.</summary>
+    public const int PortraitCardOuterWidth = MapPanelOuterWidth;
+
+    /// <summary>Interior width between thin vertical borders (same as room panel inner).</summary>
+    public const int PortraitCardInnerWidth = PortraitCardOuterWidth - 2;
+
+    /// <summary>
+    /// Fixed inner row count for portrait cards. Cells are taller than wide, so visual height uses
+    /// <c>inner width × 7 / 10</c> lines (≈ playing-card shape on screen). At least 11 so 7-line monster art plus
+    /// HP/name gutters still fits without trimming.
+    /// </summary>
+    public const int PortraitCardInnerLineCount = (PortraitCardInnerWidth * 7 + 19) / 10;
+
     public const int ScreenWidth = LeftColumnWidth + Gap + MapPanelOuterWidth;
 
     /// <summary>First column of the right panel in wide layout (map, portrait, compass).</summary>
@@ -378,6 +392,41 @@ public static class AdventureLayout
         }
 
         return panel;
+    }
+
+    /// <summary>
+    /// Pads or trims inner portrait rows to <see cref="PortraitCardInnerLineCount"/> (center vertical padding;
+    /// if too tall, drops lines from the middle inward until it fits).
+    /// </summary>
+    public static string[] FitPortraitCardInnerLines(IReadOnlyList<string> lines, int innerWidth)
+    {
+        int target = PortraitCardInnerLineCount;
+        string blankRow = CenterVisual("", innerWidth);
+        if (lines.Count == target)
+            return lines.ToArray();
+
+        if (lines.Count < target)
+        {
+            int pad = target - lines.Count;
+            int topPad = pad / 2;
+            int bottomPad = pad - topPad;
+            var padded = new List<string>(target);
+            for (int i = 0; i < topPad; i++)
+                padded.Add(blankRow);
+            padded.AddRange(lines);
+            for (int i = 0; i < bottomPad; i++)
+                padded.Add(blankRow);
+            return padded.ToArray();
+        }
+
+        var list = lines.ToList();
+        while (list.Count > target)
+        {
+            int mid = list.Count / 2;
+            list.RemoveAt(mid);
+        }
+
+        return list.ToArray();
     }
 
     /// <summary>Thin box: inner rows padded to <c>outerWidth - 2</c> visible columns.</summary>

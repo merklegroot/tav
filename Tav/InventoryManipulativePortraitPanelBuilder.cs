@@ -11,8 +11,8 @@ public static class InventoryManipulativePortraitPanelBuilder
         string imageStem,
         string? effectSummaryPlain)
     {
-        int outer = AdventureLayout.MapPanelOuterWidth;
-        int inner = outer - 2;
+        int outer = AdventureLayout.PortraitCardOuterWidth;
+        int inner = AdventureLayout.PortraitCardInnerWidth;
         var raw = new List<string>
         {
             AdventureLayout.CenterVisual(Terminal.Accent(displayName), inner),
@@ -25,7 +25,8 @@ public static class InventoryManipulativePortraitPanelBuilder
         else
             raw.AddRange(BuildEffectFooterInnerLines(effectSummaryPlain.Trim(), inner));
 
-        string[] cells = AdventureLayout.BuildPortraitPanelCells(raw, inner);
+        string[] fitted = AdventureLayout.FitPortraitCardInnerLines(raw, inner);
+        string[] cells = AdventureLayout.BuildPortraitPanelCells(fitted, inner);
         return AdventureLayout.WrapThinBoxAroundInnerRows(cells, outer);
     }
 
