@@ -35,7 +35,9 @@ public record ManipulativeDefinition
     public ConsumeEffects? ConsumeEffects { get; init; }
     public bool IsEquippableWeapon { get; init; }
     public bool IsEquippableHelmet { get; init; }
-    /// <summary>Damage stripped from each incoming hit (README: Armor). Used by equipped helmet (including crown).</summary>
+    public bool IsEquippableBodyArmor { get; init; }
+
+    /// <summary>Damage stripped from each incoming hit (README: Armor). Sums from equipped helmet and body armor.</summary>
     public int? Armor { get; init; }
     /// <summary>Flat bonus to strike damage from this item (weapon and helmet slots both use this field; bonuses stack).</summary>
     public int? AttackBonus { get; init; }

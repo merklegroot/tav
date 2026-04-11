@@ -386,6 +386,9 @@ public class App(
         if (state.EquippedHelmetId is not null
             && string.Equals(state.EquippedHelmetId, manipulativeId, StringComparison.OrdinalIgnoreCase))
             return true;
+        if (state.EquippedBodyArmorId is not null
+            && string.Equals(state.EquippedBodyArmorId, manipulativeId, StringComparison.OrdinalIgnoreCase))
+            return true;
         return false;
     }
 
@@ -531,14 +534,22 @@ public class App(
         bool canEat = def is { IsEdible: true } && (def.ConsumeEffects?.HealthRestored ?? 0) > 0;
         bool canEquipWeapon = def is { IsEquippableWeapon: true };
         bool canEquipHelmet = def is { IsEquippableHelmet: true };
+        bool canEquipBodyArmor = def is { IsEquippableBodyArmor: true };
         bool isWeaponEquipped = canEquipWeapon
             && state.EquippedWeaponId is not null
             && string.Equals(state.EquippedWeaponId, id, StringComparison.OrdinalIgnoreCase);
         bool isHelmetEquipped = canEquipHelmet
             && state.EquippedHelmetId is not null
             && string.Equals(state.EquippedHelmetId, id, StringComparison.OrdinalIgnoreCase);
-        bool offerEquip = (canEquipWeapon && !isWeaponEquipped) || (canEquipHelmet && !isHelmetEquipped);
-        bool offerUnequip = (canEquipWeapon && isWeaponEquipped) || (canEquipHelmet && isHelmetEquipped);
+        bool isBodyArmorEquipped = canEquipBodyArmor
+            && state.EquippedBodyArmorId is not null
+            && string.Equals(state.EquippedBodyArmorId, id, StringComparison.OrdinalIgnoreCase);
+        bool offerEquip = (canEquipWeapon && !isWeaponEquipped)
+            || (canEquipHelmet && !isHelmetEquipped)
+            || (canEquipBodyArmor && !isBodyArmorEquipped);
+        bool offerUnequip = (canEquipWeapon && isWeaponEquipped)
+            || (canEquipHelmet && isHelmetEquipped)
+            || (canEquipBodyArmor && isBodyArmorEquipped);
 
         ClearConsole();
 
@@ -562,6 +573,14 @@ public class App(
             if (!withImage)
                 left.Add("");
             foreach (string d in manipulativeDescriber.GetHelmetEffectDescriptionLines(def))
+                left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
+        }
+
+        if (canEquipBodyArmor && def is not null)
+        {
+            if (!withImage)
+                left.Add("");
+            foreach (string d in manipulativeDescriber.GetBodyArmorEffectDescriptionLines(def))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
@@ -608,18 +627,21 @@ public class App(
                 state.EquippedWeaponId = def.Id;
             if (def.IsEquippableHelmet)
                 state.EquippedHelmetId = def.Id;
+            if (def.IsEquippableBodyArmor)
+                state.EquippedBodyArmorId = def.Id;
 
             if (def.IsEquippableHelmet
                 && string.Equals(def.Id, KnownManipulativeIds.Crown, StringComparison.OrdinalIgnoreCase))
                 state.GameWon = true;
 
+            bool putOn = (def.IsEquippableHelmet || def.IsEquippableBodyArmor) && !def.IsEquippableWeapon;
             var lines = new List<string>
             {
-                def.IsEquippableHelmet && !def.IsEquippableWeapon
+                putOn
                     ? $"You put on the {def.Name.ToLowerInvariant()}."
                     : $"You equip the {def.Name.ToLowerInvariant()}.",
             };
-            if (def.IsEquippableHelmet && (def.Armor ?? 0) > 0)
+            if ((def.IsEquippableHelmet || def.IsEquippableBodyArmor) && (def.Armor ?? 0) > 0)
             {
                 int ar = EquippedArmorRating(state);
                 lines.Add(
@@ -651,24 +673,28 @@ public class App(
                 state.EquippedWeaponId = null;
             if (canEquipHelmet && isHelmetEquipped)
                 state.EquippedHelmetId = null;
+            if (canEquipBodyArmor && isBodyArmorEquipped)
+                state.EquippedBodyArmorId = null;
 
             var defForUnequip = def!;
             string unequipNote = defForUnequip switch
             {
                 { IsEquippableHelmet: true, IsEquippableWeapon: false } =>
                     $"You take off the {defForUnequip.Name.ToLowerInvariant()}.",
+                { IsEquippableBodyArmor: true, IsEquippableWeapon: false } =>
+                    $"You remove the {defForUnequip.Name.ToLowerInvariant()}.",
                 _ => "You put the weapon away.",
             };
             var lines = new List<string> { unequipNote };
-            if (canEquipHelmet && isHelmetEquipped)
+            if ((canEquipHelmet && isHelmetEquipped) || (canEquipBodyArmor && isBodyArmorEquipped))
             {
                 if ((defForUnequip.Armor ?? 0) > 0)
                 {
                     int ar = EquippedArmorRating(state);
-                    lines.Add($"Without that helmet, your Armor is {ar}.");
+                    lines.Add($"Your Armor is now {ar}.");
                 }
 
-                if ((defForUnequip.AttackBonus ?? 0) != 0)
+                if (canEquipHelmet && isHelmetEquipped && (defForUnequip.AttackBonus ?? 0) != 0)
                     lines.Add("This helmet no longer adds to your strike damage.");
             }
 
@@ -969,42 +995,69 @@ public class App(
         if (state.EquippedHelmetId is null)
         {
             Console.WriteLine(Terminal.Muted("  Helmet: none"));
+        }
+        else
+        {
+            var helmetDef = manipulativeStore.Get(state.EquippedHelmetId);
+            string helmetName = helmetDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedHelmetId);
+            Console.WriteLine(Terminal.Accent($"  Helmet: {helmetName}"));
+
+            if (helmetDef is null)
+            {
+                Console.WriteLine(Terminal.Muted("  No effect data for this item."));
+            }
+            else
+            {
+                bool wroteHelmet = false;
+                if (helmetDef.Armor is int ar && ar > 0)
+                {
+                    Console.WriteLine(
+                        Terminal.Muted($"  Armor {ar} from this piece — stacks with body armor (min. 1 damage per hit)."));
+                    wroteHelmet = true;
+                }
+                else if (helmetDef.IsEquippableHelmet)
+                {
+                    Console.WriteLine(Terminal.Muted("  Armor 0 — no reduction from this helmet."));
+                    wroteHelmet = true;
+                }
+
+                if (helmetDef.AttackBonus is int hb && hb != 0)
+                {
+                    string sign = hb > 0 ? "+" : "";
+                    Console.WriteLine(
+                        Terminal.Muted($"  Attack {sign}{hb} from helmet — stacks with weapon on each hit you land."));
+                    wroteHelmet = true;
+                }
+
+                if (!wroteHelmet && helmetDef.IsEquippableHelmet)
+                    Console.WriteLine(Terminal.Muted("  No combat bonuses from this helmet."));
+            }
+        }
+
+        if (state.EquippedBodyArmorId is null)
+        {
+            Console.WriteLine(Terminal.Muted("  Body armor: none"));
             return;
         }
 
-        var helmetDef = manipulativeStore.Get(state.EquippedHelmetId);
-        string helmetName = helmetDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedHelmetId);
-        Console.WriteLine(Terminal.Accent($"  Helmet: {helmetName}"));
+        var bodyDef = manipulativeStore.Get(state.EquippedBodyArmorId);
+        string bodyName = bodyDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedBodyArmorId);
+        Console.WriteLine(Terminal.Accent($"  Body armor: {bodyName}"));
 
-        if (helmetDef is null)
+        if (bodyDef is null)
         {
             Console.WriteLine(Terminal.Muted("  No effect data for this item."));
             return;
         }
 
-        bool wroteHelmet = false;
-        if (helmetDef.Armor is int ar && ar > 0)
+        if (bodyDef.Armor is int bar && bar > 0)
         {
             Console.WriteLine(
-                Terminal.Muted($"  Armor {ar} — strips up to {ar} from each enemy hit (min. 1 damage per hit)."));
-            wroteHelmet = true;
-        }
-        else if (helmetDef.IsEquippableHelmet)
-        {
-            Console.WriteLine(Terminal.Muted("  Armor 0 — no reduction from this helmet."));
-            wroteHelmet = true;
+                Terminal.Muted($"  Armor {bar} from this piece — stacks with helmet (min. 1 damage per hit)."));
+            return;
         }
 
-        if (helmetDef.AttackBonus is int hb && hb != 0)
-        {
-            string sign = hb > 0 ? "+" : "";
-            Console.WriteLine(
-                Terminal.Muted($"  Attack {sign}{hb} from helmet — stacks with weapon on each hit you land."));
-            wroteHelmet = true;
-        }
-
-        if (!wroteHelmet && helmetDef.IsEquippableHelmet)
-            Console.WriteLine(Terminal.Muted("  No combat bonuses from this helmet."));
+        Console.WriteLine(Terminal.Muted("  Armor 0 — no reduction from this piece."));
     }
 
     private void PrintHelp()
@@ -1016,7 +1069,7 @@ public class App(
         int helpW = HelpScreenMenuLineWidth();
         Console.WriteLine(
             AdventureLayout.FormatMenuLine(
-                "(I)nventory: select an item. Edible gear shows healing; helmets (including crowns) show Armor and attack bonus; then Eat, Equip, Drop, or Esc.",
+                "(I)nventory: select an item. Edible gear shows healing; helmets and body armor show Armor; then Eat, Equip, Drop, or Esc.",
                 'i',
                 helpW));
         Console.WriteLine(
@@ -1257,9 +1310,12 @@ public class App(
 
     private int EquippedArmorRating(GameState state)
     {
-        if (state.EquippedHelmetId is null)
-            return 0;
-        return manipulativeStore.Get(state.EquippedHelmetId)?.Armor ?? 0;
+        int sum = 0;
+        if (state.EquippedHelmetId is not null)
+            sum += manipulativeStore.Get(state.EquippedHelmetId)?.Armor ?? 0;
+        if (state.EquippedBodyArmorId is not null)
+            sum += manipulativeStore.Get(state.EquippedBodyArmorId)?.Armor ?? 0;
+        return sum;
     }
 
     private int EquippedHelmetSlotAttackBonus(GameState state)

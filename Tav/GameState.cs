@@ -26,6 +26,9 @@ public record GameState
     /// <summary>Canonical manipulative id for the worn helmet (helmet, crown, …), or null.</summary>
     public string? EquippedHelmetId { get; set; }
 
+    /// <summary>Canonical manipulative id for worn body armor (chain mail, …), or null.</summary>
+    public string? EquippedBodyArmorId { get; set; }
+
     /// <summary>Item stacks on the floor, keyed by lowercase room id.</summary>
     public Dictionary<string, List<GroundItemStack>> GroundItemsByRoomId { get; } =
         new(StringComparer.OrdinalIgnoreCase);

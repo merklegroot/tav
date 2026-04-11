@@ -7,4 +7,5 @@ public static class KnownManipulativeIds
     public static readonly string Crown = "crown";
     public static readonly string Axe = "axe";
     public static readonly string Helmet = "helmet";
+    public static readonly string ChainMail = "chain_mail";
 }

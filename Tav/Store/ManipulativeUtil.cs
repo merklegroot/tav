@@ -12,6 +12,9 @@ public interface IManipulativeUtil
 
     /// <summary>Lines describing helmet armor and optional attack bonus; empty when not a helmet.</summary>
     IEnumerable<string> GetHelmetEffectDescriptionLines(ManipulativeDefinition definition);
+
+    /// <summary>Lines describing body armor; empty when not body armor.</summary>
+    IEnumerable<string> GetBodyArmorEffectDescriptionLines(ManipulativeDefinition definition);
 }
 
 public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulativeUtil
@@ -69,6 +72,23 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         {
             yield return Terminal.Muted(
                 $"Attack {atk}: subtracts {-atk} from strike damage when you land a hit.");
+        }
+    }
+
+    public IEnumerable<string> GetBodyArmorEffectDescriptionLines(ManipulativeDefinition definition)
+    {
+        if (!definition.IsEquippableBodyArmor)
+            yield break;
+
+        int a = definition.Armor ?? 0;
+        if (a > 0)
+        {
+            yield return Terminal.Muted(
+                $"Armor {a}: stacks with a helmet. Each enemy hit loses up to your total Armor before HP (never below 1 damage per hit).");
+        }
+        else
+        {
+            yield return Terminal.Muted("Armor 0 — this piece does not reduce damage from hits.");
         }
     }
 }
