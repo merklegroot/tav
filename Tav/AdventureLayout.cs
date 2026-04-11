@@ -11,20 +11,16 @@ public static class AdventureLayout
     // Room panel spec (see README): 16 chars wide, 5 chars tall.
     public const int MapPanelOuterWidth = 16;
 
-    /// <summary>Monster/item portrait frame matches <see cref="MapPanelOuterWidth"/>.</summary>
-    public const int PortraitCardOuterWidth = MapPanelOuterWidth;
+    /// <summary>Monster/item portrait frame: two columns wider than the room/map panel.</summary>
+    public const int PortraitCardOuterWidth = MapPanelOuterWidth + 2;
 
-    /// <summary>Interior width between thin vertical borders (same as room panel inner).</summary>
+    /// <summary>Interior width between thin vertical portrait borders.</summary>
     public const int PortraitCardInnerWidth = PortraitCardOuterWidth - 2;
 
-    /// <summary>
-    /// Fixed inner row count for portrait cards. Cells are taller than wide, so visual height uses
-    /// <c>inner width × 7 / 10</c> lines (≈ playing-card shape on screen). At least 11 so 7-line monster art plus
-    /// HP/name gutters still fits without trimming.
-    /// </summary>
-    public const int PortraitCardInnerLineCount = (PortraitCardInnerWidth * 7 + 19) / 10;
+    /// <summary>Fixed inner row count for portrait cards (tall cells + room for 7-line art); one line taller than the prior 11-row card.</summary>
+    public const int PortraitCardInnerLineCount = 12;
 
-    public const int ScreenWidth = LeftColumnWidth + Gap + MapPanelOuterWidth;
+    public const int ScreenWidth = LeftColumnWidth + Gap + PortraitCardOuterWidth;
 
     /// <summary>First column of the right panel in wide layout (map, portrait, compass).</summary>
     public const int RightPanelStartX = LeftColumnWidth + Gap;

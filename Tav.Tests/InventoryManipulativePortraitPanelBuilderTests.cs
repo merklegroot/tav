@@ -21,8 +21,8 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
         outputHelper.WriteLine(string.Join(Environment.NewLine, panel));
 
         panel.Length.ShouldBe(AdventureLayout.PortraitCardInnerLineCount + 2);
-        panel[0].ShouldBe(@"┌──────────────┐");
-        panel[^1].ShouldBe(@"└──────────────┘");
+        panel[0].ShouldBe(@"┌────────────────┐");
+        panel[^1].ShouldBe(@"└────────────────┘");
 
         panel.Count(p => Plain(p).Contains("Apple", StringComparison.Ordinal)).ShouldBe(1);
         panel.Count(p => Plain(p).Contains("Heal 6 HP", StringComparison.Ordinal)).ShouldBe(1);
@@ -36,7 +36,7 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
 
         string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Torch", "torch", null);
 
-        panel[^2].ShouldBe(@"│              │");
+        panel[^2].ShouldBe(@"│                │");
     }
 
     [Fact]

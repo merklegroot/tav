@@ -75,7 +75,7 @@ public class App(
         int blankLinesAfterTitle,
         bool trailingBlankLine)
     {
-        int panelOuter = AdventureLayout.MapPanelOuterWidth;
+        int panelOuter = AdventureLayout.PortraitCardOuterWidth;
         string[] panel = portraitLines.Count > 0
             ? AdventureLayout.BuildPortraitPanelCells(portraitLines, panelOuter)
             : [];
