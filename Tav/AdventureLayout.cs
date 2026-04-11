@@ -54,6 +54,19 @@ public static class AdventureLayout
         return new string(' ', left) + content + new string(' ', right);
     }
 
+    /// <summary>Like <see cref="CenterVisual"/> but puts odd remainder padding on the left (portrait sprites).</summary>
+    private static string CenterVisualBiasOddLeft(string content, int totalWidth)
+    {
+        int v = Terminal.VisibleLength(content);
+        if (v >= totalWidth)
+            return PadRightVisual(content, totalWidth);
+
+        int pad = totalWidth - v;
+        int right = pad / 2;
+        int left = pad - right;
+        return new string(' ', left) + content + new string(' ', right);
+    }
+
     public static string Truncate(string s, int maxChars)
     {
         if (s.Length <= maxChars)
@@ -330,15 +343,35 @@ public static class AdventureLayout
 
     /// <summary>
     /// Every row truncated to <paramref name="panelOuter"/> visible columns, then centered (monster/item art, HP lines).
+    /// Short rows are right-padded to a common block width so sprite columns line up, then centered with odd padding biased left.
     /// </summary>
     public static string[] BuildPortraitPanelCells(IReadOnlyList<string> borderedLines, int panelOuter)
     {
         int n = borderedLines.Count;
+        int blockW = 0;
+        for (int i = 0; i < n; i++)
+        {
+            int v = Terminal.VisibleLength(borderedLines[i]);
+            if (v > 0 && v < panelOuter)
+                blockW = Math.Max(blockW, v);
+        }
+
+        if (blockW == 0)
+            blockW = 1;
+
         var panel = new string[n];
         for (int i = 0; i < n; i++)
         {
-            string clipped = Terminal.TruncateVisible(borderedLines[i], panelOuter);
-            panel[i] = CenterVisual(clipped, panelOuter);
+            string line = borderedLines[i];
+            int v = Terminal.VisibleLength(line);
+            string sized = v == 0 || v >= panelOuter
+                ? line
+                : PadRightVisual(line, blockW);
+            string clipped = Terminal.TruncateVisible(sized, panelOuter);
+            bool widenedToBlock = v > 0 && v < panelOuter && v < blockW;
+            panel[i] = widenedToBlock
+                ? CenterVisualBiasOddLeft(clipped, panelOuter)
+                : CenterVisual(clipped, panelOuter);
         }
 
         return panel;

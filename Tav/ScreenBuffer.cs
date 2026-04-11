@@ -16,6 +16,7 @@ public sealed class ScreenBuffer
     }
 
     private readonly Cell[,] _cells;
+    private readonly int[] _rowMaxDrawnX;
     private readonly int _width;
     private readonly int _height;
 
@@ -27,6 +28,7 @@ public sealed class ScreenBuffer
         _width = Math.Max(1, width);
         _height = Math.Max(1, height);
         _cells = new Cell[_height, _width];
+        _rowMaxDrawnX = new int[_height];
         Clear();
     }
 
@@ -43,6 +45,7 @@ public sealed class ScreenBuffer
     {
         for (int y = 0; y < _height; y++)
         {
+            _rowMaxDrawnX[y] = -1;
             for (int x = 0; x < _width; x++)
                 _cells[y, x] = new Cell { Ch = ' ', OpenAnsi = "" };
         }
@@ -85,7 +88,11 @@ public sealed class ScreenBuffer
 
             int gx = x + col;
             if (gx >= 0 && gx < _width && y >= 0 && y < _height)
+            {
                 _cells[y, gx] = new Cell { Ch = merged[i], OpenAnsi = persistentOpen };
+                if (_rowMaxDrawnX[y] < gx)
+                    _rowMaxDrawnX[y] = gx;
+            }
 
             col++;
             i++;
@@ -139,10 +146,17 @@ public sealed class ScreenBuffer
             for (int y = 0; y < _height; y++)
             {
                 var sb = new StringBuilder(_width);
-                for (int x = 0; x < _width; x++)
+                if (_rowMaxDrawnX[y] < 0)
+                {
+                    Console.WriteLine();
+                    continue;
+                }
+
+                int end = _width - 1;
+                while (end > _rowMaxDrawnX[y] && _cells[y, end].Ch == ' ')
+                    end--;
+                for (int x = 0; x <= end; x++)
                     sb.Append(_cells[y, x].Ch);
-                while (sb.Length > 0 && sb[^1] == ' ')
-                    sb.Length--;
                 Console.WriteLine(sb.ToString());
             }
 

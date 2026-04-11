@@ -29,21 +29,6 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
         string joined = string.Join(Environment.NewLine, panel);
         joined.ShouldNotBeNullOrWhiteSpace();
 
-/*
-        ┌──────────────┐
-        │    5/6 HP    │
-        │              │
-        │    .-----.   │
-        │    o    o    │
-        │    \  ^  /   │
-        │     [===]   │
-        │  /       \s  │
-        │              │
-        │ Bone Gnawer  │
-        └──────────────┘
-*/
-
-// line 6 is off. this test shows that.
         outputHelper.WriteLine(panel[6]);
         panel[0].ShouldBe(@"┌──────────────┐");
         panel[1].ShouldBe(@"│    5/6 HP    │");
