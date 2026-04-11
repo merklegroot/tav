@@ -1304,6 +1304,12 @@ public class App(
                 return;
             }
 
+            if (key == 'w')
+            {
+                PresentFightVictory(state, monster);
+                return;
+            }
+
             if (key != 'a')
                 continue;
 
@@ -1406,6 +1412,12 @@ public class App(
         if (monsterHp > 0)
             return false;
 
+        return PresentFightVictory(state, monster);
+    }
+
+    /// <summary>Award loot and show the victory panel; returns true so callers can exit the fight loop.</summary>
+    private bool PresentFightVictory(GameState state, Monster monster)
+    {
         int goldFound = _random.Next(3, 11);
         state.Gold += goldFound;
         var victoryLeft = new List<string>
@@ -1568,6 +1580,7 @@ public class App(
         left.Add("");
         left.Add(AdventureLayout.FormatMenuLine("(A)ttack", 'a', w));
         left.Add(AdventureLayout.FormatMenuLine("(R)un", 'r', w));
+        left.Add(AdventureLayout.FormatMenuLine("(W)in", 'w', w));
         if (showIntro || battleLog.Count > 0)
         {
             left.Add("");
