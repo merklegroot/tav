@@ -10,12 +10,12 @@ public record GameState
     /// <summary>Set when the player equips the crown — the winning condition.</summary>
     public bool GameWon { get; set; }
     public int HitPoints { get; set; }
-    public int MaxHitPoints { get; }
+    public int MaxHitPoints { get; set; }
     public int Strength { get; set; }
     public int Dexterity { get; set; }
     public int Gold { get; set; }
 
-    /// <summary>Total experience from defeated monsters; leveling is not implemented yet.</summary>
+    /// <summary>Total lifetime experience; level is derived via <see cref="PlayerLeveling"/>.</summary>
     public int Experience { get; set; }
 
     public List<string> Inventory { get; } = [];

@@ -195,7 +195,7 @@ public class App(
         left.Add("");
         left.Add(
             Terminal.Muted(
-                $"You stand crowned. HP {state.HitPoints}/{state.MaxHitPoints}, gold {state.Gold}, XP {state.Experience}. The story ends here."));
+                $"You stand crowned. Level {PlayerLeveling.GetLevelFromTotalExperience(state.Experience)}, HP {state.HitPoints}/{state.MaxHitPoints}, gold {state.Gold}, XP {state.Experience}. The story ends here."));
 
         string? helmetId = state.EquippedHelmetId;
         var def = helmetId is not null ? manipulativeStore.Get(helmetId) : null;
@@ -942,9 +942,24 @@ public class App(
         ClearConsole();
         WriteFullWidthTitleBar("== Character ==", state);
         Console.WriteLine();
+        int level = PlayerLeveling.GetLevelFromTotalExperience(state.Experience);
+        int xpInto = PlayerLeveling.ExperienceIntoCurrentLevel(state.Experience);
+        int xpSpan = PlayerLeveling.ExperienceSpanForCurrentLevel(state.Experience);
+        Console.WriteLine(Terminal.Accent($"Level: {level}"));
+        if (level >= PlayerLeveling.MaxLevel)
+        {
+            Console.WriteLine(
+                Terminal.Muted(
+                    $"  {xpInto} XP past the level cap (total {state.Experience})."));
+        }
+        else
+        {
+            Console.WriteLine(
+                Terminal.Muted(
+                    $"  {xpInto} / {xpSpan} XP toward level {level + 1} ({state.Experience} total)."));
+        }
         Console.WriteLine(Terminal.Accent($"STR: {state.Strength}"));
         Console.WriteLine(Terminal.Accent($"DEX: {state.Dexterity}"));
-        Console.WriteLine(Terminal.Accent($"Experience: {state.Experience}"));
         Console.WriteLine(
             Terminal.Muted(
                 "Higher DEX helps you act first, dodge, and land cleaner hits in a fight."));
@@ -1077,7 +1092,10 @@ public class App(
         Console.WriteLine(
             AdventureLayout.FormatMenuLine("(M)ap: overview of how the areas connect.", 'm', helpW));
         Console.WriteLine(
-            AdventureLayout.FormatMenuLine("(F)ight: Attack or Run. Wins yield gold; sometimes a find.", 'f', helpW));
+            AdventureLayout.FormatMenuLine(                "(F)ight: Attack or Run. Wins yield gold; sometimes a find.", 'f', helpW));
+        Console.WriteLine(
+            Terminal.Muted(
+                "Defeating monsters grants XP; level-ups raise Strength, Dexterity on even levels, and maximum HP."));
         Console.WriteLine();
         PauseForContinue();
     }
@@ -1478,7 +1496,7 @@ public class App(
         int goldFound = _random.Next(3, 11);
         state.Gold += goldFound;
         int xpGain = monster.GetExperienceReward();
-        state.Experience += xpGain;
+        IReadOnlyList<string> levelUpLines = PlayerLeveling.GainExperience(state, xpGain);
         var victoryLeft = new List<string>
         {
             Terminal.Ok($"The {monster.Name} falls."),
@@ -1486,6 +1504,9 @@ public class App(
             Terminal.Muted($"You scrape up {goldFound} gold among the debris."),
             Terminal.Muted($"You gain {xpGain} experience."),
         };
+        foreach (string line in levelUpLines)
+            victoryLeft.Add(line);
+
         if (_random.NextDouble() < 0.35)
         {
             state.Inventory.Add(KnownManipulativeIds.Apple);
