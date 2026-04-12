@@ -42,7 +42,7 @@ public record ManipulativeDefinition
     /// <summary>Flat bonus to strike damage from this item (weapon and helmet slots both use this field; bonuses stack).</summary>
     public int? AttackBonus { get; init; }
 
-    /// <summary>If set, embedded art is loaded from <c>res/{image}.img.txt</c> (same convention as monster portraits).</summary>
+    /// <summary>If set, embedded art is loaded from <c>res/{image}.ans</c> (same convention as monster portraits).</summary>
     public string? Image { get; init; }
 }
 

@@ -4,7 +4,7 @@ namespace Tav.Store;
 
 public interface IManipulativeImageStore
 {
-    /// <summary>Lines from embedded <c>{imageStem}.img.txt</c>, or empty when missing.</summary>
+    /// <summary>Lines from embedded <c>{imageStem}.ans</c>, or empty when missing.</summary>
     IEnumerable<string> Lines(string imageStem);
 }
 

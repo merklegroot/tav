@@ -1,6 +1,6 @@
 namespace Tav;
 
-/// <summary>Reads line-based ASCII art from embedded <c>{stem}.img.txt</c> files under <c>res/</c>.</summary>
+/// <summary>Reads line-based ASCII art from embedded <c>{stem}.ans</c> files under <c>res/</c>.</summary>
 public static class EmbeddedImgTxtResource
 {
     public static IEnumerable<string> ReadLines(string stem)
@@ -9,7 +9,7 @@ public static class EmbeddedImgTxtResource
             yield break;
 
         var assembly = typeof(EmbeddedImgTxtResource).Assembly;
-        var suffix = $"{stem.Trim()}.img.txt";
+        var suffix = $"{stem.Trim()}.ans";
         var name = assembly.GetManifestResourceNames()
             .FirstOrDefault(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
         if (name is null)

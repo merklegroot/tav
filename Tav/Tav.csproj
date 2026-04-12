@@ -12,7 +12,7 @@
     <EmbeddedResource Include="res/monsters.json" />
     <EmbeddedResource Include="res/manipulatives.json" />
     <EmbeddedResource Include="res/initial_state.json" />
-    <EmbeddedResource Include="res/**/*.img.txt" />
+    <EmbeddedResource Include="res/**/*.ans" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
