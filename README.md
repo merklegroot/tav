@@ -45,12 +45,12 @@ Unicode versions of the old extended ascii characters can be used to represent d
 
 ## Compass
 
-The compass control should make it clear which directions are available to the user.
+The compass control should make it clear which directions are available to the user. Movement uses **W** (forward / north), **A** (west), **S** (south), and **D** (east), matching the compass labels.
 
 ```text
-    N
+    W
     |
-W -   - E
+A -   - D
     |
     S
 ```

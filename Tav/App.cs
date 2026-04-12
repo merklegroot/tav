@@ -44,7 +44,7 @@ public class App(
 
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);
-            if (TryNavigateCompass(normalized, roomsById, state))
+            if (TryNavigateFromMovementKey(normalized, roomsById, state))
                 continue;
 
             menuItems.FirstOrDefault(m => m.Key == normalized)?.Action.Invoke();
@@ -1089,12 +1089,49 @@ public class App(
         Console.WriteLine(Terminal.Muted("  Armor 0 — no reduction from this piece."));
     }
 
+    private void RunDebugScreen(GameState state)
+    {
+        ClearConsole();
+        WriteFullWidthTitleBar("== Debug ==", state);
+        Console.WriteLine();
+        Console.WriteLine(Terminal.EscBackHint());
+        WaitForEscBack();
+    }
+
+    /// <summary>Waits for Esc (or <c>esc</c> / <c>escape</c> on redirected stdin), same as other list-style sub-screens.</summary>
+    private static void WaitForEscBack()
+    {
+        if (Console.IsInputRedirected)
+        {
+            while (true)
+            {
+                var line = Console.ReadLine();
+                if (line is null)
+                    return;
+
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                string t = line.Trim().ToLowerInvariant();
+                if (t is "esc" or "escape")
+                    return;
+            }
+        }
+
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Escape)
+                return;
+        }
+    }
+
     private void PrintHelp()
     {
         ClearConsole();
         WriteFullWidthTitleBar("== Help ==", state);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
+        Console.WriteLine(Terminal.Muted("Move with W, A, S, D (see compass)."));
         int helpW = HelpScreenMenuLineWidth();
         Console.WriteLine(
             AdventureLayout.FormatMenuLine(
@@ -1301,6 +1338,12 @@ public class App(
         });
         items.Add(new MenuItem
         {
+            Text = "(D)ebug",
+            Key = 'd',
+            Action = () => RunDebugScreen(state),
+        });
+        items.Add(new MenuItem
+        {
             Text = "e(X)it",
             Key = 'x',
             Action = exit,
@@ -1308,17 +1351,41 @@ public class App(
         return items;
     }
 
-    private bool TryNavigateCompass(
-        char normalized,
+    /// <summary>WASD on the map; internal exits remain n/e/s/w in room data.</summary>
+    private static char? MapWasdToInternalDirection(char key)
+    {
+        return key switch
+        {
+            'w' => 'n',
+            'a' => 'w',
+            's' => 's',
+            'd' => 'e',
+            _ => null,
+        };
+    }
+
+    private bool TryNavigateFromMovementKey(
+        char key,
         IReadOnlyDictionary<string, Room> roomsById,
         GameState state)
     {
-        if (normalized is not ('n' or 'e' or 's' or 'w'))
+        char? internalDir = MapWasdToInternalDirection(key);
+        if (internalDir is null)
+            return false;
+        return TryNavigateCompass(internalDir.Value, roomsById, state);
+    }
+
+    private bool TryNavigateCompass(
+        char internalDirection,
+        IReadOnlyDictionary<string, Room> roomsById,
+        GameState state)
+    {
+        if (internalDirection is not ('n' or 'e' or 's' or 'w'))
             return false;
 
         var room = state.CurrentRoom;
         if (room.Exits is null ||
-            !room.Exits.TryGetValue(normalized.ToString(), out var destId))
+            !room.Exits.TryGetValue(internalDirection.ToString(), out var destId))
             return false;
 
         if (!roomsById.TryGetValue(destId.ToLowerInvariant(), out var destRoom))
@@ -1330,7 +1397,7 @@ public class App(
             oldRoomPanel,
             AdventureLayout.BuildRoomPanel(state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
             state,
-            normalized);
+            internalDirection);
         return true;
     }
 
