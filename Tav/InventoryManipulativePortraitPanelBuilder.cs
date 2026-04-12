@@ -18,7 +18,9 @@ public static class InventoryManipulativePortraitPanelBuilder
             AdventureLayout.CenterVisual(Terminal.Accent(displayName), inner),
             "",
         };
-        raw.AddRange(manipulativeImages.Lines(imageStem).Select(Terminal.PortraitArt));
+        raw.AddRange(
+            manipulativeImages.Lines(imageStem).Select(line =>
+                Terminal.PortraitArt(Terminal.UseAnsi ? line : Terminal.StripAnsi(line))));
         raw.Add("");
         if (string.IsNullOrWhiteSpace(effectSummaryPlain))
             raw.Add(AdventureLayout.CenterVisual("", inner));
