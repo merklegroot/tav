@@ -26,10 +26,10 @@ Rooms should be drawn using text characters like this
 
 ```text
 ┌─────────────┐
-│             │
-=    Dining   │
-│     Hall    │
-└─────| |─────┘
+┘             │
+     Dining   │
+┐     Hall    │
+└─────┐ ┌─────┘
 ```
 
 Width: 16 chars
@@ -41,10 +41,7 @@ When the text is too large to fit on one line, it should be split into two lines
 
 When that's not enough, it can be split into three lines.
 
-An = charater represents a door going East or West.
-
-Two pipes with a space between them represent a door going North or South.
-| |
+Unicode versions of the old extended ascii characters can be used to represent doors.
 
 ## Compass
 

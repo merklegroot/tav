@@ -207,7 +207,7 @@ public static class AdventureLayout
     private static bool HasExit(Room room, char dir) =>
         room.Exits?.ContainsKey(dir.ToString()) == true;
 
-    /// <summary>Horizontal wall; optional centered <c>| |</c> for north (top) or south (bottom) exit (see README).</summary>
+    /// <summary>Horizontal wall; optional centered doorway — north uses <c>┘ └</c>, south <c>┐ ┌</c> (see README).</summary>
     private static string BuildHorizontalWall(
         char leftCorner,
         char rightCorner,
@@ -220,23 +220,41 @@ public static class AdventureLayout
         int dashTotal = innerWidth - 3;
         int leftDashes = dashTotal / 2;
         int rightDashes = dashTotal - leftDashes;
+        bool northDoor = leftCorner == '┌' && rightCorner == '┐';
+        string gap = northDoor ? "┘ └" : "┐ ┌";
         return leftCorner
                + new string('─', leftDashes)
-               + "| |"
+               + gap
                + new string('─', rightDashes)
                + rightCorner;
     }
 
-    /// <summary>Inner rows: │ walls; <c>=</c> on the first title row when west/east exit (see README).</summary>
+    /// <summary>Inner rows: │ walls; west <c>┘/┐</c>, east <c>└/┌</c> jambs with an open middle row (see README).</summary>
     private static string BuildSideWallLine(
         string paddedBody,
         int inner,
         bool openWest,
         bool openEast,
-        bool useWestEastMarkers)
+        int innerRowIndex)
     {
-        char left = openWest && useWestEastMarkers ? '=' : '│';
-        char right = openEast && useWestEastMarkers ? '=' : '│';
+        char left = openWest
+            ? innerRowIndex switch
+            {
+                0 => '┘',
+                1 => ' ',
+                2 => '┐',
+                _ => '│',
+            }
+            : '│';
+        char right = openEast
+            ? innerRowIndex switch
+            {
+                0 => '└',
+                1 => ' ',
+                2 => '┌',
+                _ => '│',
+            }
+            : '│';
         return left + paddedBody + right;
     }
 
@@ -288,8 +306,7 @@ public static class AdventureLayout
                 ? PadInner(titleLines[titleLineIndex++], inner)
                 : blankInner;
 
-            bool useMarkers = r == startRow;
-            innerRows.Add(BuildSideWallLine(body, inner, w, e, useWestEastMarkers: useMarkers));
+            innerRows.Add(BuildSideWallLine(body, inner, w, e, innerRowIndex: r));
         }
 
         var plain = new[]
