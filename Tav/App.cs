@@ -557,7 +557,7 @@ public class App(
 
         var left = new List<string>
         {
-            Terminal.Accent($"Selected: {manipulativeDescriber.GetDisplayName(id)}"),
+            Terminal.Accent(manipulativeDescriber.GetDisplayName(id)),
         };
         left.Add("");
         int descCol = AdventureLayout.LeftColumnWidth;
