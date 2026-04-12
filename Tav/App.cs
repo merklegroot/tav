@@ -604,8 +604,8 @@ public class App(
             state,
             left,
             portrait,
-            rightPanelTopOffset: 1,
-            blankLinesAfterTitle: 2,
+            rightPanelTopOffset: 0,
+            blankLinesAfterTitle: 1,
             trailingBlankLine: false);
 
         var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);

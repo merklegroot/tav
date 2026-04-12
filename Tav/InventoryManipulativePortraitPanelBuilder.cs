@@ -16,7 +16,6 @@ public static class InventoryManipulativePortraitPanelBuilder
         var raw = new List<string>
         {
             AdventureLayout.CenterVisual(Terminal.Accent(displayName), inner),
-            "",
         };
         raw.AddRange(
             manipulativeImages.Lines(imageStem).Select(line =>
