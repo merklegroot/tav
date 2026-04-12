@@ -225,6 +225,7 @@ public class App(
 
     /// <summary>
     /// Slides only the room box (five lines); compass is omitted here — same as when the main menu is hidden.
+    /// Inserts one hallway row (N/S) or one E/W connector column (a single space between rooms; <c>-</c> one row above and below center) for the duration of the animation.
     /// Left column uses description only (no menu), matching that layout.
     /// </summary>
     private void AnimateRoomSlide(string[] oldPanel, string[] newPanel, GameState afterNavigate, char direction)
@@ -261,6 +262,13 @@ public class App(
         const int frames = 22;
         bool northSouth = direction is not 'e' and not 'w';
         int frameDelayMs = northSouth ? 22 : 28; // north/south ~20% shorter per frame than previous 28ms
+        int verticalStripLength = panelRows + 1 + panelRows;
+        int maxVerticalScroll = verticalStripLength - panelRows;
+        const int eastWestHallConnectorLen = 1;
+        int eastWestHallCenterRow = panelRows / 2;
+        int horizontalCombinedLen = panelOuter + eastWestHallConnectorLen + panelOuter;
+        int maxHorizontalOffset = horizontalCombinedLen - panelOuter;
+
         for (int f = 0; f < frames; f++)
         {
             double t = frames <= 1 ? 1 : f / (double)(frames - 1);
@@ -269,15 +277,16 @@ public class App(
             buffer.DrawText(0, 1, "");
 
             // North: new map above old in the strip; scroll down. South: old above new; scroll down.
+            // One hallway row sits between the two room panels (only during this animation).
             if (direction is not 'e' and not 'w')
             {
                 var strip = direction == 'n'
-                    ? BuildVerticalStrip(newRows, oldRows)
-                    : BuildVerticalStrip(oldRows, newRows);
+                    ? BuildVerticalStripWithHallway(newRows, oldRows, panelOuter)
+                    : BuildVerticalStripWithHallway(oldRows, newRows, panelOuter);
                 int scroll = direction == 'n'
-                    ? (int)Math.Round((1 - t) * panelRows)
-                    : (int)Math.Round(t * panelRows);
-                scroll = Math.Clamp(scroll, 0, panelRows);
+                    ? (int)Math.Round((1 - t) * maxVerticalScroll)
+                    : (int)Math.Round(t * maxVerticalScroll);
+                scroll = Math.Clamp(scroll, 0, maxVerticalScroll);
 
                 for (int r = 0; r < H; r++)
                 {
@@ -308,8 +317,9 @@ public class App(
             {
                 bool east = direction == 'e';
                 int offset = east
-                    ? (int)Math.Round(t * panelOuter)
-                    : (int)Math.Round((1 - t) * panelOuter);
+                    ? (int)Math.Round(t * maxHorizontalOffset)
+                    : (int)Math.Round((1 - t) * maxHorizontalOffset);
+                offset = Math.Clamp(offset, 0, maxHorizontalOffset);
                 for (int r = 0; r < H; r++)
                 {
                     string left = r < newLeft.Count
@@ -320,9 +330,13 @@ public class App(
                     string right = blankRight;
                     if (pi >= 0 && pi < panelRows)
                     {
+                        char hallChar = pi == eastWestHallCenterRow - 1 || pi == eastWestHallCenterRow + 1
+                            ? '-'
+                            : ' ';
+                        string hallSegment = hallChar.ToString();
                         string combined = east
-                            ? oldRowsPlain[pi] + newRowsPlain[pi]
-                            : newRowsPlain[pi] + oldRowsPlain[pi];
+                            ? oldRowsPlain[pi] + hallSegment + newRowsPlain[pi]
+                            : newRowsPlain[pi] + hallSegment + oldRowsPlain[pi];
                         string rightPlain = combined.Substring(offset, panelOuter);
                         right = Terminal.Border(rightPlain);
                     }
@@ -352,10 +366,14 @@ public class App(
         return list;
     }
 
-    private static List<string> BuildVerticalStrip(IReadOnlyList<string> top, IReadOnlyList<string> bottom)
+    private static List<string> BuildVerticalStripWithHallway(
+        IReadOnlyList<string> top,
+        IReadOnlyList<string> bottom,
+        int panelOuter)
     {
-        var strip = new List<string>(top.Count + bottom.Count);
+        var strip = new List<string>(top.Count + 1 + bottom.Count);
         strip.AddRange(top);
+        strip.Add(Terminal.Border(AdventureLayout.BuildHallwayConnectorRow(panelOuter)));
         strip.AddRange(bottom);
         return strip;
     }

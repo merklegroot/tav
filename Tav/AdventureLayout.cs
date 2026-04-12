@@ -267,6 +267,18 @@ public static class AdventureLayout
         return new string(' ', left) + content + new string(' ', pad - left);
     }
 
+    /// <summary>One horizontal row of an N–S corridor between stacked room panels (full <paramref name="outerWidth"/>); walls <c>│</c> sit beside the center with one space between.</summary>
+    public static string BuildHallwayConnectorRow(int outerWidth)
+    {
+        const string core = "│ │";
+        if (outerWidth <= 0)
+            return "";
+        if (outerWidth < core.Length)
+            return Truncate(core, outerWidth);
+
+        return CenterVisual(core, outerWidth);
+    }
+
     public static string[] BuildRoomPanel(
         Room room,
         int outerWidth,
