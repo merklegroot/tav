@@ -84,7 +84,7 @@
     "description": "Weapon racks line the walls, mostly bare. Rust flakes under your boots, and drafts carry a smell of wet earth from deeper in.",
     "exits": {
       "s": "courtyard",
-      "n": "collapsed_cell"
+      "e": "collapsed_cell"
     },
     "groundItems": [
       "axe"
@@ -95,7 +95,7 @@
     "name": "Collapsed Cell",
     "description": "A fallen beam splits the corridor. Beyond it, iron bars twist in the rubble—whatever was kept here is long gone, but the dark still feels watchful.",
     "exits": {
-      "s": "armory_lane"
+      "w": "armory_lane"
     }
   }
 ]
