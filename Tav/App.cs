@@ -44,7 +44,8 @@ public class App(
 
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);
-            if (TryNavigateCompass(normalized, roomsById, state))
+            if (TryParseCompassMovementKey(normalized, out char compassExit) &&
+                TryNavigateCompass(compassExit, roomsById, state))
                 continue;
 
             menuItems.FirstOrDefault(m => m.Key == normalized)?.Action.Invoke();
@@ -1094,7 +1095,7 @@ public class App(
         ClearConsole();
         WriteFullWidthTitleBar("== Help ==", state);
         Console.WriteLine();
-        Console.WriteLine(Terminal.Muted("Move with N, E, S, W (see compass)."));
+        Console.WriteLine(Terminal.Muted("Move with WASD (see compass). N, E, and S also move north, east, and south."));
         int helpW = HelpScreenMenuLineWidth();
         Console.WriteLine(
             AdventureLayout.FormatMenuLine(
@@ -1306,6 +1307,34 @@ public class App(
             Action = exit,
         });
         return items;
+    }
+
+    /// <summary>
+    /// Maps player movement keys to exit keys on <see cref="Room.Exits"/> (n/e/s/w). WASD: W north, A west, S south, D east.
+    /// Also accepts N, E, S as compass initials; west is A only (W is north).
+    /// </summary>
+    private static bool TryParseCompassMovementKey(char input, out char compassExitKey)
+    {
+        compassExitKey = default;
+        switch (char.ToLowerInvariant(input))
+        {
+            case 'w':
+            case 'n':
+                compassExitKey = 'n';
+                return true;
+            case 'd':
+            case 'e':
+                compassExitKey = 'e';
+                return true;
+            case 's':
+                compassExitKey = 's';
+                return true;
+            case 'a':
+                compassExitKey = 'w';
+                return true;
+            default:
+                return false;
+        }
     }
 
     private bool TryNavigateCompass(

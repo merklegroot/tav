@@ -354,11 +354,11 @@ public static class AdventureLayout
         string DirLetter(bool open, char letter) =>
             open ? Terminal.MenuParenKey(letter) : Terminal.Muted(letter.ToString());
 
-        string rowN = CenterVisual(DirLetter(n, 'N'), outerWidth);
+        string rowN = CenterVisual(DirLetter(n, 'W'), outerWidth);
         string rowS = CenterVisual(DirLetter(s, 'S'), outerWidth);
         string pipe = CenterVisual(Terminal.Muted("|"), outerWidth);
         string rowWe = CenterVisual(
-            DirLetter(w, 'W') + Terminal.Muted(" -   - ") + DirLetter(e, 'E'),
+            DirLetter(w, 'A') + Terminal.Muted(" -   - ") + DirLetter(e, 'D'),
             outerWidth);
 
         return new[] { rowN, pipe, rowWe, pipe, rowS };
