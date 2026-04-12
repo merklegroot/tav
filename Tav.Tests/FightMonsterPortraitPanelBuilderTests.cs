@@ -38,11 +38,12 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
         panel[1].ShouldBe(@"│                │");
         panel[2].ShouldBe(@"│     5/6 HP     │");
         panel[3].ShouldBe(@"│                │");
-        panel[4].ShouldBe(@"│    .-----.     │");
-        panel[5].ShouldBe(@"│    o    o      │");
-        panel[6].ShouldBe(@"│    \  ^  /     │");
-        panel[7].ShouldBe(@"│     [===]      │");
-        panel[8].ShouldBe(@"│   /       \s   │");
+        // Art rows carry embedded SGR from .ans when ANSI is on; compare visible glyphs only.
+        Terminal.StripAnsi(panel[4]).ShouldBe(@"│    .-----.     │");
+        Terminal.StripAnsi(panel[5]).ShouldBe(@"│    o    o      │");
+        Terminal.StripAnsi(panel[6]).ShouldBe(@"│    \  ^  /     │");
+        Terminal.StripAnsi(panel[7]).ShouldBe(@"│     [===]      │");
+        Terminal.StripAnsi(panel[8]).ShouldBe(@"│   /       \s   │");
         panel[9].ShouldBe(@"│                │");
         panel[10].ShouldContain("Bone Gnawer");
         panel[11].ShouldContain("Threat 3/5");

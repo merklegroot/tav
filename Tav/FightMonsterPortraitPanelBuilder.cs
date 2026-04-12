@@ -4,7 +4,7 @@ using Tav.Store;
 
 namespace Tav;
 
-/// <summary>Builds the fight UI right column: HP, white portrait art from <see cref="IMonsterImageStore"/>, name, gray thin frame.</summary>
+/// <summary>Builds the fight UI right column: HP, portrait art from <see cref="IMonsterImageStore"/> (embedded ANSI in <c>.ans</c> like manipulatives), name, gray thin frame.</summary>
 public static class FightMonsterPortraitPanelBuilder
 {
     public static string[] Build(
@@ -38,15 +38,21 @@ public static class FightMonsterPortraitPanelBuilder
         int shown = Math.Max(0, currentHp);
         string hpLine = AdventureLayout.CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), innerWidth);
         var lines = new List<string> { hpLine, "" };
-        lines.AddRange(
-            silhouetteArt
-                ? monsterImages.Lines(monster.Id).Select(Terminal.Silhouette)
-                : monsterImages.Lines(monster.Id).Select(Terminal.PortraitArt));
+        lines.AddRange(monsterImages.Lines(monster.Id).Select(line => StyleMonsterPortraitLine(line, silhouetteArt)));
         lines.Add("");
         lines.Add(AdventureLayout.CenterVisual(Terminal.Combat(monster.Name), innerWidth));
         int tier = Math.Clamp(monster.DifficultyRating, 1, 5);
         lines.Add(AdventureLayout.CenterVisual(Terminal.Muted($"Threat {tier}/5"), innerWidth));
         return lines;
+    }
+
+    /// <summary>Same convention as <see cref="InventoryManipulativePortraitPanelBuilder"/>: embedded SGR in <c>.ans</c> lines when ANSI is on; strip for plain output.</summary>
+    private static string StyleMonsterPortraitLine(string line, bool silhouetteArt)
+    {
+        string body = Terminal.UseAnsi ? line : Terminal.StripAnsi(line);
+        return silhouetteArt
+            ? Terminal.Silhouette(body)
+            : Terminal.PortraitArt(body);
     }
 
     /// <summary>Very dim dark red X on both diagonals across the art block; non-X glyphs muted so the body stays visible underneath.</summary>
