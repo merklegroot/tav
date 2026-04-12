@@ -12,5 +12,8 @@ public record Room
     [JsonConverter(typeof(GroundItemsJsonConverter))]
     public List<GroundItemStack>? GroundItems { get; init; }
 
+    /// <summary>Monster ids that can spawn when the player fights in this room; pick one at random each encounter.</summary>
+    public List<string>? EncounterMonsterIds { get; init; }
+
     public bool IsInitialRoom { get; init; }
 }

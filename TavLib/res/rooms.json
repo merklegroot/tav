@@ -3,6 +3,7 @@
     "id": "castle_entrance",
     "name": "Castle Entrance",
     "description": "Cold stone towers over you as the heavy gate stands ajar. The air smells of rain and iron.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "n": "cobble_approach",
       "e": "courtyard"
@@ -17,6 +18,7 @@
     "id": "cobble_approach",
     "name": "Cobble Approach",
     "description": "Worn steps lead up from the gate. Moss fills the cracks between the stones, and you hear the wind in the parapets above.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "s": "castle_entrance",
       "n": "great_hall"
@@ -26,6 +28,7 @@
     "id": "courtyard",
     "name": "Courtyard",
     "description": "An open yard of slick cobblestones. A dry fountain sits at the center, and torchlight flickers along the walls. A narrow passage leads north into older stone.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "w": "castle_entrance",
       "n": "armory_lane"
@@ -35,6 +38,7 @@
     "id": "great_hall",
     "name": "Great Hall",
     "description": "Timbers soar overhead, hung with faded banners. Long hearths stand cold; your footsteps echo as if the place were still waiting for a feast that never came.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "n": "throne_room",
       "e": "servants_passage",
@@ -45,6 +49,7 @@
     "id": "throne_room",
     "name": "Throne Room",
     "description": "A dais of black marble rises at the far end. The throne is empty, its high back carved with worn crests—but the candles along the walls burn steady, as though someone tends them still.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "s": "great_hall",
       "w": "royal_chapel"
@@ -57,6 +62,7 @@
     "id": "royal_chapel",
     "name": "Royal Chapel",
     "description": "Stained glass throws pale shards of color onto the flagstones. The altar is bare; dust lies thick except where many feet have lately crossed the center aisle.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "e": "throne_room"
     }
@@ -65,6 +71,7 @@
     "id": "servants_passage",
     "name": "Servants' Passage",
     "description": "A low corridor meant for trays and quiet feet. Hooks for lanterns line the walls; a draft from somewhere ahead carries the smell of old bread and stone.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "w": "great_hall",
       "n": "kitchen_cellar_stairs"
@@ -74,6 +81,7 @@
     "id": "kitchen_cellar_stairs",
     "name": "Kitchen Cellar Stairs",
     "description": "Steps spiral down into damp shadow. From below comes a slow drip of water and the faint scrape of something dragged across flagstones long ago.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "s": "servants_passage"
     }
@@ -82,6 +90,7 @@
     "id": "armory_lane",
     "name": "Armory Lane",
     "description": "Weapon racks line the walls, mostly bare. Rust flakes under your boots, and drafts carry a smell of wet earth from deeper in.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "s": "courtyard",
       "e": "collapsed_cell"
@@ -94,6 +103,7 @@
     "id": "collapsed_cell",
     "name": "Collapsed Cell",
     "description": "A fallen beam splits the corridor. Beyond it, iron bars twist in the rubble—whatever was kept here is long gone, but the dark still feels watchful.",
+    "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "w": "armory_lane"
     }

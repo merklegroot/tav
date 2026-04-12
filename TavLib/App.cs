@@ -26,6 +26,7 @@ public class App(
         var rooms = roomStore.LoadAll();
         var roomsById = rooms.ToDictionary(r => r.Id.ToLowerInvariant());
         var monsters = monsterStore.LoadAll();
+        var monstersById = monsters.ToDictionary(m => m.Id.ToLowerInvariant());
         bool snapshotExitAfterFirstFrame = string.Equals(
             Environment.GetEnvironmentVariable("TAV_SNAPSHOT"),
             "1",
@@ -33,7 +34,7 @@ public class App(
 
         while (!state.ShouldExit)
         {
-            var menuItems = BuildMenuItems(monsters, state, () => state.ShouldExit = true);
+            var menuItems = BuildMenuItems(monstersById, state, () => state.ShouldExit = true);
 
             PrintScreen(state, menuItems);
 
@@ -47,7 +48,7 @@ public class App(
             var input = ReadInputChar();
             var normalized = char.ToLowerInvariant(input);
             if (TryParseCompassMovementKey(normalized, out char compassExit) &&
-                TryNavigateCompass(compassExit, roomsById, state))
+                TryNavigateCompass(compassExit, roomsById, state, monstersById))
                 continue;
 
             menuItems.FirstOrDefault(m => m.Key == normalized)?.Action.Invoke();
@@ -1302,7 +1303,7 @@ public class App(
     }
 
     private List<MenuItem> BuildMenuItems(
-        IReadOnlyList<Monster> monsters,
+        IReadOnlyDictionary<string, Monster> monstersById,
         GameState state,
         Action exit)
     {
@@ -1344,7 +1345,7 @@ public class App(
         {
             Text = "(F)ight",
             Key = 'f',
-            Action = () => RunFightEncounter(state, monsters),
+            Action = () => RunFightEncounter(state, ResolveEncounterMonsters(state.CurrentRoom, monstersById)),
         });
         items.Add(new MenuItem
         {
@@ -1395,10 +1396,14 @@ public class App(
         }
     }
 
+    /// <summary>After entering a room via movement, percent chance (0–100) to start a fight from that room’s encounter list.</summary>
+    private const int RandomEncounterChancePercent = 35;
+
     private bool TryNavigateCompass(
         char internalDirection,
         IReadOnlyDictionary<string, Room> roomsById,
-        GameState state)
+        GameState state,
+        IReadOnlyDictionary<string, Monster> monstersById)
     {
         if (internalDirection is not ('n' or 'e' or 's' or 'w'))
             return false;
@@ -1418,7 +1423,20 @@ public class App(
             AdventureLayout.BuildRoomPanel(terminal, state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, isCurrentRoom: true),
             state,
             internalDirection);
+        MaybeRandomEncounterAfterRoomEntry(state, monstersById);
         return true;
+    }
+
+    private void MaybeRandomEncounterAfterRoomEntry(GameState state, IReadOnlyDictionary<string, Monster> monstersById)
+    {
+        List<Monster> pool = ResolveEncounterMonsters(state.CurrentRoom, monstersById);
+        if (pool.Count == 0)
+            return;
+
+        if (_random.Next(100) >= RandomEncounterChancePercent)
+            return;
+
+        RunFightEncounter(state, pool);
     }
 
     private int EquippedWeaponSlotAttackBonus(GameState state)
@@ -1445,9 +1463,35 @@ public class App(
         return manipulativeStore.Get(state.EquippedHelmetId)?.AttackBonus ?? 0;
     }
 
-    private void RunFightEncounter(GameState state, IReadOnlyList<Monster> monsters)
+    private static List<Monster> ResolveEncounterMonsters(Room room, IReadOnlyDictionary<string, Monster> monstersById)
     {
-        var monster = monsters[_random.Next(monsters.Count)];
+        if (room.EncounterMonsterIds is null || room.EncounterMonsterIds.Count == 0)
+            return [];
+
+        var list = new List<Monster>();
+        foreach (string rawId in room.EncounterMonsterIds)
+        {
+            if (monstersById.TryGetValue(rawId.ToLowerInvariant(), out Monster? m))
+                list.Add(m);
+        }
+
+        return list;
+    }
+
+    private void RunFightEncounter(GameState state, IReadOnlyList<Monster> encounterPool)
+    {
+        if (encounterPool.Count == 0)
+        {
+            ClearConsole();
+            WriteFullWidthTitleBar("== Fight ==", state);
+            console.WriteLine();
+            console.WriteLine(terminal.Muted("Nothing stirs worth crossing blades with here."));
+            console.WriteLine();
+            PauseForContinue();
+            return;
+        }
+
+        var monster = encounterPool[_random.Next(encounterPool.Count)];
         int monsterHp = monster.HitPoints;
         var battleLog = new List<string>();
         bool showIntro = true;
