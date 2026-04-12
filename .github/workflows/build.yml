@@ -20,13 +20,16 @@ jobs:
       - name: Restore and build
         run: dotnet build tav.slnx --configuration Release
 
+      - name: Test
+        run: dotnet test tav.slnx --configuration Release --no-build
+
       - name: Capture settled console (main screen)
         env:
           TAV_SNAPSHOT: "1"
         run: |
           set -euo pipefail
           mkdir -p ci
-          dotnet run --project Tav/Tav.csproj --configuration Release --no-build > ci/console-snapshot.txt
+          dotnet run --project TavCon/TavCon.csproj --configuration Release --no-build > ci/console-snapshot.txt
           echo "---- console snapshot (first frame, plain text) ----"
           cat ci/console-snapshot.txt
 
