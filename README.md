@@ -75,6 +75,13 @@ When an edible item from the inventory is selected
 Core attributes (small integers, roughly 8–18 for a normal adventurer):
 
 - **Hit points** — Current and maximum. At 0 HP the character (or monster) is defeated.
+
+### Player defeat in combat
+
+When the player is defeated in a fight (including choosing **(D)ie**), their current HP is set to one quarter of maximum HP (minimum 1). In addition:
+
+- **Location** — They are moved back to the **initial room** on the map (exactly one room in `rooms.json` is marked `isInitialRoom: true`, e.g. the castle entrance).
+- **Gold** — They lose **half of their gold**, rounded down (`floor(gold / 2)`). The remainder stays in `Gold`.
 - **Strength** — Physical power. Feeds directly into damage on a hit.
 - **Dexterity** — Speed and coordination. Feeds into who acts first, whether an attack connects, and how cleanly a connected hit lands (how much of the strike’s potential becomes real damage).
 

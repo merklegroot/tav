@@ -1608,6 +1608,22 @@ public class App(
         Console.WriteLine();
         Console.WriteLine(Terminal.Combat("Everything goes dark…"));
         Console.WriteLine(Terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
+
+        int goldLost = state.Gold / 2;
+        state.Gold -= goldLost;
+        state.CurrentRoom = state.InitialRoom;
+        string place = state.InitialRoom.Name;
+        if (goldLost > 0)
+        {
+            Console.WriteLine(
+                Terminal.Muted(
+                    $"You find yourself back at {place}. Half your gold is gone ({goldLost} lost, {state.Gold} left)."));
+        }
+        else
+        {
+            Console.WriteLine(Terminal.Muted($"You find yourself back at {place}, empty-pursed as before."));
+        }
+
         state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
         Console.WriteLine();
         PauseForContinue();

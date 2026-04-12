@@ -4,6 +4,9 @@ namespace Tav;
 
 public record GameState
 {
+    /// <summary>Spawn room from room data (<c>isInitialRoom: true</c>); used after combat defeat to move the player back.</summary>
+    public Room InitialRoom { get; init; }
+
     public Room CurrentRoom { get; set; }
     public bool ShouldExit { get; set; }
 
@@ -35,6 +38,7 @@ public record GameState
 
     public GameState(Room start, IReadOnlyList<string> startingInventory)
     {
+        InitialRoom = start;
         CurrentRoom = start;
         MaxHitPoints = 20;
         HitPoints = MaxHitPoints;
