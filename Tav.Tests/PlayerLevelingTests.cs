@@ -1,3 +1,4 @@
+using Tav;
 using Tav.Models;
 using Xunit;
 
@@ -5,6 +6,8 @@ namespace Tav.Tests;
 
 public class PlayerLevelingTests
 {
+    private static readonly ITerminal TestTerminal = new Terminal(new ConsoleWrapper());
+
     private static GameState NewState()
     {
         var room = new Room
@@ -48,7 +51,7 @@ public class PlayerLevelingTests
         int max0 = state.MaxHitPoints;
         int hp0 = state.HitPoints;
 
-        var lines = PlayerLeveling.GainExperience(state, 1);
+        var lines = PlayerLeveling.GainExperience(state, 1, TestTerminal);
 
         Assert.Equal(50, state.Experience);
         Assert.Equal(2, PlayerLeveling.GetLevelFromTotalExperience(state.Experience));
@@ -66,7 +69,7 @@ public class PlayerLevelingTests
         var state = NewState();
         state.Experience = 40;
 
-        var lines = PlayerLeveling.GainExperience(state, 200);
+        var lines = PlayerLeveling.GainExperience(state, 200, TestTerminal);
 
         Assert.Equal(240, state.Experience);
         Assert.Equal(3, PlayerLeveling.GetLevelFromTotalExperience(state.Experience));
@@ -80,7 +83,7 @@ public class PlayerLevelingTests
         state.Experience = 199;
         int dexBefore = state.Dexterity;
 
-        PlayerLeveling.GainExperience(state, 1);
+        PlayerLeveling.GainExperience(state, 1, TestTerminal);
 
         Assert.Equal(200, state.Experience);
         Assert.Equal(3, PlayerLeveling.GetLevelFromTotalExperience(state.Experience));

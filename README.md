@@ -43,9 +43,13 @@ When that's not enough, it can be split into three lines.
 
 Unicode versions of the old extended ascii characters can be used to represent doors.
 
+## Movement
+
+On the main adventure screen, move between rooms with **WASD** (W north, A west, S south, D east). **N**, **E**, and **S** also move in those directions; **west** is **A** only so **W** stays unambiguous as north.
+
 ## Compass
 
-The compass control should make it clear which directions are available to the user. Movement uses **W** (forward / north), **A** (west), **S** (south), and **D** (east), matching the compass labels.
+The compass control should make it clear which directions are available to the user. Keys in the diagram match **WASD** (north **W**, west **A**, east **D**, south **S**), matching the movement keys above (**N**, **E**, and **S** also move in those directions; west is **A** only).
 
 ```text
     W

@@ -6,6 +6,7 @@ namespace Tav;
 public static class InventoryManipulativePortraitPanelBuilder
 {
     public static string[] Build(
+        ITerminal terminal,
         IManipulativeImageStore manipulativeImages,
         string displayName,
         string imageStem,
@@ -15,29 +16,29 @@ public static class InventoryManipulativePortraitPanelBuilder
         int inner = AdventureLayout.PortraitCardInnerWidth;
         var raw = new List<string>
         {
-            AdventureLayout.CenterVisual(Terminal.Accent(displayName), inner),
+            AdventureLayout.CenterVisual(terminal, terminal.Accent(displayName), inner),
             "",
         };
         raw.AddRange(
             manipulativeImages.Lines(imageStem).Select(line =>
-                Terminal.PortraitArt(Terminal.UseAnsi ? line : Terminal.StripAnsi(line))));
+                terminal.PortraitArt(terminal.UseAnsi ? line : terminal.StripAnsi(line))));
         raw.Add("");
         if (string.IsNullOrWhiteSpace(effectSummaryPlain))
-            raw.Add(AdventureLayout.CenterVisual("", inner));
+            raw.Add(AdventureLayout.CenterVisual(terminal, "", inner));
         else
-            raw.AddRange(BuildEffectFooterInnerLines(effectSummaryPlain.Trim(), inner));
+            raw.AddRange(BuildEffectFooterInnerLines(terminal, effectSummaryPlain.Trim(), inner));
 
-        string[] fitted = AdventureLayout.FitPortraitCardInnerLines(raw, inner);
-        string[] cells = AdventureLayout.BuildPortraitPanelCells(fitted, inner);
-        return AdventureLayout.WrapThinBoxAroundInnerRows(cells, outer);
+        string[] fitted = AdventureLayout.FitPortraitCardInnerLines(terminal, raw, inner);
+        string[] cells = AdventureLayout.BuildPortraitPanelCells(terminal, fitted, inner);
+        return AdventureLayout.WrapThinBoxAroundInnerRows(terminal, cells, outer);
     }
 
     /// <summary>One or more inner-width rows (centered, muted). Splits on <c>", "</c> when each segment fits; otherwise word-wraps.</summary>
-    private static IEnumerable<string> BuildEffectFooterInnerLines(string plain, int inner)
+    private static IEnumerable<string> BuildEffectFooterInnerLines(ITerminal terminal, string plain, int inner)
     {
-        if (Terminal.VisibleLength(plain) <= inner)
+        if (terminal.VisibleLength(plain) <= inner)
         {
-            yield return AdventureLayout.CenterVisual(Terminal.Muted(plain), inner);
+            yield return AdventureLayout.CenterVisual(terminal, terminal.Muted(plain), inner);
             yield break;
         }
 
@@ -47,7 +48,7 @@ public static class InventoryManipulativePortraitPanelBuilder
             bool allFit = parts.Length >= 2;
             foreach (string p in parts)
             {
-                if (Terminal.VisibleLength(p.Trim()) > inner)
+                if (terminal.VisibleLength(p.Trim()) > inner)
                 {
                     allFit = false;
                     break;
@@ -60,7 +61,7 @@ public static class InventoryManipulativePortraitPanelBuilder
                 {
                     string t = p.Trim();
                     if (t.Length > 0)
-                        yield return AdventureLayout.CenterVisual(Terminal.Muted(t), inner);
+                        yield return AdventureLayout.CenterVisual(terminal, terminal.Muted(t), inner);
                 }
 
                 yield break;
@@ -68,6 +69,6 @@ public static class InventoryManipulativePortraitPanelBuilder
         }
 
         foreach (string w in AdventureLayout.WrapText(plain, inner))
-            yield return AdventureLayout.CenterVisual(Terminal.Muted(w), inner);
+            yield return AdventureLayout.CenterVisual(terminal, terminal.Muted(w), inner);
     }
 }

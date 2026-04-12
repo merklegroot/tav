@@ -23,7 +23,7 @@ public interface IManipulativeUtil
     string? GetInventoryPortraitEffectSummaryLine(ManipulativeDefinition definition, GameState state);
 }
 
-public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulativeUtil
+public class ManipulativeUtil(IManipulativeStore manipulativeStore, ITerminal terminal) : IManipulativeUtil
 {
     public string GetDisplayName(string manipulativeId)
     {
@@ -40,16 +40,16 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         if (cap <= 0)
             yield break;
 
-        yield return Terminal.Muted($"Restores {cap} HP.");
+        yield return terminal.Muted($"Restores {cap} HP.");
         if (state.HitPoints >= state.MaxHitPoints)
         {
-            yield return Terminal.Muted(
+            yield return terminal.Muted(
                 "You're at full health — eating won't restore HP, but you can still eat it.");
             yield break;
         }
 
         int wouldHeal = Math.Min(cap, state.MaxHitPoints - state.HitPoints);
-        yield return Terminal.Muted($"If you eat it now, you would restore {wouldHeal} HP.");
+        yield return terminal.Muted($"If you eat it now, you would restore {wouldHeal} HP.");
     }
 
     public IEnumerable<string> GetHelmetEffectDescriptionLines(ManipulativeDefinition definition)
@@ -60,23 +60,23 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         int a = definition.Armor ?? 0;
         if (a > 0)
         {
-            yield return Terminal.Muted(
+            yield return terminal.Muted(
                 $"Armor {a}: each enemy hit loses up to {a} damage before HP (never below 1 damage per hit).");
         }
         else
         {
-            yield return Terminal.Muted("Armor 0 — this helmet does not reduce damage from hits.");
+            yield return terminal.Muted("Armor 0 — this helmet does not reduce damage from hits.");
         }
 
         int atk = definition.AttackBonus ?? 0;
         if (atk > 0)
         {
-            yield return Terminal.Muted(
+            yield return terminal.Muted(
                 $"Attack +{atk}: adds {atk} to strike damage when you land a hit (stacks with your equipped weapon).");
         }
         else if (atk < 0)
         {
-            yield return Terminal.Muted(
+            yield return terminal.Muted(
                 $"Attack {atk}: subtracts {-atk} from strike damage when you land a hit.");
         }
     }
@@ -89,12 +89,12 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         int a = definition.Armor ?? 0;
         if (a > 0)
         {
-            yield return Terminal.Muted(
+            yield return terminal.Muted(
                 $"Armor {a}: stacks with a helmet. Each enemy hit loses up to your total Armor before HP (never below 1 damage per hit).");
         }
         else
         {
-            yield return Terminal.Muted("Armor 0 — this piece does not reduce damage from hits.");
+            yield return terminal.Muted("Armor 0 — this piece does not reduce damage from hits.");
         }
     }
 
@@ -106,17 +106,17 @@ public class ManipulativeUtil(IManipulativeStore manipulativeStore) : IManipulat
         int atk = definition.AttackBonus ?? 0;
         if (atk > 0)
         {
-            yield return Terminal.Muted(
+            yield return terminal.Muted(
                 $"Attack +{atk}: adds {atk} to strike damage when you land a hit (stacks with attack bonus from your equipped helmet, if any).");
         }
         else if (atk < 0)
         {
-            yield return Terminal.Muted(
+            yield return terminal.Muted(
                 $"Attack {atk}: subtracts {-atk} from strike damage when you land a hit.");
         }
         else
         {
-            yield return Terminal.Muted("No combat bonuses from this weapon.");
+            yield return terminal.Muted("No combat bonuses from this weapon.");
         }
     }
 

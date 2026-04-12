@@ -41,7 +41,7 @@ public static class PlayerLeveling
     }
 
     /// <summary>Adds XP, applies every crossed level-up, returns lines to show (empty if no level-up).</summary>
-    public static List<string> GainExperience(GameState state, int amount)
+    public static List<string> GainExperience(GameState state, int amount, ITerminal terminal)
     {
         if (amount <= 0)
             return [];
@@ -52,12 +52,12 @@ public static class PlayerLeveling
 
         var lines = new List<string>();
         for (int reachedLevel = oldLevel + 1; reachedLevel <= newLevel; reachedLevel++)
-            ApplyLevelUp(state, lines, reachedLevel);
+            ApplyLevelUp(state, lines, reachedLevel, terminal);
 
         return lines;
     }
 
-    private static void ApplyLevelUp(GameState state, List<string> lines, int newLevel)
+    private static void ApplyLevelUp(GameState state, List<string> lines, int newLevel, ITerminal terminal)
     {
         state.Strength += 1;
         if (newLevel % 2 == 0)
@@ -68,26 +68,26 @@ public static class PlayerLeveling
 
         string dexPart = newLevel % 2 == 0 ? ", +1 Dexterity" : "";
         lines.Add(
-            Terminal.Ok(
+            terminal.Ok(
                 $"You advance to level {newLevel}! +1 Strength{dexPart}, +2 maximum HP (current HP up to +2)."));
     }
 
-    public static string BuildXpTitleFragment(GameState state)
+    public static string BuildXpTitleFragment(ITerminal terminal, GameState state)
     {
         int level = GetLevelFromTotalExperience(state.Experience);
         if (level >= MaxLevel)
         {
-            return Terminal.Muted("  Lv ")
-                   + Terminal.Accent(level.ToString())
-                   + Terminal.Muted("  XP ")
-                   + Terminal.Accent("MAX");
+            return terminal.Muted("  Lv ")
+                   + terminal.Accent(level.ToString())
+                   + terminal.Muted("  XP ")
+                   + terminal.Accent("MAX");
         }
 
         int into = ExperienceIntoCurrentLevel(state.Experience);
         int span = ExperienceSpanForCurrentLevel(state.Experience);
-        return Terminal.Muted("  Lv ")
-               + Terminal.Accent(level.ToString())
-               + Terminal.Muted("  XP ")
-               + Terminal.Accent($"{into}/{span}");
+        return terminal.Muted("  Lv ")
+               + terminal.Accent(level.ToString())
+               + terminal.Muted("  XP ")
+               + terminal.Accent($"{into}/{span}");
     }
 }

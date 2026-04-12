@@ -8,6 +8,7 @@ namespace Tav;
 public static class FightMonsterPortraitPanelBuilder
 {
     public static string[] Build(
+        ITerminal terminal,
         IMonsterImageStore monsterImages,
         int currentHp,
         Monster monster,
@@ -16,19 +17,20 @@ public static class FightMonsterPortraitPanelBuilder
     {
         int outer = AdventureLayout.PortraitCardOuterWidth;
         int inner = AdventureLayout.PortraitCardInnerWidth;
-        var raw = BuildRawLines(monsterImages, currentHp, monster, silhouetteArt, inner);
-        string[] fitted = AdventureLayout.FitPortraitCardInnerLines(raw, inner);
-        string[] cells = AdventureLayout.BuildPortraitPanelCells(fitted, inner);
+        var raw = BuildRawLines(terminal, monsterImages, currentHp, monster, silhouetteArt, inner);
+        string[] fitted = AdventureLayout.FitPortraitCardInnerLines(terminal, raw, inner);
+        string[] cells = AdventureLayout.BuildPortraitPanelCells(terminal, fitted, inner);
         int artLineCount = monsterImages.Lines(monster.Id).Count();
         int contentLines = 5 + artLineCount;
         int topPad = Math.Max(0, (AdventureLayout.PortraitCardInnerLineCount - contentLines) / 2);
         int artStartInCells = topPad + 2;
         if (deathCrossPortraitArtRows > 0 && cells.Length > artStartInCells)
-            ApplyDeathCrossOverlay(cells, artStartInCells, deathCrossPortraitArtRows, inner);
-        return AdventureLayout.WrapThinBoxAroundInnerRows(cells, outer);
+            ApplyDeathCrossOverlay(terminal, cells, artStartInCells, deathCrossPortraitArtRows, inner);
+        return AdventureLayout.WrapThinBoxAroundInnerRows(terminal, cells, outer);
     }
 
     private static List<string> BuildRawLines(
+        ITerminal terminal,
         IMonsterImageStore monsterImages,
         int currentHp,
         Monster monster,
@@ -36,27 +38,32 @@ public static class FightMonsterPortraitPanelBuilder
         int innerWidth)
     {
         int shown = Math.Max(0, currentHp);
-        string hpLine = AdventureLayout.CenterVisual(Terminal.Combat($"{shown}/{monster.HitPoints} HP"), innerWidth);
+        string hpLine = AdventureLayout.CenterVisual(terminal, terminal.Combat($"{shown}/{monster.HitPoints} HP"), innerWidth);
         var lines = new List<string> { hpLine, "" };
-        lines.AddRange(monsterImages.Lines(monster.Id).Select(line => StyleMonsterPortraitLine(line, silhouetteArt)));
+        lines.AddRange(monsterImages.Lines(monster.Id).Select(line => StyleMonsterPortraitLine(terminal, line, silhouetteArt)));
         lines.Add("");
-        lines.Add(AdventureLayout.CenterVisual(Terminal.Combat(monster.Name), innerWidth));
+        lines.Add(AdventureLayout.CenterVisual(terminal, terminal.Combat(monster.Name), innerWidth));
         int tier = Math.Clamp(monster.DifficultyRating, 1, 5);
-        lines.Add(AdventureLayout.CenterVisual(Terminal.Muted($"Threat {tier}/5"), innerWidth));
+        lines.Add(AdventureLayout.CenterVisual(terminal, terminal.Muted($"Threat {tier}/5"), innerWidth));
         return lines;
     }
 
     /// <summary>Same convention as <see cref="InventoryManipulativePortraitPanelBuilder"/>: embedded SGR in <c>.ans</c> lines when ANSI is on; strip for plain output.</summary>
-    private static string StyleMonsterPortraitLine(string line, bool silhouetteArt)
+    private static string StyleMonsterPortraitLine(ITerminal terminal, string line, bool silhouetteArt)
     {
-        string body = Terminal.UseAnsi ? line : Terminal.StripAnsi(line);
+        string body = terminal.UseAnsi ? line : terminal.StripAnsi(line);
         return silhouetteArt
-            ? Terminal.Silhouette(body)
-            : Terminal.PortraitArt(body);
+            ? terminal.Silhouette(body)
+            : terminal.PortraitArt(body);
     }
 
     /// <summary>Very dim dark red X on both diagonals across the art block; non-X glyphs muted so the body stays visible underneath.</summary>
-    private static void ApplyDeathCrossOverlay(string[] panel, int artStartIndex, int artRowCount, int panelOuter)
+    private static void ApplyDeathCrossOverlay(
+        ITerminal terminal,
+        string[] panel,
+        int artStartIndex,
+        int artRowCount,
+        int panelOuter)
     {
         if (artRowCount <= 0)
             return;
@@ -65,7 +72,7 @@ public static class FightMonsterPortraitPanelBuilder
         {
             int idx = artStartIndex + r;
             if (idx < panel.Length)
-                panel[idx] = OverlayDeathCrossOnPanelLine(panel[idx], r, artRowCount, panelOuter);
+                panel[idx] = OverlayDeathCrossOnPanelLine(terminal, panel[idx], r, artRowCount, panelOuter);
         }
     }
 
@@ -83,9 +90,14 @@ public static class FightMonsterPortraitPanelBuilder
                || Math.Abs(col - forwardCol) <= thickness;
     }
 
-    private static string OverlayDeathCrossOnPanelLine(string panelLine, int rowInArt, int artRows, int outer)
+    private static string OverlayDeathCrossOnPanelLine(
+        ITerminal terminal,
+        string panelLine,
+        int rowInArt,
+        int artRows,
+        int outer)
     {
-        string plain = Terminal.StripAnsi(panelLine);
+        string plain = terminal.StripAnsi(panelLine);
         if (plain.Length > outer)
             plain = plain[..outer];
         plain = plain.PadRight(outer);
@@ -95,7 +107,7 @@ public static class FightMonsterPortraitPanelBuilder
         {
             if (VisibleCellOnDeathCross(rowInArt, c, artRows, outer))
             {
-                sb.Append(Terminal.CombatDark("X"));
+                sb.Append(terminal.CombatDark("X"));
                 continue;
             }
 
@@ -103,7 +115,7 @@ public static class FightMonsterPortraitPanelBuilder
             if (ch == ' ')
                 sb.Append(' ');
             else
-                sb.Append(Terminal.Muted(ch.ToString()));
+                sb.Append(terminal.Muted(ch.ToString()));
         }
 
         return sb.ToString();
