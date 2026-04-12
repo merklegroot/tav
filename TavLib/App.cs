@@ -1077,13 +1077,13 @@ public class App(
 
         if (state.EquippedBodyArmorId is null)
         {
-            console.WriteLine(terminal.Muted("  Body armor: none"));
+            console.WriteLine(terminal.Muted("  Armor: none"));
             return;
         }
 
         var bodyDef = manipulativeStore.Get(state.EquippedBodyArmorId);
         string bodyName = bodyDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedBodyArmorId);
-        console.WriteLine(terminal.Accent($"  Body armor: {bodyName}"));
+        console.WriteLine(terminal.Accent($"  Armor: {bodyName}"));
 
         if (bodyDef is null)
         {
