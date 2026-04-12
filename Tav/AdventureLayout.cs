@@ -28,13 +28,13 @@ public static class AdventureLayout
     /// <summary>Vertical offset from the content start row: room/map begins one line below the title block gap.</summary>
     public const int MainViewRightPanelTopOffset = 1;
 
-    public static bool CanUseWideLayout(int minWidth)
+    public static bool CanUseWideLayout(IConsoleWrapper console, int minWidth)
     {
-        if (Console.IsOutputRedirected)
+        if (console.IsOutputRedirected)
             return false;
         try
         {
-            return Console.WindowWidth >= minWidth + 1;
+            return console.WindowWidth >= minWidth + 1;
         }
         catch
         {
@@ -578,6 +578,7 @@ public static class AdventureLayout
     /// <summary>Main adventure view: title, body (wide or stacked), trailing blank line in wide mode.</summary>
     public static void DrawInto(
         ITerminal t,
+        IConsoleWrapper console,
         ScreenBuffer buffer,
         GameState state,
         IReadOnlyList<MenuItem> menuItems,
@@ -598,7 +599,7 @@ public static class AdventureLayout
         buffer.DrawText(0, 0, titleBar);
         buffer.DrawText(0, 1, "");
 
-        if (CanUseWideLayout(screenWidth))
+        if (CanUseWideLayout(console, screenWidth))
         {
             int H = Math.Max(leftLines.Count, MainViewRightPanelTopOffset + panel.Length);
             DrawTwoColumnRegion(

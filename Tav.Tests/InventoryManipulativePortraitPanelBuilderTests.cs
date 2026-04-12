@@ -8,7 +8,7 @@ namespace Tav.Tests;
 
 public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper outputHelper)
 {
-    private readonly ITerminal _terminal = new Terminal();
+    private readonly ITerminal _terminal = new Terminal(new ConsoleWrapper());
 
     private string Plain(string s) => _terminal.StripAnsi(s);
 

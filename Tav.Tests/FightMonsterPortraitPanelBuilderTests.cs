@@ -12,7 +12,7 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
     [Fact]
     public void Build_returns_non_empty_panel()
     {
-        ITerminal terminal = new Terminal();
+        ITerminal terminal = new Terminal(new ConsoleWrapper());
         var store = new MonsterImageStore();
         var monster = new Monster
         {

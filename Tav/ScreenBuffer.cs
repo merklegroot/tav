@@ -20,13 +20,15 @@ public sealed class ScreenBuffer
     private readonly int _width;
     private readonly int _height;
     private readonly ITerminal _terminal;
+    private readonly IConsoleWrapper _console;
 
     public int Width => _width;
     public int Height => _height;
 
-    private ScreenBuffer(int width, int height, ITerminal terminal)
+    private ScreenBuffer(int width, int height, ITerminal terminal, IConsoleWrapper console)
     {
         _terminal = terminal;
+        _console = console;
         _width = Math.Max(1, width);
         _height = Math.Max(1, height);
         _cells = new Cell[_height, _width];
@@ -37,10 +39,14 @@ public sealed class ScreenBuffer
     /// <summary>
     /// Game frames use a fixed width (<see cref="AdventureLayout.ScreenWidth"/>) and one row per legacy <c>WriteLine</c>.
     /// </summary>
-    public static ScreenBuffer ForGameLayout(int rowCount, ITerminal terminal, int? widthOverride = null)
+    public static ScreenBuffer ForGameLayout(
+        int rowCount,
+        ITerminal terminal,
+        IConsoleWrapper console,
+        int? widthOverride = null)
     {
         int w = widthOverride ?? AdventureLayout.ScreenWidth;
-        return new ScreenBuffer(w, Math.Max(1, rowCount), terminal);
+        return new ScreenBuffer(w, Math.Max(1, rowCount), terminal, console);
     }
 
     public void Clear()
@@ -143,14 +149,14 @@ public sealed class ScreenBuffer
     /// <summary>Clears the screen, homes the cursor, writes the buffer in one pass, hides the cursor (interactive terminals only).</summary>
     public void RenderToConsole()
     {
-        if (Console.IsOutputRedirected)
+        if (_console.IsOutputRedirected)
         {
             for (int y = 0; y < _height; y++)
             {
                 var sb = new StringBuilder(_width);
                 if (_rowMaxDrawnX[y] < 0)
                 {
-                    Console.WriteLine();
+                    _console.WriteLine();
                     continue;
                 }
 
@@ -159,16 +165,16 @@ public sealed class ScreenBuffer
                     end--;
                 for (int x = 0; x <= end; x++)
                     sb.Append(_cells[y, x].Ch);
-                Console.WriteLine(sb.ToString());
+                _console.WriteLine(sb.ToString());
             }
 
             return;
         }
 
-        Console.CursorVisible = false;
-        Console.Write("\u001b[H\u001b[2J");
+        _console.SetCursorVisible(false);
+        _console.Write("\u001b[H\u001b[2J");
         if (_terminal.UseAnsi)
-            Console.Write(_terminal.Reset);
+            _console.Write(_terminal.Reset);
 
         var rowSb = new StringBuilder(_width * 4);
         for (int y = 0; y < _height; y++)
@@ -194,9 +200,9 @@ public sealed class ScreenBuffer
 
             if (_terminal.UseAnsi)
                 rowSb.Append(_terminal.Reset);
-            Console.WriteLine(rowSb.ToString());
+            _console.WriteLine(rowSb.ToString());
         }
 
-        Console.Out.Flush();
+        _console.FlushOutput();
     }
 }

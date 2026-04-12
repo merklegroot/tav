@@ -65,9 +65,9 @@ public interface ITerminal
 }
 
 /// <summary>ANSI SGR helpers and string measurements; full-screen layout should compose via <see cref="ScreenBuffer"/>.</summary>
-public class Terminal : ITerminal
+public class Terminal(IConsoleWrapper console) : ITerminal
 {
-    public bool UseAnsi => !Console.IsOutputRedirected;
+    public bool UseAnsi => !console.IsOutputRedirected;
 
     public string Reset => "\x1b[0m";
 
@@ -121,7 +121,7 @@ public class Terminal : ITerminal
     {
         if (!UseAnsi)
         {
-            Console.WriteLine(text);
+            console.WriteLine(text);
             return;
         }
 
@@ -130,14 +130,14 @@ public class Terminal : ITerminal
         int i = text.IndexOf(needle, StringComparison.Ordinal);
         if (i < 0)
         {
-            Console.WriteLine(text);
+            console.WriteLine(text);
             return;
         }
 
-        Console.Write(Muted(text[..i]));
-        Console.Write(MenuParenKey(ku));
-        Console.Write(Muted(text[(i + needle.Length)..]));
-        Console.WriteLine();
+        console.Write(Muted(text[..i]));
+        console.Write(MenuParenKey(ku));
+        console.Write(Muted(text[(i + needle.Length)..]));
+        console.WriteLine();
     }
 
     public string EscBackHint()

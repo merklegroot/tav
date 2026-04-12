@@ -16,7 +16,8 @@ public class App(
     IManipulativeUtil manipulativeDescriber,
     IMonsterImageStore monsterImageStore,
     IManipulativeImageStore manipulativeImageStore,
-    ITerminal terminal) : IApp
+    ITerminal terminal,
+    IConsoleWrapper console) : IApp
 {
     private readonly Random _random = new();
 
@@ -39,7 +40,7 @@ public class App(
             if (snapshotExitAfterFirstFrame)
             {
                 state.ShouldExit = true;
-                Console.Out.Flush();
+                console.FlushOutput();
                 continue;
             }
 
@@ -55,13 +56,13 @@ public class App(
 
     private void ClearConsole()
     {
-        if (Console.IsOutputRedirected)
+        if (console.IsOutputRedirected)
             return;
 
-        Console.Write("\u001b[H\u001b[2J");
+        console.Write("\u001b[H\u001b[2J");
         if (terminal.UseAnsi)
-            Console.Write(terminal.Reset);
-        Console.Out.Flush();
+            console.Write(terminal.Reset);
+        console.FlushOutput();
     }
 
     /// <summary>
@@ -82,7 +83,8 @@ public class App(
             ? AdventureLayout.BuildPortraitPanelCells(terminal, portraitLines, panelOuter)
             : [];
 
-        bool wide = !Console.IsOutputRedirected && AdventureLayout.CanUseWideLayout(AdventureLayout.ScreenWidth);
+        bool wide = !console.IsOutputRedirected
+                     && AdventureLayout.CanUseWideLayout(console, AdventureLayout.ScreenWidth);
         int leftColWidth = AdventureLayout.LeftColumnWidth;
         int screenWidth = AdventureLayout.ScreenWidth;
         int arm = EquippedArmorRating(state);
@@ -98,7 +100,7 @@ public class App(
             bodyRows = AdventureLayout.CountStackedContentRows(leftLines.Count, panel.Length, rightPanelTopOffset);
 
         int rowCount = 1 + blankLinesAfterTitle + bodyRows + (trailingBlankLine ? 1 : 0);
-        var buffer = ScreenBuffer.ForGameLayout(rowCount, terminal);
+        var buffer = ScreenBuffer.ForGameLayout(rowCount, terminal, console);
         buffer.DrawText(0, 0, AdventureLayout.BuildTitleBar(terminal, title, state, screenWidth, arm));
         for (int b = 0; b < blankLinesAfterTitle; b++)
             buffer.DrawText(0, 1 + b, "");
@@ -138,7 +140,7 @@ public class App(
             : AdventureLayout.BuildRoomPanel(terminal, state.CurrentRoom, AdventureLayout.MapPanelOuterWidth, true);
 
         int rowCount;
-        if (AdventureLayout.CanUseWideLayout(AdventureLayout.ScreenWidth))
+        if (AdventureLayout.CanUseWideLayout(console, AdventureLayout.ScreenWidth))
         {
             int h = Math.Max(leftLines.Count, AdventureLayout.MainViewRightPanelTopOffset + panel.Length);
             rowCount = 3 + h;
@@ -148,22 +150,22 @@ public class App(
             rowCount = 4 + leftLines.Count + panel.Length;
         }
 
-        var buffer = ScreenBuffer.ForGameLayout(rowCount, terminal);
-        AdventureLayout.DrawInto(terminal, buffer, state, menuItems, equipped);
+        var buffer = ScreenBuffer.ForGameLayout(rowCount, terminal, console);
+        AdventureLayout.DrawInto(terminal, console, buffer, state, menuItems, equipped);
         buffer.RenderToConsole();
     }
 
     private void PauseForContinue()
     {
-        if (Console.IsInputRedirected)
+        if (console.IsInputRedirected)
         {
-            Console.WriteLine("(press Enter to continue)");
-            _ = Console.ReadLine();
+            console.WriteLine("(press Enter to continue)");
+            _ = console.ReadLine();
             return;
         }
 
-        Console.WriteLine("Press any key to continue...");
-        Console.ReadKey(intercept: true);
+        console.WriteLine("Press any key to continue...");
+        console.ReadKey(intercept: true);
     }
 
     private void PrintVictoryScreen(GameState state)
@@ -233,14 +235,14 @@ public class App(
     /// </summary>
     private void AnimateRoomSlide(string[] oldPanel, string[] newPanel, GameState afterNavigate, char direction)
     {
-        if (Console.IsOutputRedirected)
+        if (console.IsOutputRedirected)
             return;
 
         int leftColWidth = AdventureLayout.LeftColumnWidth;
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         int screenWidth = AdventureLayout.ScreenWidth;
 
-        if (!AdventureLayout.CanUseWideLayout(screenWidth))
+        if (!AdventureLayout.CanUseWideLayout(console, screenWidth))
             return;
 
         var newLeft = AdventureLayout.BuildLeftColumnLines(terminal, afterNavigate, leftColWidth);
@@ -276,7 +278,7 @@ public class App(
         for (int f = 0; f < frames; f++)
         {
             double t = frames <= 1 ? 1 : f / (double)(frames - 1);
-            var buffer = ScreenBuffer.ForGameLayout(rowCount, terminal);
+            var buffer = ScreenBuffer.ForGameLayout(rowCount, terminal, console);
             buffer.DrawText(0, 0, titleBar);
             buffer.DrawText(0, 1, "");
 
@@ -388,7 +390,7 @@ public class App(
     /// <summary>Full-width title line: screen title (left) and HP, gold, armor (right), matching the adventure view.</summary>
     private void WriteFullWidthTitleBar(string screenTitle, GameState state)
     {
-        Console.WriteLine(
+        console.WriteLine(
             AdventureLayout.BuildTitleBar(
                 terminal,
                 screenTitle,
@@ -432,21 +434,21 @@ public class App(
         if (!terminal.UseAnsi)
         {
             if (showEquippedYellowE)
-                Console.Write("E ");
+                console.Write("E ");
             else if (padWhenUnequipped)
-                Console.Write("  ");
-            Console.WriteLine(menuText);
+                console.Write("  ");
+            console.WriteLine(menuText);
             return;
         }
 
         if (showEquippedYellowE)
         {
-            Console.Write(terminal.Warn("E"));
-            Console.Write(terminal.Muted(" "));
+            console.Write(terminal.Warn("E"));
+            console.Write(terminal.Muted(" "));
         }
         else if (padWhenUnequipped)
         {
-            Console.Write(terminal.Muted("  "));
+            console.Write(terminal.Muted("  "));
         }
 
         char ku = char.ToUpperInvariant(hotkey);
@@ -454,14 +456,14 @@ public class App(
         int i = menuText.IndexOf(needle, StringComparison.Ordinal);
         if (i < 0)
         {
-            Console.WriteLine(menuText);
+            console.WriteLine(menuText);
             return;
         }
 
-        Console.Write(terminal.Muted(menuText[..i]));
-        Console.Write(terminal.MenuParenKey(ku));
-        Console.Write(terminal.Muted(menuText[(i + needle.Length)..]));
-        Console.WriteLine();
+        console.Write(terminal.Muted(menuText[..i]));
+        console.Write(terminal.MenuParenKey(ku));
+        console.Write(terminal.Muted(menuText[(i + needle.Length)..]));
+        console.WriteLine();
     }
 
     private void RunInventoryScreen(GameState state)
@@ -471,20 +473,20 @@ public class App(
         {
             ClearConsole();
             WriteFullWidthTitleBar("== Inventory ==", state);
-            Console.WriteLine();
+            console.WriteLine();
             if (!string.IsNullOrEmpty(listFeedback))
             {
                 foreach (string line in listFeedback.Split(Environment.NewLine))
-                    Console.WriteLine(terminal.Muted(line));
-                Console.WriteLine();
+                    console.WriteLine(terminal.Muted(line));
+                console.WriteLine();
                 listFeedback = null;
             }
 
             int n = state.Inventory.Count;
             if (n == 0)
             {
-                Console.WriteLine(terminal.Muted("  (nothing)"));
-                Console.WriteLine();
+                console.WriteLine(terminal.Muted("  (nothing)"));
+                console.WriteLine();
                 PauseForContinue();
                 return;
             }
@@ -512,8 +514,8 @@ public class App(
                     displayName: manipulativeDescriber.GetDisplayName(id),
                     hotkey: key);
             }
-            Console.WriteLine();
-            Console.WriteLine(terminal.EscBackHint());
+            console.WriteLine();
+            console.WriteLine(terminal.EscBackHint());
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -635,7 +637,7 @@ public class App(
             blankLinesAfterTitle: 1,
             trailingBlankLine: false);
 
-        var action = ReadInventoryItemDetailAction(canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
+        var action = ReadInventoryItemDetailAction(console, canEat, offerEquip: offerEquip, offerUnequip: offerUnequip);
         if (action == InventoryItemDetailAction.BackToList)
             return null;
         if (action == InventoryItemDetailAction.Drop)
@@ -772,17 +774,18 @@ public class App(
         Unequip,
     }
 
-    // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
+    // Redirected stdin: console.ReadKey is not supported — use ReadLine in those branches.
     private static InventoryItemDetailAction ReadInventoryItemDetailAction(
+        IConsoleWrapper systemConsole,
         bool offerEat,
         bool offerEquip,
         bool offerUnequip)
     {
-        if (Console.IsInputRedirected)
+        if (systemConsole.IsInputRedirected)
         {
             while (true)
             {
-                var line = Console.ReadLine();
+                var line = systemConsole.ReadLine();
                 if (line is null)
                     return InventoryItemDetailAction.BackToList;
                 if (string.IsNullOrWhiteSpace(line))
@@ -804,7 +807,7 @@ public class App(
 
         while (true)
         {
-            var key = Console.ReadKey(intercept: true);
+            var key = systemConsole.ReadKey(intercept: true);
             if (key.Key == ConsoleKey.Escape)
                 return InventoryItemDetailAction.BackToList;
             char c = char.ToLowerInvariant(key.KeyChar);
@@ -825,11 +828,11 @@ public class App(
         if (itemCount <= 0)
             return null;
 
-        if (Console.IsInputRedirected)
+        if (console.IsInputRedirected)
         {
             while (true)
             {
-                var line = Console.ReadLine();
+                var line = console.ReadLine();
                 if (line is null)
                     return null;
                 if (string.IsNullOrWhiteSpace(line))
@@ -845,7 +848,7 @@ public class App(
 
         while (true)
         {
-            var key = Console.ReadKey(intercept: true);
+            var key = console.ReadKey(intercept: true);
             if (key.Key == ConsoleKey.Escape)
                 return null;
             char c = char.ToLowerInvariant(key.KeyChar);
@@ -863,16 +866,16 @@ public class App(
             {
                 ClearConsole();
                 WriteFullWidthTitleBar("== Ground ==", state);
-                Console.WriteLine();
-                Console.WriteLine(terminal.Muted("Nothing on the ground."));
-                Console.WriteLine();
+                console.WriteLine();
+                console.WriteLine(terminal.Muted("Nothing on the ground."));
+                console.WriteLine();
                 PauseForContinue();
                 return;
             }
 
             ClearConsole();
             WriteFullWidthTitleBar("== Ground ==", state);
-            Console.WriteLine();
+            console.WriteLine();
             for (int i = 0; i < n; i++)
             {
                 int num = i + 1;
@@ -881,8 +884,8 @@ public class App(
                     $"({num}) {FormatGroundStackLine(GameStateGroundOps.GetStacksInCurrentRoom(state)[i])}",
                     key);
             }
-            Console.WriteLine();
-            Console.WriteLine(terminal.EscBackHint());
+            console.WriteLine();
+            console.WriteLine(terminal.EscBackHint());
 
             int? selectedIndex = ReadInventoryItemIndex(n);
             if (selectedIndex is null)
@@ -903,22 +906,22 @@ public class App(
         GroundItemStack stack = ground[index];
         ClearConsole();
         WriteFullWidthTitleBar("== Ground ==", state);
-        Console.WriteLine();
-        Console.WriteLine(terminal.Accent($"Selected: {FormatGroundStackLine(stack)}"));
-        Console.WriteLine();
+        console.WriteLine();
+        console.WriteLine(terminal.Accent($"Selected: {FormatGroundStackLine(stack)}"));
+        console.WriteLine();
         terminal.WriteMenuLine("(T)ake", 't');
-        Console.WriteLine();
-        Console.WriteLine(terminal.EscBackHint());
+        console.WriteLine();
+        console.WriteLine(terminal.EscBackHint());
 
-        var action = ReadSelectedGroundItemAction();
+        var action = ReadSelectedGroundItemAction(console);
         if (action == SelectedGroundItemAction.BackToList)
             return false;
 
         var taken = GameStateGroundOps.PickUpGroundItemAt(state, index);
         if (taken is null)
             return false;
-        Console.WriteLine();
-        Console.WriteLine(
+        console.WriteLine();
+        console.WriteLine(
             terminal.Muted($"You pick up the {manipulativeDescriber.GetDisplayName(taken)}."));
         return true;
     }
@@ -929,13 +932,13 @@ public class App(
         Take,
     }
 
-    private static SelectedGroundItemAction ReadSelectedGroundItemAction()
+    private static SelectedGroundItemAction ReadSelectedGroundItemAction(IConsoleWrapper systemConsole)
     {
-        if (Console.IsInputRedirected)
+        if (systemConsole.IsInputRedirected)
         {
             while (true)
             {
-                var line = Console.ReadLine();
+                var line = systemConsole.ReadLine();
                 if (line is null)
                     return SelectedGroundItemAction.BackToList;
                 if (string.IsNullOrWhiteSpace(line))
@@ -951,7 +954,7 @@ public class App(
 
         while (true)
         {
-            var key = Console.ReadKey(intercept: true);
+            var key = systemConsole.ReadKey(intercept: true);
             if (key.Key == ConsoleKey.Escape)
                 return SelectedGroundItemAction.BackToList;
             char c = char.ToLowerInvariant(key.KeyChar);
@@ -964,55 +967,55 @@ public class App(
     {
         ClearConsole();
         WriteFullWidthTitleBar("== Character ==", state);
-        Console.WriteLine();
+        console.WriteLine();
         int level = PlayerLeveling.GetLevelFromTotalExperience(state.Experience);
         int xpInto = PlayerLeveling.ExperienceIntoCurrentLevel(state.Experience);
         int xpSpan = PlayerLeveling.ExperienceSpanForCurrentLevel(state.Experience);
-        Console.WriteLine(terminal.Accent($"Level: {level}"));
+        console.WriteLine(terminal.Accent($"Level: {level}"));
         if (level >= PlayerLeveling.MaxLevel)
         {
-            Console.WriteLine(
+            console.WriteLine(
                 terminal.Muted(
                     $"  {xpInto} XP past the level cap (total {state.Experience})."));
         }
         else
         {
-            Console.WriteLine(
+            console.WriteLine(
                 terminal.Muted(
                     $"  {xpInto} / {xpSpan} XP toward level {level + 1} ({state.Experience} total)."));
         }
-        Console.WriteLine(terminal.Accent($"STR: {state.Strength}"));
-        Console.WriteLine(terminal.Accent($"DEX: {state.Dexterity}"));
-        Console.WriteLine(
+        console.WriteLine(terminal.Accent($"STR: {state.Strength}"));
+        console.WriteLine(terminal.Accent($"DEX: {state.Dexterity}"));
+        console.WriteLine(
             terminal.Muted(
                 "Higher DEX helps you act first, dodge, and land cleaner hits in a fight."));
         int combatArmor = EquippedArmorRating(state);
-        Console.WriteLine(
+        console.WriteLine(
             terminal.Accent($"Armor: {combatArmor}")
             + terminal.Muted(
                 " — strips up to that much from each enemy hit (min. 1 damage per hit)."));
-        Console.WriteLine();
+        console.WriteLine();
         WriteCharacterEquippedSection(state);
-        Console.WriteLine();
+        console.WriteLine();
         PauseForContinue();
     }
 
     private void WriteCharacterEquippedSection(GameState state)
     {
-        Console.WriteLine(terminal.Accent("Equipped"));
+        console.WriteLine(terminal.Accent("Equipped"));
         if (state.EquippedWeaponId is null)
         {
-            Console.WriteLine(terminal.Muted("  Weapon: none"));
+            console.WriteLine(terminal.Muted("  Weapon: none"));
         }
         else
         {
             var weaponDef = manipulativeStore.Get(state.EquippedWeaponId);
             string weaponName = weaponDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedWeaponId);
-            Console.WriteLine(terminal.Accent($"  Weapon: {weaponName}"));
+            console.WriteLine(terminal.Accent($"  Weapon: {weaponName}"));
 
             if (weaponDef is null)
             {
-                Console.WriteLine(terminal.Muted("  No effect data for this item."));
+                console.WriteLine(terminal.Muted("  No effect data for this item."));
             }
             else
             {
@@ -1020,118 +1023,118 @@ public class App(
                 if (weaponDef.AttackBonus is int bonus && bonus != 0)
                 {
                     string sign = bonus > 0 ? "+" : "";
-                    Console.WriteLine(
+                    console.WriteLine(
                         terminal.Muted($"  Attack {sign}{bonus} on each strike in a fight."));
                     wroteWeaponBonus = true;
                 }
 
                 if (!wroteWeaponBonus && weaponDef.IsEquippableWeapon)
-                    Console.WriteLine(terminal.Muted("  No combat bonuses from this weapon."));
+                    console.WriteLine(terminal.Muted("  No combat bonuses from this weapon."));
             }
         }
 
         if (state.EquippedHelmetId is null)
         {
-            Console.WriteLine(terminal.Muted("  Helmet: none"));
+            console.WriteLine(terminal.Muted("  Helmet: none"));
         }
         else
         {
             var helmetDef = manipulativeStore.Get(state.EquippedHelmetId);
             string helmetName = helmetDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedHelmetId);
-            Console.WriteLine(terminal.Accent($"  Helmet: {helmetName}"));
+            console.WriteLine(terminal.Accent($"  Helmet: {helmetName}"));
 
             if (helmetDef is null)
             {
-                Console.WriteLine(terminal.Muted("  No effect data for this item."));
+                console.WriteLine(terminal.Muted("  No effect data for this item."));
             }
             else
             {
                 bool wroteHelmet = false;
                 if (helmetDef.Armor is int ar && ar > 0)
                 {
-                    Console.WriteLine(
+                    console.WriteLine(
                         terminal.Muted($"  Armor {ar} from this piece — stacks with body armor (min. 1 damage per hit)."));
                     wroteHelmet = true;
                 }
                 else if (helmetDef.IsEquippableHelmet)
                 {
-                    Console.WriteLine(terminal.Muted("  Armor 0 — no reduction from this helmet."));
+                    console.WriteLine(terminal.Muted("  Armor 0 — no reduction from this helmet."));
                     wroteHelmet = true;
                 }
 
                 if (helmetDef.AttackBonus is int hb && hb != 0)
                 {
                     string sign = hb > 0 ? "+" : "";
-                    Console.WriteLine(
+                    console.WriteLine(
                         terminal.Muted($"  Attack {sign}{hb} from helmet — stacks with weapon on each hit you land."));
                     wroteHelmet = true;
                 }
 
                 if (!wroteHelmet && helmetDef.IsEquippableHelmet)
-                    Console.WriteLine(terminal.Muted("  No combat bonuses from this helmet."));
+                    console.WriteLine(terminal.Muted("  No combat bonuses from this helmet."));
             }
         }
 
         if (state.EquippedBodyArmorId is null)
         {
-            Console.WriteLine(terminal.Muted("  Body armor: none"));
+            console.WriteLine(terminal.Muted("  Body armor: none"));
             return;
         }
 
         var bodyDef = manipulativeStore.Get(state.EquippedBodyArmorId);
         string bodyName = bodyDef?.Name ?? manipulativeDescriber.GetDisplayName(state.EquippedBodyArmorId);
-        Console.WriteLine(terminal.Accent($"  Body armor: {bodyName}"));
+        console.WriteLine(terminal.Accent($"  Body armor: {bodyName}"));
 
         if (bodyDef is null)
         {
-            Console.WriteLine(terminal.Muted("  No effect data for this item."));
+            console.WriteLine(terminal.Muted("  No effect data for this item."));
             return;
         }
 
         if (bodyDef.Armor is int bar && bar > 0)
         {
-            Console.WriteLine(
+            console.WriteLine(
                 terminal.Muted($"  Armor {bar} from this piece — stacks with helmet (min. 1 damage per hit)."));
             return;
         }
 
-        Console.WriteLine(terminal.Muted("  Armor 0 — no reduction from this piece."));
+        console.WriteLine(terminal.Muted("  Armor 0 — no reduction from this piece."));
     }
 
     private void PrintHelp()
     {
         ClearConsole();
         WriteFullWidthTitleBar("== Help ==", state);
-        Console.WriteLine();
-        Console.WriteLine(terminal.Muted("Move with WASD (see compass). N, E, and S also move north, east, and south."));
+        console.WriteLine();
+        console.WriteLine(terminal.Muted("Move with WASD (see compass). N, E, and S also move north, east, and south."));
         int helpW = HelpScreenMenuLineWidth();
-        Console.WriteLine(
+        console.WriteLine(
             AdventureLayout.FormatMenuLine(
                 terminal,
                 "(I)nventory: select an item. Edible gear shows healing; helmets and body armor show Armor; then Eat, Equip, Drop, or Esc.",
                 'i',
                 helpW));
-        Console.WriteLine(
+        console.WriteLine(
             AdventureLayout.FormatMenuLine(terminal, "(G)round appears when something lies on the ground here.", 'g', helpW));
-        Console.WriteLine(
+        console.WriteLine(
             AdventureLayout.FormatMenuLine(terminal, "(M)ap: overview of how the areas connect.", 'm', helpW));
-        Console.WriteLine(
+        console.WriteLine(
             AdventureLayout.FormatMenuLine(
                 terminal,
                 "(F)ight: Attack, Run, or Die (give up the fight). Wins yield gold; sometimes a find.", 'f', helpW));
-        Console.WriteLine(
+        console.WriteLine(
             terminal.Muted(
                 "Defeating monsters grants XP; level-ups raise Strength, Dexterity on even levels, and maximum HP."));
-        Console.WriteLine();
+        console.WriteLine();
         PauseForContinue();
     }
 
     /// <summary>Width for <see cref="AdventureLayout.FormatMenuLine"/> on the help screen so long lines are not clipped too aggressively.</summary>
-    private static int HelpScreenMenuLineWidth()
+    private int HelpScreenMenuLineWidth()
     {
         try
         {
-            int window = Console.WindowWidth;
+            int window = console.WindowWidth;
             if (window > 1)
                 return Math.Max(window - 1, AdventureLayout.ScreenWidth);
         }
@@ -1146,10 +1149,10 @@ public class App(
     {
         ClearConsole();
         WriteFullWidthTitleBar("== Map ==", state);
-        Console.WriteLine();
-        Console.WriteLine(
+        console.WriteLine();
+        console.WriteLine(
             terminal.Muted("Rough layout of the grounds. Your room is drawn in yellow."));
-        Console.WriteLine();
+        console.WriteLine();
 
         // Map overview: a 3×3 window centered on the current room, drawn using the same room box as the right panel.
         // Coordinates: (0,0) is current. North is y=-1, south is y=+1.
@@ -1242,20 +1245,20 @@ public class App(
 
             for (int line = 0; line < outerH; line++)
             {
-                Console.Write(new string(' ', indent));
-                Console.Write(rowPanels[0][line]);
-                Console.Write(new string(' ', gap));
-                Console.Write(rowPanels[1][line]);
-                Console.Write(new string(' ', gap));
-                Console.Write(rowPanels[2][line]);
-                Console.WriteLine();
+                console.Write(new string(' ', indent));
+                console.Write(rowPanels[0][line]);
+                console.Write(new string(' ', gap));
+                console.Write(rowPanels[1][line]);
+                console.Write(new string(' ', gap));
+                console.Write(rowPanels[2][line]);
+                console.WriteLine();
             }
 
             if (y != maxRadius)
-                Console.WriteLine();
+                console.WriteLine();
         }
 
-        Console.WriteLine();
+        console.WriteLine();
         PauseForContinue();
     }
 
@@ -1427,8 +1430,8 @@ public class App(
             {
                 ClearConsole();
                 WriteFullWidthTitleBar("== Fight ==", state);
-                Console.WriteLine();
-                Console.WriteLine(terminal.Muted("You slip away and put distance between you and the creature."));
+                console.WriteLine();
+                console.WriteLine(terminal.Muted("You slip away and put distance between you and the creature."));
                 PauseForContinue();
                 return;
             }
@@ -1493,7 +1496,7 @@ public class App(
                 rightPanelTopOffset: 0,
                 blankLinesAfterTitle: 1,
                 trailingBlankLine: false);
-            Console.Out.Flush();
+            console.FlushOutput();
         }
 
         if (!terminal.UseAnsi)
@@ -1535,7 +1538,7 @@ public class App(
         monsterHp -= res.Damage;
         AppendBattleLog(battleLog, $"You hit for {res.Damage} damage.");
 
-        if (!Console.IsOutputRedirected)
+        if (!console.IsOutputRedirected)
         {
             var leftAfterStrike = BuildFightLeftColumn(
                 monster,
@@ -1644,9 +1647,9 @@ public class App(
             rightPanelTopOffset: 0,
             blankLinesAfterTitle: 1,
             trailingBlankLine: false);
-        Console.WriteLine();
-        Console.WriteLine(terminal.Combat("Everything goes dark…"));
-        Console.WriteLine(terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
+        console.WriteLine();
+        console.WriteLine(terminal.Combat("Everything goes dark…"));
+        console.WriteLine(terminal.Muted("You wake later, bruised and alone. Someone dragged you clear."));
 
         int goldLost = state.Gold / 2;
         state.Gold -= goldLost;
@@ -1654,17 +1657,17 @@ public class App(
         string place = state.InitialRoom.Name;
         if (goldLost > 0)
         {
-            Console.WriteLine(
+            console.WriteLine(
                 terminal.Muted(
                     $"You find yourself back at {place}. Half your gold is gone ({goldLost} lost, {state.Gold} left)."));
         }
         else
         {
-            Console.WriteLine(terminal.Muted($"You find yourself back at {place}, empty-pursed as before."));
+            console.WriteLine(terminal.Muted($"You find yourself back at {place}, empty-pursed as before."));
         }
 
         state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
-        Console.WriteLine();
+        console.WriteLine();
         PauseForContinue();
     }
 
@@ -1762,14 +1765,13 @@ public class App(
 
     private static void AppendBattleLog(List<string> battleLog, string line) => battleLog.Add(line);
 
-    // Redirected stdin: Console.ReadKey is not supported — use ReadLine in those branches.
-    private static char ReadInputChar()
+    private char ReadInputChar()
     {
-        if (Console.IsInputRedirected)
+        if (console.IsInputRedirected)
         {
             while (true)
             {
-                var line = Console.ReadLine();
+                var line = console.ReadLine();
                 if (line is null)
                     return 'x';
                 if (line.Length > 0)
@@ -1779,7 +1781,7 @@ public class App(
 
         while (true)
         {
-            var key = Console.ReadKey(intercept: true);
+            var key = console.ReadKey(intercept: true);
             if (key.KeyChar != '\0' && !char.IsWhiteSpace(key.KeyChar))
                 return key.KeyChar;
         }

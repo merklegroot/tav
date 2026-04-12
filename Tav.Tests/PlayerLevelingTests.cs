@@ -6,7 +6,7 @@ namespace Tav.Tests;
 
 public class PlayerLevelingTests
 {
-    private static readonly ITerminal TestTerminal = new Terminal();
+    private static readonly ITerminal TestTerminal = new Terminal(new ConsoleWrapper());
 
     private static GameState NewState()
     {

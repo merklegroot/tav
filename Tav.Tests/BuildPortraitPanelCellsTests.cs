@@ -10,7 +10,7 @@ public class BuildPortraitPanelCellsTests(ITestOutputHelper outputHelper)
     [Fact]
     public void BuildPortraitPanelCells_returns_non_empty_for_sample_rows()
     {
-        ITerminal terminal = new Terminal();
+        ITerminal terminal = new Terminal(new ConsoleWrapper());
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         string[] borderedLines =
         [
