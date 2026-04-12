@@ -1516,14 +1516,7 @@ public class App(
 
             var key = char.ToLowerInvariant(ReadInputChar());
             if (key == 'r')
-            {
-                ClearConsole();
-                WriteFullWidthTitleBar("== Fight ==", state);
-                console.WriteLine();
-                console.WriteLine(terminal.Muted("You slip away and put distance between you and the creature."));
-                PauseForContinue();
                 return;
-            }
 
             if (key == 'w')
             {
