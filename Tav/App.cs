@@ -509,8 +509,7 @@ public class App(
         List<string> left,
         bool canEat,
         bool offerEquip,
-        bool offerUnequip,
-        bool omitBlankLineBeforeEsc)
+        bool offerUnequip)
     {
         int w = AdventureLayout.LeftColumnWidth;
         if (canEat)
@@ -520,8 +519,7 @@ public class App(
         if (offerUnequip)
             left.Add(AdventureLayout.FormatMenuLine("(U)nequip", 'u', w));
         left.Add(AdventureLayout.FormatMenuLine("(D)rop", 'd', w));
-        if (!omitBlankLineBeforeEsc)
-            left.Add("");
+        left.Add("");
         left.Add(Terminal.EscBackHint());
     }
 
@@ -561,42 +559,31 @@ public class App(
         {
             Terminal.Accent($"Selected: {manipulativeDescriber.GetDisplayName(id)}"),
         };
+        left.Add("");
         int descCol = AdventureLayout.LeftColumnWidth;
         if (canEat && def is not null)
         {
-            if (!withImage)
-                left.Add("");
             foreach (string d in manipulativeDescriber.GetEdibleEffectDescriptionLines(def, state))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
         if (canEquipHelmet && def is not null)
         {
-            if (!withImage)
-                left.Add("");
             foreach (string d in manipulativeDescriber.GetHelmetEffectDescriptionLines(def))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
         if (canEquipBodyArmor && def is not null)
         {
-            if (!withImage)
-                left.Add("");
             foreach (string d in manipulativeDescriber.GetBodyArmorEffectDescriptionLines(def))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
 
         if (canEquipWeapon && def is not null)
         {
-            if (!withImage)
-                left.Add("");
             foreach (string d in manipulativeDescriber.GetWeaponEffectDescriptionLines(def))
                 left.AddRange(WrapInventoryDescriptionLineToColumn(d, descCol));
         }
-
-        if (!withImage)
-            left.Add("");
-        AddInventoryItemDetailMenuLines(left, canEat, offerEquip, offerUnequip, omitBlankLineBeforeEsc: withImage);
 
         List<string> portrait = [];
         if (withImage && def is not null && def.Image is { Length: > 0 } stem)
@@ -609,16 +596,8 @@ public class App(
                     manipulativeDescriber.GetInventoryPortraitEffectSummaryLine(def, state)));
         }
 
-        if (withImage && portrait.Count > 0)
-        {
-            // Keep portrait lines contiguous: ESC is last left row with a blank right panel. Without padding, skipping
-            // ESC would leave a visible gap in the art between the last pre-ESC row and the rest of the image.
-            const int rightPanelTopOffset = 1;
-            int targetLeftLineCount = rightPanelTopOffset + portrait.Count + 1;
-            int pad = targetLeftLineCount - left.Count;
-            for (int i = 0; i < pad; i++)
-                left.Insert(left.Count - 1, "");
-        }
+        left.Add("");
+        AddInventoryItemDetailMenuLines(left, canEat, offerEquip, offerUnequip);
 
         PresentTitleAndTwoColumnPanel(
             "== Inventory ==",
