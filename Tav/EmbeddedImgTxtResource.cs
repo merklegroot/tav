@@ -1,15 +1,18 @@
 namespace Tav;
 
-/// <summary>Reads line-based ASCII art from embedded <c>{stem}.ans</c> files under <c>res/</c>.</summary>
+/// <summary>Reads line-based ASCII art from embedded <c>.ans</c> files under <c>res/</c> (or <c>res/{subfolder}/</c> when <paramref name="resSubfolder"/> is set).</summary>
 public static class EmbeddedImgTxtResource
 {
-    public static IEnumerable<string> ReadLines(string stem)
+    public static IEnumerable<string> ReadLines(string stem, string? resSubfolder = null)
     {
         if (string.IsNullOrWhiteSpace(stem))
             yield break;
 
         var assembly = typeof(EmbeddedImgTxtResource).Assembly;
-        var suffix = $"{stem.Trim()}.ans";
+        var trimmedStem = stem.Trim();
+        var suffix = string.IsNullOrWhiteSpace(resSubfolder)
+            ? $"{trimmedStem}.ans"
+            : $"{ResourceSubfolderPrefix(resSubfolder)}{trimmedStem}.ans";
         var name = assembly.GetManifestResourceNames()
             .FirstOrDefault(n => n.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
         if (name is null)
@@ -32,5 +35,12 @@ public static class EmbeddedImgTxtResource
 
         foreach (string l in lines)
             yield return l;
+    }
+
+    /// <summary>Maps <c>res/foo/bar/</c> layout to dotted manifest suffix <c>foo.bar.</c></summary>
+    private static string ResourceSubfolderPrefix(string resSubfolder)
+    {
+        var segments = resSubfolder.Trim().Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return segments.Length == 0 ? "" : string.Join('.', segments) + ".";
     }
 }

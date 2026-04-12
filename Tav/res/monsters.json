@@ -18,5 +18,15 @@
     "dexterity": 13,
     "attackBonus": 1,
     "difficultyRating": 3
+  },
+  {
+    "id": "cellar_rat",
+    "name": "Cellar Rat",
+    "blurb": "Filth-matted fur and a tail that drags like a wet rope.",
+    "hitPoints": 4,
+    "strength": 7,
+    "dexterity": 15,
+    "attackBonus": 0,
+    "difficultyRating": 2
   }
 ]

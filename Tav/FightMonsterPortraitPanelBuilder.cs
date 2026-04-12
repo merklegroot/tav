@@ -4,7 +4,7 @@ using Tav.Store;
 
 namespace Tav;
 
-/// <summary>Builds the fight UI right column: HP, portrait art from <see cref="IMonsterImageStore"/> (embedded ANSI in <c>.ans</c> like manipulatives), name, gray thin frame.</summary>
+/// <summary>Builds the fight UI right column: HP, portrait art from <see cref="IMonsterImageStore"/> (embedded ANSI in <c>res/monsters/*.ans</c>), name, gray thin frame.</summary>
 public static class FightMonsterPortraitPanelBuilder
 {
     public static string[] Build(
