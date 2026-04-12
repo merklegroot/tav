@@ -2,7 +2,7 @@ using Tav.Store;
 
 namespace Tav;
 
-/// <summary>Inventory item detail: right column art from <see cref="IManipulativeImageStore"/> (<c>res/items/*.ans</c>), name above and short effect line(s) below, thin frame like <see cref="FightMonsterPortraitPanelBuilder"/>.</summary>
+/// <summary>Inventory item detail: right column art from <see cref="IManipulativeImageStore"/> (<c>res/items/*.ans</c>), name above (blank row before art) and short effect line(s) below, thin frame like <see cref="FightMonsterPortraitPanelBuilder"/>.</summary>
 public static class InventoryManipulativePortraitPanelBuilder
 {
     public static string[] Build(
@@ -16,6 +16,7 @@ public static class InventoryManipulativePortraitPanelBuilder
         var raw = new List<string>
         {
             AdventureLayout.CenterVisual(Terminal.Accent(displayName), inner),
+            "",
         };
         raw.AddRange(
             manipulativeImages.Lines(imageStem).Select(line =>
