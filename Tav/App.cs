@@ -1106,7 +1106,8 @@ public class App(
         Console.WriteLine(
             AdventureLayout.FormatMenuLine("(M)ap: overview of how the areas connect.", 'm', helpW));
         Console.WriteLine(
-            AdventureLayout.FormatMenuLine(                "(F)ight: Attack or Run. Wins yield gold; sometimes a find.", 'f', helpW));
+            AdventureLayout.FormatMenuLine(
+                "(F)ight: Attack, Run, or Die (give up the fight). Wins yield gold; sometimes a find.", 'f', helpW));
         Console.WriteLine(
             Terminal.Muted(
                 "Defeating monsters grants XP; level-ups raise Strength, Dexterity on even levels, and maximum HP."));
@@ -1399,6 +1400,15 @@ public class App(
                 return;
             }
 
+            if (key == 'd')
+            {
+                showIntro = false;
+                AppendBattleLog(battleLog, "You give in.");
+                state.HitPoints = 0;
+                PresentFightDefeat(state, monster, monsterHp, battleLog);
+                return;
+            }
+
             if (key != 'a')
                 continue;
 
@@ -1575,6 +1585,12 @@ public class App(
         if (state.HitPoints > 0)
             return false;
 
+        PresentFightDefeat(state, monster, monsterHp, battleLog);
+        return true;
+    }
+
+    private void PresentFightDefeat(GameState state, Monster monster, int monsterHp, List<string> battleLog)
+    {
         int defeatLogW = AdventureLayout.LeftColumnWidth;
         var defeatLeft = new List<string>();
         defeatLeft.AddRange(BuildFightLogDisplayLines(showIntro: false, monster, defeatLogW, battleLog));
@@ -1595,7 +1611,6 @@ public class App(
         state.HitPoints = Math.Max(1, state.MaxHitPoints / 4);
         Console.WriteLine();
         PauseForContinue();
-        return true;
     }
 
     /// <summary>Max number of <em>display</em> lines for intro + battle log; oldest lines drop from the top.</summary>
@@ -1678,6 +1693,7 @@ public class App(
         left.Add("");
         left.Add(AdventureLayout.FormatMenuLine("(A)ttack", 'a', w));
         left.Add(AdventureLayout.FormatMenuLine("(R)un", 'r', w));
+        left.Add(AdventureLayout.FormatMenuLine("(D)ie", 'd', w));
         left.Add(AdventureLayout.FormatMenuLine("(W)in", 'w', w));
         if (showIntro || battleLog.Count > 0)
         {
