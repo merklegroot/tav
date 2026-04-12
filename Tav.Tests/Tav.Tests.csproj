@@ -15,6 +15,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Tav\Tav.csproj" />
+    <ProjectReference Include="..\TavLib\TavLib.csproj" />
   </ItemGroup>
 </Project>

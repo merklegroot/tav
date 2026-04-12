@@ -1,4 +1,5 @@
 <Solution>
-  <Project Path="Tav.Tests/Tav.Tests.csproj" />
+  <Project Path="TavLib/TavLib.csproj" />
   <Project Path="Tav/Tav.csproj" />
+  <Project Path="Tav.Tests/Tav.Tests.csproj" />
 </Solution>

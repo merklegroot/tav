@@ -8,13 +8,9 @@
     <AssemblyName>Tav</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="res/rooms.json" />
-    <EmbeddedResource Include="res/monsters.json" />
-    <EmbeddedResource Include="res/manipulatives.json" />
-    <EmbeddedResource Include="res/initial_state.json" />
-    <EmbeddedResource Include="res/**/*.ans" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
+    <ProjectReference Include="..\TavLib\TavLib.csproj" />
   </ItemGroup>
 </Project>
