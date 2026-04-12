@@ -1,4 +1,5 @@
 using Shouldly;
+using Tav;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -9,18 +10,19 @@ public class BuildPortraitPanelCellsTests(ITestOutputHelper outputHelper)
     [Fact]
     public void BuildPortraitPanelCells_returns_non_empty_for_sample_rows()
     {
+        ITerminal terminal = new Terminal();
         int panelOuter = AdventureLayout.MapPanelOuterWidth;
         string[] borderedLines =
         [
-            Terminal.Combat("5/6 HP"),
+            terminal.Combat("5/6 HP"),
             "",
-            Terminal.PortraitArt(" >< "),
-            Terminal.PortraitArt("(xx)"),
+            terminal.PortraitArt(" >< "),
+            terminal.PortraitArt("(xx)"),
             "",
-            Terminal.Combat("Bone Gnawer"),
+            terminal.Combat("Bone Gnawer"),
         ];
 
-        string[] panel = AdventureLayout.BuildPortraitPanelCells(borderedLines, panelOuter);
+        string[] panel = AdventureLayout.BuildPortraitPanelCells(terminal, borderedLines, panelOuter);
 
         panel.ShouldNotBeEmpty();
         panel.Length.ShouldBe(borderedLines.Length);

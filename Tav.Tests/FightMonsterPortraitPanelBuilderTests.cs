@@ -12,6 +12,7 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
     [Fact]
     public void Build_returns_non_empty_panel()
     {
+        ITerminal terminal = new Terminal();
         var store = new MonsterImageStore();
         var monster = new Monster
         {
@@ -25,7 +26,7 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
             DifficultyRating = 3,
         };
 
-        string[] panel = FightMonsterPortraitPanelBuilder.Build(store, 5, monster);
+        string[] panel = FightMonsterPortraitPanelBuilder.Build(terminal, store, 5, monster);
 
         panel.ShouldNotBeEmpty();
         string joined = string.Join(Environment.NewLine, panel);
@@ -39,11 +40,11 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
         panel[2].ShouldBe(@"│     5/6 HP     │");
         panel[3].ShouldBe(@"│                │");
         // Art rows carry embedded SGR from .ans when ANSI is on; compare visible glyphs only.
-        Terminal.StripAnsi(panel[4]).ShouldBe(@"│     .-----.    │");
-        Terminal.StripAnsi(panel[5]).ShouldBe(@"│     o    o     │");
-        Terminal.StripAnsi(panel[6]).ShouldBe(@"│     \  ^  /    │");
-        Terminal.StripAnsi(panel[7]).ShouldBe(@"│      [===]     │");
-        Terminal.StripAnsi(panel[8]).ShouldBe(@"│    /      \s   │");
+        terminal.StripAnsi(panel[4]).ShouldBe(@"│     .-----.    │");
+        terminal.StripAnsi(panel[5]).ShouldBe(@"│     o    o     │");
+        terminal.StripAnsi(panel[6]).ShouldBe(@"│     \  ^  /    │");
+        terminal.StripAnsi(panel[7]).ShouldBe(@"│      [===]     │");
+        terminal.StripAnsi(panel[8]).ShouldBe(@"│    /      \s   │");
         panel[9].ShouldBe(@"│                │");
         panel[10].ShouldContain("Bone Gnawer");
         panel[11].ShouldContain("Threat 3/5");

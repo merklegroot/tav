@@ -19,12 +19,14 @@ public sealed class ScreenBuffer
     private readonly int[] _rowMaxDrawnX;
     private readonly int _width;
     private readonly int _height;
+    private readonly ITerminal _terminal;
 
     public int Width => _width;
     public int Height => _height;
 
-    private ScreenBuffer(int width, int height)
+    private ScreenBuffer(int width, int height, ITerminal terminal)
     {
+        _terminal = terminal;
         _width = Math.Max(1, width);
         _height = Math.Max(1, height);
         _cells = new Cell[_height, _width];
@@ -35,10 +37,10 @@ public sealed class ScreenBuffer
     /// <summary>
     /// Game frames use a fixed width (<see cref="AdventureLayout.ScreenWidth"/>) and one row per legacy <c>WriteLine</c>.
     /// </summary>
-    public static ScreenBuffer ForGameLayout(int rowCount, int? widthOverride = null)
+    public static ScreenBuffer ForGameLayout(int rowCount, ITerminal terminal, int? widthOverride = null)
     {
         int w = widthOverride ?? AdventureLayout.ScreenWidth;
-        return new ScreenBuffer(w, Math.Max(1, rowCount));
+        return new ScreenBuffer(w, Math.Max(1, rowCount), terminal);
     }
 
     public void Clear()
@@ -51,7 +53,7 @@ public sealed class ScreenBuffer
         }
     }
 
-    /// <summary>Draws text with optional leading SGR open code prepended to the parse stream (same rules as <see cref="Terminal.VisibleLength"/>).</summary>
+    /// <summary>Draws text with optional leading SGR open code prepended to the parse stream (same rules as <see cref="ITerminal.VisibleLength"/>).</summary>
     public void DrawText(int x, int y, string text, string ansiStyle = "")
     {
         if (y < 0 || y >= _height || string.IsNullOrEmpty(text) && string.IsNullOrEmpty(ansiStyle))
@@ -75,7 +77,7 @@ public sealed class ScreenBuffer
                 if (i >= merged.Length)
                     break;
                 string seq = merged.Substring(start, i - start + 1);
-                if (seq == Terminal.Reset)
+                if (seq == _terminal.Reset)
                     persistentOpen = "";
                 else
                     persistentOpen += seq;
@@ -108,7 +110,7 @@ public sealed class ScreenBuffer
     /// <summary>Centers a single line horizontally (same math as legacy <c>CenterVisual</c>).</summary>
     public void DrawCentered(int y, string text, string ansiStyle = "")
     {
-        int v = Terminal.VisibleLength(text);
+        int v = _terminal.VisibleLength(text);
         if (v >= _width)
         {
             DrawText(0, y, text, ansiStyle);
@@ -165,8 +167,8 @@ public sealed class ScreenBuffer
 
         Console.CursorVisible = false;
         Console.Write("\u001b[H\u001b[2J");
-        if (Terminal.UseAnsi)
-            Console.Write(Terminal.Reset);
+        if (_terminal.UseAnsi)
+            Console.Write(_terminal.Reset);
 
         var rowSb = new StringBuilder(_width * 4);
         for (int y = 0; y < _height; y++)
@@ -176,11 +178,11 @@ public sealed class ScreenBuffer
             for (int x = 0; x < _width; x++)
             {
                 Cell c = _cells[y, x];
-                if (Terminal.UseAnsi)
+                if (_terminal.UseAnsi)
                 {
                     if (c.OpenAnsi != lastOpen)
                     {
-                        rowSb.Append(Terminal.Reset);
+                        rowSb.Append(_terminal.Reset);
                         if (c.OpenAnsi.Length > 0)
                             rowSb.Append(c.OpenAnsi);
                         lastOpen = c.OpenAnsi;
@@ -190,8 +192,8 @@ public sealed class ScreenBuffer
                 rowSb.Append(c.Ch);
             }
 
-            if (Terminal.UseAnsi)
-                rowSb.Append(Terminal.Reset);
+            if (_terminal.UseAnsi)
+                rowSb.Append(_terminal.Reset);
             Console.WriteLine(rowSb.ToString());
         }
 

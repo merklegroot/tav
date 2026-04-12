@@ -8,14 +8,21 @@ namespace Tav.Tests;
 
 public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper outputHelper)
 {
-    private static string Plain(string s) => Terminal.StripAnsi(s);
+    private readonly ITerminal _terminal = new Terminal();
+
+    private string Plain(string s) => _terminal.StripAnsi(s);
 
     [Fact]
     public void Build_wraps_art_in_thin_frame_with_name_like_fight_portrait()
     {
         var store = new ManipulativeImageStore();
 
-        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Apple", "apple", "Heal 6 HP");
+        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(
+            _terminal,
+            store,
+            "Apple",
+            "apple",
+            "Heal 6 HP");
 
         panel.ShouldNotBeEmpty();
         outputHelper.WriteLine(string.Join(Environment.NewLine, panel));
@@ -34,7 +41,7 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
     {
         var store = new ManipulativeImageStore();
 
-        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Torch", "torch", null);
+        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(_terminal, store, "Torch", "torch", null);
 
         panel[^2].ShouldBe(@"│                │");
     }
@@ -44,7 +51,12 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
     {
         var store = new ManipulativeImageStore();
 
-        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Crown", "crown", "Armor 1, Atk 1");
+        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(
+            _terminal,
+            store,
+            "Crown",
+            "crown",
+            "Armor 1, Atk 1");
 
         panel.Count(p => Plain(p).Contains("Armor 1, Atk 1", StringComparison.Ordinal)).ShouldBe(1);
     }
@@ -54,7 +66,12 @@ public class InventoryManipulativePortraitPanelBuilderTests(ITestOutputHelper ou
     {
         var store = new ManipulativeImageStore();
 
-        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(store, "Crown", "crown", "Armor 10, Atk 12");
+        string[] panel = InventoryManipulativePortraitPanelBuilder.Build(
+            _terminal,
+            store,
+            "Crown",
+            "crown",
+            "Armor 10, Atk 12");
 
         panel.Count(p => Plain(p).Contains("Atk 12", StringComparison.Ordinal)).ShouldBe(1);
         panel.Count(p => Plain(p).Contains("Armor 10", StringComparison.Ordinal)).ShouldBe(1);

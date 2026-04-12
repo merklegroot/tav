@@ -42,21 +42,21 @@ public static class AdventureLayout
         }
     }
 
-    public static string PadRightVisual(string s, int totalWidth)
+    public static string PadRightVisual(ITerminal t, string s, int totalWidth)
     {
-        int v = Terminal.VisibleLength(s);
+        int v = t.VisibleLength(s);
         if (v > totalWidth)
-            return Terminal.TruncateVisible(s, totalWidth);
+            return t.TruncateVisible(s, totalWidth);
         if (v == totalWidth)
             return s;
         return s + new string(' ', totalWidth - v);
     }
 
-    public static string CenterVisual(string content, int totalWidth)
+    public static string CenterVisual(ITerminal t, string content, int totalWidth)
     {
-        int v = Terminal.VisibleLength(content);
+        int v = t.VisibleLength(content);
         if (v >= totalWidth)
-            return PadRightVisual(content, totalWidth);
+            return PadRightVisual(t, content, totalWidth);
 
         int pad = totalWidth - v;
         int left = pad / 2;
@@ -65,11 +65,11 @@ public static class AdventureLayout
     }
 
     /// <summary>Like <see cref="CenterVisual"/> but puts odd remainder padding on the left (portrait sprites).</summary>
-    private static string CenterVisualBiasOddLeft(string content, int totalWidth)
+    private static string CenterVisualBiasOddLeft(ITerminal t, string content, int totalWidth)
     {
-        int v = Terminal.VisibleLength(content);
+        int v = t.VisibleLength(content);
         if (v >= totalWidth)
-            return PadRightVisual(content, totalWidth);
+            return PadRightVisual(t, content, totalWidth);
 
         int pad = totalWidth - v;
         int right = pad / 2;
@@ -132,41 +132,46 @@ public static class AdventureLayout
         return lines;
     }
 
-    public static string BuildTitleBar(string screenTitle, GameState state, int screenWidth, int equippedArmorRating)
+    public static string BuildTitleBar(
+        ITerminal t,
+        string screenTitle,
+        GameState state,
+        int screenWidth,
+        int equippedArmorRating)
     {
-        string left = Terminal.Title(screenTitle);
-        string right = Terminal.HpStatus(state.HitPoints, state.MaxHitPoints)
-                       + Terminal.Muted("  Gold: ")
-                       + Terminal.Gold(state.Gold.ToString())
-                       + PlayerLeveling.BuildXpTitleFragment(state);
+        string left = t.Title(screenTitle);
+        string right = t.HpStatus(state.HitPoints, state.MaxHitPoints)
+                       + t.Muted("  Gold: ")
+                       + t.Gold(state.Gold.ToString())
+                       + PlayerLeveling.BuildXpTitleFragment(t, state);
         if (equippedArmorRating > 0)
         {
-            right += Terminal.Muted("  Armor ") + Terminal.Accent(equippedArmorRating.ToString());
+            right += t.Muted("  Armor ") + t.Accent(equippedArmorRating.ToString());
         }
 
-        int leftV = Terminal.VisibleLength(left);
-        int rightV = Terminal.VisibleLength(right);
+        int leftV = t.VisibleLength(left);
+        int rightV = t.VisibleLength(right);
         int spaces = Math.Max(1, screenWidth - leftV - rightV);
-        return PadRightVisual(left + new string(' ', spaces) + right, screenWidth);
+        return PadRightVisual(t, left + new string(' ', spaces) + right, screenWidth);
     }
 
-    public static List<string> BuildLeftColumnLines(GameState state, int leftColWidth)
+    public static List<string> BuildLeftColumnLines(ITerminal t, GameState state, int leftColWidth)
     {
         var leftLines = new List<string>
         {
-            Terminal.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
+            t.Accent(Truncate(state.CurrentRoom.Name, leftColWidth)),
         };
         leftLines.Add("");
-        leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(Terminal.Muted));
+        leftLines.AddRange(WrapText(state.CurrentRoom.Description, leftColWidth).Select(t.Muted));
         return leftLines;
     }
 
     public static bool IsGroundMenuLine(MenuItem item) =>
         item.Key == 'g' && item.Text.StartsWith("(G)round", StringComparison.Ordinal);
 
-    public static string FormatMenuLine(string text, char key, int maxWidth)
+    public static string FormatMenuLine(ITerminal t, string text, char key, int maxWidth)
     {
-        if (!Terminal.UseAnsi)
+        if (!t.UseAnsi)
             return Truncate(text, maxWidth);
 
         char ku = char.ToUpperInvariant(key);
@@ -175,18 +180,19 @@ public static class AdventureLayout
         if (i < 0)
             return Truncate(text, maxWidth);
 
-        string before = Terminal.Muted(text[..i]);
-        string hotkey = Terminal.MenuParenKey(ku);
-        string after = Terminal.Muted(text[(i + needle.Length)..]);
-        return Terminal.TruncateVisible(before + hotkey + after, maxWidth);
+        string before = t.Muted(text[..i]);
+        string hotkey = t.MenuParenKey(ku);
+        string after = t.Muted(text[(i + needle.Length)..]);
+        return t.TruncateVisible(before + hotkey + after, maxWidth);
     }
 
     public static List<string> BuildMainViewLeftPanelLines(
+        ITerminal t,
         GameState state,
         IReadOnlyList<MenuItem> menuItems,
         int leftColWidth)
     {
-        var lines = BuildLeftColumnLines(state, leftColWidth);
+        var lines = BuildLeftColumnLines(t, state, leftColWidth);
         if (menuItems.Count == 0)
             return lines;
 
@@ -194,13 +200,13 @@ public static class AdventureLayout
         int i = 0;
         if (IsGroundMenuLine(menuItems[0]))
         {
-            lines.Add(FormatMenuLine(menuItems[0].Text, menuItems[0].Key, leftColWidth));
+            lines.Add(FormatMenuLine(t, menuItems[0].Text, menuItems[0].Key, leftColWidth));
             lines.Add("");
             i = 1;
         }
 
         for (; i < menuItems.Count; i++)
-            lines.Add(FormatMenuLine(menuItems[i].Text, menuItems[i].Key, leftColWidth));
+            lines.Add(FormatMenuLine(t, menuItems[i].Text, menuItems[i].Key, leftColWidth));
         return lines;
     }
 
@@ -268,7 +274,7 @@ public static class AdventureLayout
     }
 
     /// <summary>One horizontal row of an N–S corridor between stacked room panels (full <paramref name="outerWidth"/>); walls <c>│</c> sit beside the center with one space between.</summary>
-    public static string BuildHallwayConnectorRow(int outerWidth)
+    public static string BuildHallwayConnectorRow(ITerminal t, int outerWidth)
     {
         const string core = "│ │";
         if (outerWidth <= 0)
@@ -276,10 +282,11 @@ public static class AdventureLayout
         if (outerWidth < core.Length)
             return Truncate(core, outerWidth);
 
-        return CenterVisual(core, outerWidth);
+        return CenterVisual(t, core, outerWidth);
     }
 
     public static string[] BuildRoomPanel(
+        ITerminal t,
         Room room,
         int outerWidth,
         bool isCurrentRoom = false,
@@ -333,18 +340,18 @@ public static class AdventureLayout
         if (forMapOverview)
         {
             if (isCurrentRoom)
-                return plain.Select(Terminal.MapHere).ToArray();
-            return plain.Select(Terminal.Border).ToArray();
+                return plain.Select(t.MapHere).ToArray();
+            return plain.Select(t.Border).ToArray();
         }
 
-        var bordered = plain.Select(Terminal.Border).ToArray();
+        var bordered = plain.Select(t.Border).ToArray();
         if (isCurrentRoom)
-            return bordered.Select(Terminal.Accent).ToArray();
+            return bordered.Select(t.Accent).ToArray();
 
         return bordered;
     }
 
-    public static string[] BuildCompassPanel(Room room, int outerWidth)
+    public static string[] BuildCompassPanel(ITerminal t, Room room, int outerWidth)
     {
         bool n = HasExit(room, 'n');
         bool e = HasExit(room, 'e');
@@ -352,23 +359,28 @@ public static class AdventureLayout
         bool w = HasExit(room, 'w');
 
         string DirLetter(bool open, char letter) =>
-            open ? Terminal.MenuParenKey(letter) : Terminal.Muted(letter.ToString());
+            open ? t.MenuParenKey(letter) : t.Muted(letter.ToString());
 
-        string rowN = CenterVisual(DirLetter(n, 'W'), outerWidth);
-        string rowS = CenterVisual(DirLetter(s, 'S'), outerWidth);
-        string pipe = CenterVisual(Terminal.Muted("|"), outerWidth);
+        string rowN = CenterVisual(t, DirLetter(n, 'W'), outerWidth);
+        string rowS = CenterVisual(t, DirLetter(s, 'S'), outerWidth);
+        string pipe = CenterVisual(t, t.Muted("|"), outerWidth);
         string rowWe = CenterVisual(
-            DirLetter(w, 'A') + Terminal.Muted(" -   - ") + DirLetter(e, 'D'),
+            t,
+            DirLetter(w, 'A') + t.Muted(" -   - ") + DirLetter(e, 'D'),
             outerWidth);
 
         return new[] { rowN, pipe, rowWe, pipe, rowS };
     }
 
     /// <summary>Room art, two blank rows, then the compass (see README).</summary>
-    public static string[] BuildMainViewRightPanel(Room room, int outerWidth, bool isCurrentRoom = true)
+    public static string[] BuildMainViewRightPanel(
+        ITerminal t,
+        Room room,
+        int outerWidth,
+        bool isCurrentRoom = true)
     {
-        string[] roomLines = BuildRoomPanel(room, outerWidth, isCurrentRoom);
-        string[] compassLines = BuildCompassPanel(room, outerWidth);
+        string[] roomLines = BuildRoomPanel(t, room, outerWidth, isCurrentRoom);
+        string[] compassLines = BuildCompassPanel(t, room, outerWidth);
         string blankRow = new string(' ', outerWidth);
         var combined = new string[roomLines.Length + 2 + compassLines.Length];
         int c = 0;
@@ -385,13 +397,13 @@ public static class AdventureLayout
     /// Every row truncated to <paramref name="panelOuter"/> visible columns, then centered (monster/item art, HP lines).
     /// Short rows are right-padded to a common block width so sprite columns line up, then centered with odd padding biased left.
     /// </summary>
-    public static string[] BuildPortraitPanelCells(IReadOnlyList<string> borderedLines, int panelOuter)
+    public static string[] BuildPortraitPanelCells(ITerminal t, IReadOnlyList<string> borderedLines, int panelOuter)
     {
         int n = borderedLines.Count;
         int blockW = 0;
         for (int i = 0; i < n; i++)
         {
-            int v = Terminal.VisibleLength(borderedLines[i]);
+            int v = t.VisibleLength(borderedLines[i]);
             if (v > 0 && v < panelOuter)
                 blockW = Math.Max(blockW, v);
         }
@@ -403,17 +415,17 @@ public static class AdventureLayout
         for (int i = 0; i < n; i++)
         {
             string line = borderedLines[i];
-            int v = Terminal.VisibleLength(line);
+            int v = t.VisibleLength(line);
             string sized = v == 0 || v >= panelOuter
                 ? line
-                : PadRightVisual(line, blockW);
-            string clipped = Terminal.TruncateVisible(sized, panelOuter);
+                : PadRightVisual(t, line, blockW);
+            string clipped = t.TruncateVisible(sized, panelOuter);
             // Include v == blockW so the widest sprite row uses the same odd-padding rule as padded
             // shorter rows; otherwise one row shifts a space (inventory + fight portraits).
             bool widenedToBlock = v > 0 && v < panelOuter && v <= blockW;
             panel[i] = widenedToBlock
-                ? CenterVisualBiasOddLeft(clipped, panelOuter)
-                : CenterVisual(clipped, panelOuter);
+                ? CenterVisualBiasOddLeft(t, clipped, panelOuter)
+                : CenterVisual(t, clipped, panelOuter);
         }
 
         return panel;
@@ -423,10 +435,10 @@ public static class AdventureLayout
     /// Pads or trims inner portrait rows to <see cref="PortraitCardInnerLineCount"/> (center vertical padding;
     /// if too tall, drops lines from the middle inward until it fits).
     /// </summary>
-    public static string[] FitPortraitCardInnerLines(IReadOnlyList<string> lines, int innerWidth)
+    public static string[] FitPortraitCardInnerLines(ITerminal t, IReadOnlyList<string> lines, int innerWidth)
     {
         int target = PortraitCardInnerLineCount;
-        string blankRow = CenterVisual("", innerWidth);
+        string blankRow = CenterVisual(t, "", innerWidth);
         if (lines.Count == target)
             return lines.ToArray();
 
@@ -455,18 +467,18 @@ public static class AdventureLayout
     }
 
     /// <summary>Thin box: inner rows padded to <c>outerWidth - 2</c> visible columns.</summary>
-    public static string[] WrapThinBoxAroundInnerRows(string[] innerRows, int outerWidth)
+    public static string[] WrapThinBoxAroundInnerRows(ITerminal t, string[] innerRows, int outerWidth)
     {
         int inner = outerWidth - 2;
-        string top = Terminal.PortraitFrame("┌" + new string('─', inner) + "┐");
-        string bottom = Terminal.PortraitFrame("└" + new string('─', inner) + "┘");
+        string top = t.PortraitFrame("┌" + new string('─', inner) + "┐");
+        string bottom = t.PortraitFrame("└" + new string('─', inner) + "┘");
         int n = innerRows.Length;
         var result = new string[n + 2];
         result[0] = top;
         for (int i = 0; i < n; i++)
         {
-            string body = PadRightVisual(innerRows[i], inner);
-            result[i + 1] = Terminal.PortraitFrame("│") + body + Terminal.PortraitFrame("│");
+            string body = PadRightVisual(t, innerRows[i], inner);
+            result[i + 1] = t.PortraitFrame("│") + body + t.PortraitFrame("│");
         }
 
         result[n + 1] = bottom;
@@ -475,6 +487,7 @@ public static class AdventureLayout
 
     /// <summary>Wide layout: left column at x=0, right panel at <see cref="RightPanelStartX"/>.</summary>
     public static void DrawTwoColumnRegion(
+        ITerminal t,
         ScreenBuffer buffer,
         int startY,
         int leftColWidth,
@@ -496,9 +509,9 @@ public static class AdventureLayout
             int legacyPi = i - rightPanelTopOffset;
             int pi = legacyPi >= 0 && legacyPi < imageH ? legacyPi : -1;
             string right = pi >= 0 ? rightPanelLines[pi] : blankPanelRow;
-            right = PadRightVisual(right, panelOuter);
-            string row = PadRightVisual(left, leftColWidth) + new string(' ', gap) + right;
-            buffer.DrawText(0, startY + i, PadRightVisual(row, screenWidth));
+            right = PadRightVisual(t, right, panelOuter);
+            string row = PadRightVisual(t, left, leftColWidth) + new string(' ', gap) + right;
+            buffer.DrawText(0, startY + i, PadRightVisual(t, row, screenWidth));
         }
     }
 
@@ -506,6 +519,7 @@ public static class AdventureLayout
     /// Draws the same row as <see cref="DrawTwoColumnRegion"/> in one pass (used when the right cell is computed per frame).
     /// </summary>
     public static void DrawWideCompositeRow(
+        ITerminal t,
         ScreenBuffer buffer,
         int y,
         string left,
@@ -515,9 +529,9 @@ public static class AdventureLayout
         int panelOuter,
         int screenWidth)
     {
-        string r = PadRightVisual(right, panelOuter);
-        string row = PadRightVisual(left, leftColWidth) + new string(' ', gap) + r;
-        buffer.DrawText(0, y, PadRightVisual(row, screenWidth));
+        string r = PadRightVisual(t, right, panelOuter);
+        string row = PadRightVisual(t, left, leftColWidth) + new string(' ', gap) + r;
+        buffer.DrawText(0, y, PadRightVisual(t, row, screenWidth));
     }
 
     /// <summary>Line count for <see cref="DrawStackedTwoColumnFallback"/> (excluding title rows).</summary>
@@ -563,6 +577,7 @@ public static class AdventureLayout
 
     /// <summary>Main adventure view: title, body (wide or stacked), trailing blank line in wide mode.</summary>
     public static void DrawInto(
+        ITerminal t,
         ScreenBuffer buffer,
         GameState state,
         IReadOnlyList<MenuItem> menuItems,
@@ -572,13 +587,13 @@ public static class AdventureLayout
         int panelOuter = MapPanelOuterWidth;
         int screenWidth = ScreenWidth;
 
-        string titleBar = BuildTitleBar("== Adventure Game ==", state, screenWidth, equippedArmorRating);
-        var leftLines = BuildMainViewLeftPanelLines(state, menuItems, leftColWidth);
+        string titleBar = BuildTitleBar(t, "== Adventure Game ==", state, screenWidth, equippedArmorRating);
+        var leftLines = BuildMainViewLeftPanelLines(t, state, menuItems, leftColWidth);
 
         bool showCompass = menuItems.Count > 0;
         var panel = showCompass
-            ? BuildMainViewRightPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true)
-            : BuildRoomPanel(state.CurrentRoom, panelOuter, isCurrentRoom: true);
+            ? BuildMainViewRightPanel(t, state.CurrentRoom, panelOuter, isCurrentRoom: true)
+            : BuildRoomPanel(t, state.CurrentRoom, panelOuter, isCurrentRoom: true);
 
         buffer.DrawText(0, 0, titleBar);
         buffer.DrawText(0, 1, "");
@@ -587,6 +602,7 @@ public static class AdventureLayout
         {
             int H = Math.Max(leftLines.Count, MainViewRightPanelTopOffset + panel.Length);
             DrawTwoColumnRegion(
+                t,
                 buffer,
                 startY: 2,
                 leftColWidth,

@@ -3,46 +3,101 @@ using System.Text;
 namespace Tav;
 
 /// <summary>ANSI SGR helpers and string measurements; full-screen layout should compose via <see cref="ScreenBuffer"/>.</summary>
-public static class Terminal
+public interface ITerminal
 {
-    public static bool UseAnsi => !Console.IsOutputRedirected;
+    bool UseAnsi { get; }
 
-    public const string Reset = "\x1b[0m";
+    string Reset { get; }
 
-    public static string Title(string text) => Wrap(text, "\x1b[1m\x1b[93m");
+    string Title(string text);
 
-    public static string Accent(string text) => Wrap(text, "\x1b[96m");
+    string Accent(string text);
 
-    public static string Muted(string text) => Wrap(text, "\x1b[2m\x1b[37m");
+    string Muted(string text);
 
     /// <summary>Map and room walls; neighbor rooms on the overview (cyan).</summary>
-    public static string Border(string text) => Wrap(text, "\x1b[36m");
+    string Border(string text);
 
     /// <summary>Monster and item portrait sprite glyphs (bright white).</summary>
-    public static string PortraitArt(string text) => Wrap(text, "\x1b[97m");
+    string PortraitArt(string text);
 
     /// <summary>Thin portrait panel frame (<c>┌┐└┘─│</c>).</summary>
-    public static string PortraitFrame(string text) => Wrap(text, "\x1b[90m");
+    string PortraitFrame(string text);
 
     /// <summary>Very dim gray for monster portrait hit feedback; stays visible, unlike hiding the art.</summary>
-    public static string Silhouette(string text) => Wrap(text, "\x1b[2m\x1b[90m");
+    string Silhouette(string text);
 
     /// <summary>Map overview: the room you stand in (yellow foreground; neighbors use <see cref="Border"/>).</summary>
-    public static string MapHere(string text) => Wrap(text, "\x1b[1m\x1b[93m");
+    string MapHere(string text);
 
-    public static string Combat(string text) => Wrap(text, "\x1b[91m");
+    string Combat(string text);
 
     /// <summary>Very dim dark red for combat marks (e.g. death cross on portraits).</summary>
-    public static string CombatDark(string text) => Wrap(text, "\x1b[2m\x1b[38;5;52m");
+    string CombatDark(string text);
 
-    public static string Ok(string text) => Wrap(text, "\x1b[92m");
+    string Ok(string text);
 
-    public static string Warn(string text) => Wrap(text, "\x1b[93m");
+    string Warn(string text);
 
     /// <summary>Player gold totals — bold 256-color gold, distinct from <see cref="Warn"/>.</summary>
-    public static string Gold(string text) => Wrap(text, "\x1b[1;38;5;220m");
+    string Gold(string text);
 
-    public static string HpStatus(int hp, int max)
+    string HpStatus(int hp, int max);
+
+    /// <summary>Styled <c>(X)</c> / <c>(ESC)</c>: white parentheses, bright green action text.</summary>
+    string MenuParenKey(char key);
+
+    /// <summary>Styled <c>(TEXT)</c> e.g. <c>(ESC)</c>: white parentheses, bright green inner text.</summary>
+    string MenuParenKey(string inner);
+
+    void WriteMenuLine(string text, char key);
+
+    /// <summary>Footer line: <c>(ESC)</c> matches <see cref="WriteMenuLine"/> styling.</summary>
+    string EscBackHint();
+
+    int VisibleLength(string s);
+
+    /// <summary>Removes ANSI SGR sequences so string indices match terminal columns (for slice/substring layout).</summary>
+    string StripAnsi(string s);
+
+    /// <summary>Truncates to a maximum visible (on-screen) length, preserving leading ANSI sequences.</summary>
+    string TruncateVisible(string s, int maxVisible);
+}
+
+/// <summary>ANSI SGR helpers and string measurements; full-screen layout should compose via <see cref="ScreenBuffer"/>.</summary>
+public class Terminal : ITerminal
+{
+    public bool UseAnsi => !Console.IsOutputRedirected;
+
+    public string Reset => "\x1b[0m";
+
+    public string Title(string text) => Wrap(text, "\x1b[1m\x1b[93m");
+
+    public string Accent(string text) => Wrap(text, "\x1b[96m");
+
+    public string Muted(string text) => Wrap(text, "\x1b[2m\x1b[37m");
+
+    public string Border(string text) => Wrap(text, "\x1b[36m");
+
+    public string PortraitArt(string text) => Wrap(text, "\x1b[97m");
+
+    public string PortraitFrame(string text) => Wrap(text, "\x1b[90m");
+
+    public string Silhouette(string text) => Wrap(text, "\x1b[2m\x1b[90m");
+
+    public string MapHere(string text) => Wrap(text, "\x1b[1m\x1b[93m");
+
+    public string Combat(string text) => Wrap(text, "\x1b[91m");
+
+    public string CombatDark(string text) => Wrap(text, "\x1b[2m\x1b[38;5;52m");
+
+    public string Ok(string text) => Wrap(text, "\x1b[92m");
+
+    public string Warn(string text) => Wrap(text, "\x1b[93m");
+
+    public string Gold(string text) => Wrap(text, "\x1b[1;38;5;220m");
+
+    public string HpStatus(int hp, int max)
     {
         string plain = $"HP: {hp}/{max}";
         if (!UseAnsi || max <= 0)
@@ -52,19 +107,17 @@ public static class Terminal
         return open + plain + Reset;
     }
 
-    /// <summary>Styled <c>(X)</c> / <c>(ESC)</c>: white parentheses, bright green action text.</summary>
-    public static string MenuParenKey(char key) =>
+    public string MenuParenKey(char key) =>
         MenuParenKey(char.ToUpperInvariant(key).ToString());
 
-    /// <summary>Styled <c>(TEXT)</c> e.g. <c>(ESC)</c>: white parentheses, bright green inner text.</summary>
-    public static string MenuParenKey(string inner)
+    public string MenuParenKey(string inner)
     {
         if (!UseAnsi)
             return $"({inner})";
         return $"\x1b[37m(\x1b[92m{inner}\x1b[37m){Reset}";
     }
 
-    public static void WriteMenuLine(string text, char key)
+    public void WriteMenuLine(string text, char key)
     {
         if (!UseAnsi)
         {
@@ -87,15 +140,14 @@ public static class Terminal
         Console.WriteLine();
     }
 
-    /// <summary>Footer line: <c>(ESC)</c> matches <see cref="WriteMenuLine"/> styling.</summary>
-    public static string EscBackHint()
+    public string EscBackHint()
     {
         if (!UseAnsi)
             return "(ESC) Back";
         return MenuParenKey("ESC") + Muted(" Back");
     }
 
-    public static int VisibleLength(string s)
+    public int VisibleLength(string s)
     {
         int len = 0;
         for (int i = 0; i < s.Length; i++)
@@ -114,8 +166,7 @@ public static class Terminal
         return len;
     }
 
-    /// <summary>Removes ANSI SGR sequences so string indices match terminal columns (for slice/substring layout).</summary>
-    public static string StripAnsi(string s)
+    public string StripAnsi(string s)
     {
         if (string.IsNullOrEmpty(s) || !s.Contains('\x1b', StringComparison.Ordinal))
             return s;
@@ -140,8 +191,7 @@ public static class Terminal
         return sb.ToString();
     }
 
-    /// <summary>Truncates to a maximum visible (on-screen) length, preserving leading ANSI sequences.</summary>
-    public static string TruncateVisible(string s, int maxVisible)
+    public string TruncateVisible(string s, int maxVisible)
     {
         if (maxVisible <= 0)
             return "";
@@ -182,7 +232,7 @@ public static class Terminal
         return sb.ToString();
     }
 
-    private static string Wrap(string text, string open)
+    private string Wrap(string text, string open)
     {
         if (!UseAnsi || text.Length == 0)
             return text;

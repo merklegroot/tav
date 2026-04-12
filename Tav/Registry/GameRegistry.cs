@@ -10,6 +10,7 @@ public static class GameRegistry
     public static IServiceCollection RegisterGame(this IServiceCollection collection)
     {
         return collection
+            .AddSingleton<ITerminal, Terminal>()
             .AddSingleton<IRoomStore, RoomStore>()
             .AddSingleton<IMonsterStore, MonsterStore>()
             .AddSingleton<IManipulativeStore, ManipulativeStore>()
