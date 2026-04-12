@@ -20,7 +20,7 @@ public static class FightMonsterPortraitPanelBuilder
         string[] fitted = AdventureLayout.FitPortraitCardInnerLines(raw, inner);
         string[] cells = AdventureLayout.BuildPortraitPanelCells(fitted, inner);
         int artLineCount = monsterImages.Lines(monster.Id).Count();
-        int contentLines = 4 + artLineCount;
+        int contentLines = 5 + artLineCount;
         int topPad = Math.Max(0, (AdventureLayout.PortraitCardInnerLineCount - contentLines) / 2);
         int artStartInCells = topPad + 2;
         if (deathCrossPortraitArtRows > 0 && cells.Length > artStartInCells)
@@ -44,6 +44,8 @@ public static class FightMonsterPortraitPanelBuilder
                 : monsterImages.Lines(monster.Id).Select(Terminal.PortraitArt));
         lines.Add("");
         lines.Add(AdventureLayout.CenterVisual(Terminal.Combat(monster.Name), innerWidth));
+        int tier = Math.Clamp(monster.DifficultyRating, 1, 5);
+        lines.Add(AdventureLayout.CenterVisual(Terminal.Muted($"Threat {tier}/5"), innerWidth));
         return lines;
     }
 

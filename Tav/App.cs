@@ -1610,6 +1610,9 @@ public class App(
 
                 buffer.Add(Terminal.Muted(line));
             }
+
+            buffer.AddRange(
+                AdventureLayout.WrapText(monster.FormatThreatSummary(), wrapWidth).Select(Terminal.Muted));
         }
 
         foreach (string entry in battleLog)

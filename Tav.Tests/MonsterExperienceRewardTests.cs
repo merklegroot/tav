@@ -17,6 +17,7 @@ public class MonsterExperienceRewardTests
             Strength = 10,
             Dexterity = 13,
             AttackBonus = 1,
+            DifficultyRating = 3,
         };
         var rotHound = new Monster
         {
@@ -27,6 +28,7 @@ public class MonsterExperienceRewardTests
             Strength = 12,
             Dexterity = 11,
             AttackBonus = 2,
+            DifficultyRating = 4,
         };
 
         Assert.Equal(30, boneGnawer.GetExperienceReward());
@@ -46,6 +48,7 @@ public class MonsterExperienceRewardTests
             Strength = 1,
             Dexterity = 1,
             AttackBonus = 0,
+            DifficultyRating = 1,
         };
 
         Assert.Equal(3, tiny.GetExperienceReward());

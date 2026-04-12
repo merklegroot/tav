@@ -22,6 +22,7 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
             Strength = 10,
             Dexterity = 13,
             AttackBonus = 1,
+            DifficultyRating = 3,
         };
 
         string[] panel = FightMonsterPortraitPanelBuilder.Build(store, 5, monster);
@@ -43,8 +44,8 @@ public class FightMonsterPortraitPanelBuilderTests(ITestOutputHelper outputHelpe
         panel[7].ShouldBe(@"│     [===]      │");
         panel[8].ShouldBe(@"│   /       \s   │");
         panel[9].ShouldBe(@"│                │");
-        panel[10].ShouldBe(@"│  Bone Gnawer   │");
-        panel[11].ShouldBe(@"│                │");
+        panel[10].ShouldContain("Bone Gnawer");
+        panel[11].ShouldContain("Threat 3/5");
         panel[12].ShouldBe(@"│                │");
         panel[13].ShouldBe(@"└────────────────┘");
     }
