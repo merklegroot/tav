@@ -11,7 +11,8 @@ public static class RayRegistry
     public static IServiceCollection RegisterRay(this IServiceCollection collection)
     {
         return collection
-            .AddSingleton<IConsoleWrapper, RayConsoleWrapper>()
+            .AddSingleton<RayConsoleWrapper>()
+            .AddSingleton<IConsoleWrapper>(sp => sp.GetRequiredService<RayConsoleWrapper>())
             .RegisterGame();
     }
 }

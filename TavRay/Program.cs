@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Raylib_cs;
+using TavRay;
 using TavRay.Registry;
 
 namespace Tav;
@@ -22,6 +23,7 @@ public static class Program
             using IHost host = builder.Build();
             using IServiceScope scope = host.Services.CreateScope();
             IApp app = scope.ServiceProvider.GetRequiredService<IApp>();
+            var rayConsole = scope.ServiceProvider.GetRequiredService<RayConsoleWrapper>();
 
             Task appTask = Task.Run(() => app.Run());
 
@@ -35,6 +37,10 @@ public static class Program
 
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(Color.RAYWHITE);
+                int w = Raylib.GetScreenWidth();
+                int h = Raylib.GetScreenHeight();
+                var content = new Rectangle(16, 16, Math.Max(1, w - 32), Math.Max(1, h - 32));
+                rayConsole.PumpFrame(content);
                 Raylib.EndDrawing();
             }
 
