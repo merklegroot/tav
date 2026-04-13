@@ -66,10 +66,10 @@ public static class PlayerLeveling
         state.MaxHitPoints += 2;
         state.HitPoints = Math.Min(state.HitPoints + 2, state.MaxHitPoints);
 
-        string dexPart = newLevel % 2 == 0 ? ", +1 Dexterity" : "";
+        string dexPart = newLevel % 2 == 0 ? ", +1 DEX" : "";
         lines.Add(
             terminal.Ok(
-                $"You advance to level {newLevel}! +1 Strength{dexPart}, +2 maximum HP (current HP up to +2)."));
+                $"You advance to level {newLevel}! +1 STR{dexPart}, +2 maximum HP (current HP up to +2)."));
     }
 
     public static string BuildXpTitleFragment(ITerminal terminal, GameState state)
