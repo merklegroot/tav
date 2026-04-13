@@ -1375,8 +1375,13 @@ public class App(
             WriteFullWidthTitleBar("== Debug ==", state);
             console.WriteLine();
             console.WriteLine(terminal.Muted($"Gold: {state.Gold}"));
+            console.WriteLine(
+                terminal.Muted(
+                    $"Level: {PlayerLeveling.GetLevelFromTotalExperience(state.Experience)}  "
+                    + $"XP: {state.Experience}"));
             console.WriteLine();
             terminal.WriteMenuLine("Set (G)old", 'g');
+            terminal.WriteMenuLine("(L)evel up", 'l');
             console.WriteLine();
             console.WriteLine(terminal.EscBackHint());
 
@@ -1387,6 +1392,9 @@ public class App(
                 case DebugMainAction.SetGold:
                     RunDebugSetGold(state);
                     break;
+                case DebugMainAction.LevelUp:
+                    RunDebugLevelUp(state);
+                    break;
             }
         }
     }
@@ -1395,6 +1403,7 @@ public class App(
     {
         Back,
         SetGold,
+        LevelUp,
     }
 
     private DebugMainAction ReadDebugMainAction()
@@ -1414,6 +1423,8 @@ public class App(
                     return DebugMainAction.Back;
                 if (t is "g" or "gold")
                     return DebugMainAction.SetGold;
+                if (t is "l" or "level" or "levelup")
+                    return DebugMainAction.LevelUp;
             }
         }
 
@@ -1424,7 +1435,39 @@ public class App(
                 return DebugMainAction.Back;
             if (char.ToLowerInvariant(key.KeyChar) == 'g')
                 return DebugMainAction.SetGold;
+            if (key.Key == ConsoleKey.L || char.ToLowerInvariant(key.KeyChar) == 'l')
+                return DebugMainAction.LevelUp;
         }
+    }
+
+    private void RunDebugLevelUp(GameState state)
+    {
+        int level = PlayerLeveling.GetLevelFromTotalExperience(state.Experience);
+        if (level >= PlayerLeveling.MaxLevel)
+        {
+            ClearConsole();
+            WriteFullWidthTitleBar("== Debug ==", state);
+            console.WriteLine();
+            console.WriteLine(terminal.Warn($"Already at max level ({PlayerLeveling.MaxLevel})."));
+            PauseForContinue();
+            return;
+        }
+
+        int grant = PlayerLeveling.MinTotalXpForLevel(level + 1) - state.Experience;
+        if (grant < 1)
+            grant = 1;
+
+        List<string> lines = PlayerLeveling.GainExperience(state, grant, terminal);
+        ClearConsole();
+        WriteFullWidthTitleBar("== Debug ==", state);
+        console.WriteLine();
+        foreach (string line in lines)
+            console.WriteLine(line);
+
+        if (lines.Count == 0)
+            console.WriteLine(terminal.Warn("No level change."));
+
+        PauseForContinue();
     }
 
     /// <summary>Most digits in a 32-bit non-negative integer (<see cref="int.MaxValue"/>).</summary>
