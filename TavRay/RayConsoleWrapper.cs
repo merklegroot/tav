@@ -38,6 +38,13 @@ public class RayConsoleWrapper : IConsoleWrapper
 
     public void SetCursorVisible(bool visible)
     {
+        if (!Raylib.IsWindowReady())
+            return;
+
+        if (visible)
+            Raylib.ShowCursor();
+        else
+            Raylib.HideCursor();
     }
 
     public void Write(string? value)
