@@ -1,3 +1,3 @@
-Roboto Mono (variable font, packaged as Fonts/RobotoMono.ttf)
-  Source: https://github.com/google/fonts/tree/main/ofl/robotomono
-  Full license and copyright notices: Fonts/RobotoMono-OFL.txt (SIL Open Font License, Version 1.1)
+Anonymous Pro (regular, packaged as Fonts/AnonymousPro.ttf)
+  Source: https://github.com/google/fonts/tree/main/ofl/anonymouspro
+  Full license and copyright notices: Fonts/AnonymousPro-OFL.txt (SIL Open Font License, Version 1.1)
