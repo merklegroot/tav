@@ -22,7 +22,17 @@
     "allowSleep": true,
     "encounterMonsterIds": [],
     "exits": {
-      "e": "castle_entrance"
+      "e": "castle_entrance",
+      "s": "shop"
+    }
+  },
+  {
+    "id": "shop",
+    "name": "Roadside Shop",
+    "description": "A lean-to of patched canvas and plank counters faces the road. Jars of nails, twine, and dried herbs crowd the shelves; a brass scale swings slightly whenever the door rope slaps the frame.",
+    "encounterMonsterIds": [],
+    "exits": {
+      "n": "inn"
     }
   },
   {
