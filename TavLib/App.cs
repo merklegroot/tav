@@ -1,3 +1,4 @@
+using System.Text;
 using Tav.Models;
 using Tav.Store;
 
@@ -1104,39 +1105,220 @@ public class App(
 
     private void RunDebugScreen(GameState state)
     {
-        ClearConsole();
-        WriteFullWidthTitleBar("== Debug ==", state);
-        console.WriteLine();
-        console.WriteLine(terminal.EscBackHint());
-        WaitForEscBack();
+        while (true)
+        {
+            ClearConsole();
+            WriteFullWidthTitleBar("== Debug ==", state);
+            console.WriteLine();
+            console.WriteLine(terminal.Muted($"Gold: {state.Gold}"));
+            console.WriteLine();
+            terminal.WriteMenuLine("Set (G)old", 'g');
+            console.WriteLine();
+            console.WriteLine(terminal.EscBackHint());
+
+            switch (ReadDebugMainAction())
+            {
+                case DebugMainAction.Back:
+                    return;
+                case DebugMainAction.SetGold:
+                    RunDebugSetGold(state);
+                    break;
+            }
+        }
     }
 
-    /// <summary>Waits for Esc (or <c>esc</c> / <c>escape</c> on redirected stdin), same as other list-style sub-screens.</summary>
-    private static void WaitForEscBack()
+    private enum DebugMainAction
     {
-        if (Console.IsInputRedirected)
+        Back,
+        SetGold,
+    }
+
+    private DebugMainAction ReadDebugMainAction()
+    {
+        if (console.IsInputRedirected)
         {
             while (true)
             {
-                var line = Console.ReadLine();
+                var line = console.ReadLine();
                 if (line is null)
-                    return;
-
+                    return DebugMainAction.Back;
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
                 string t = line.Trim().ToLowerInvariant();
                 if (t is "esc" or "escape")
-                    return;
+                    return DebugMainAction.Back;
+                if (t is "g" or "gold")
+                    return DebugMainAction.SetGold;
             }
         }
 
         while (true)
         {
-            var key = Console.ReadKey(intercept: true);
+            var key = console.ReadKey(intercept: true);
             if (key.Key == ConsoleKey.Escape)
-                return;
+                return DebugMainAction.Back;
+            if (char.ToLowerInvariant(key.KeyChar) == 'g')
+                return DebugMainAction.SetGold;
         }
+    }
+
+    /// <summary>Most digits in a 32-bit non-negative integer (<see cref="int.MaxValue"/>).</summary>
+    private const int MaxGoldDigitInputLength = 10;
+
+    private void RunDebugSetGold(GameState state)
+    {
+        while (true)
+        {
+            ClearConsole();
+            WriteFullWidthTitleBar("== Debug ==", state);
+            console.WriteLine();
+            console.WriteLine(terminal.Accent($"Current gold: {state.Gold}"));
+            console.WriteLine();
+            console.WriteLine(
+                terminal.Muted(
+                    "Amount: digits 0–9 only (no spaces or symbols). Enter applies; blank line or Esc cancels."));
+            console.WriteLine();
+            console.WriteLine(terminal.EscBackHint());
+
+            int value;
+            if (console.IsInputRedirected)
+            {
+                (DebugGoldRedirectedRead outcome, int parsed) = ReadDebugGoldAmountRedirected();
+                if (outcome == DebugGoldRedirectedRead.CancelLeaveScreen)
+                    return;
+                if (outcome == DebugGoldRedirectedRead.Retry)
+                    continue;
+
+                value = parsed;
+            }
+            else
+            {
+                (bool cancelled, int? parsed, string? error) = ReadDebugGoldAmountInteractive();
+                if (cancelled)
+                    return;
+
+                if (error is not null)
+                {
+                    console.WriteLine();
+                    console.WriteLine(terminal.Warn(error));
+                    PauseForContinue();
+                    continue;
+                }
+
+                value = parsed!.Value;
+            }
+
+            state.Gold = value;
+            ClearConsole();
+            WriteFullWidthTitleBar("== Debug ==", state);
+            console.WriteLine();
+            console.WriteLine(terminal.Ok($"Gold is now {state.Gold}."));
+            PauseForContinue();
+            return;
+        }
+    }
+
+    private enum DebugGoldRedirectedRead
+    {
+        CancelLeaveScreen,
+        Retry,
+        Ok,
+    }
+
+    private (DebugGoldRedirectedRead Outcome, int Value) ReadDebugGoldAmountRedirected()
+    {
+        string? line = console.ReadLine();
+        if (line is null)
+            return (DebugGoldRedirectedRead.CancelLeaveScreen, 0);
+
+        string trimmed = line.Trim();
+        if (trimmed.Length == 0 ||
+            string.Equals(trimmed, "esc", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "escape", StringComparison.OrdinalIgnoreCase))
+            return (DebugGoldRedirectedRead.CancelLeaveScreen, 0);
+
+        if (!IsAllAsciiDigits(trimmed))
+        {
+            console.WriteLine();
+            console.WriteLine(terminal.Warn("Digits 0–9 only — no letters, spaces, or signs."));
+            PauseForContinue();
+            return (DebugGoldRedirectedRead.Retry, 0);
+        }
+
+        if (!int.TryParse(trimmed, out int parsed))
+        {
+            console.WriteLine();
+            console.WriteLine(terminal.Warn("Number too large for the game to store."));
+            PauseForContinue();
+            return (DebugGoldRedirectedRead.Retry, 0);
+        }
+
+        return (DebugGoldRedirectedRead.Ok, parsed);
+    }
+
+    /// <summary>Interactive: only digit keys are accepted; Enter submits, Esc or empty Enter cancels.</summary>
+    private (bool Cancelled, int? Value, string? ErrorMessage) ReadDebugGoldAmountInteractive()
+    {
+        console.Write(terminal.Muted("Amount: "));
+        var sb = new StringBuilder();
+
+        while (true)
+        {
+            var ki = console.ReadKey(intercept: true);
+            if (ki.Key == ConsoleKey.Escape)
+            {
+                console.WriteLine();
+                return (Cancelled: true, Value: null, ErrorMessage: null);
+            }
+
+            if (ki.Key == ConsoleKey.Enter)
+            {
+                console.WriteLine();
+                if (sb.Length == 0)
+                    return (Cancelled: true, Value: null, ErrorMessage: null);
+
+                if (!int.TryParse(sb.ToString(), out int parsed))
+                    return (Cancelled: false, Value: null, ErrorMessage: "Number too large for the game to store.");
+
+                return (Cancelled: false, Value: parsed, ErrorMessage: null);
+            }
+
+            if (ki.Key == ConsoleKey.Backspace)
+            {
+                if (sb.Length > 0)
+                {
+                    sb.Length--;
+                    console.Write("\b \b");
+                }
+
+                continue;
+            }
+
+            char? digit = null;
+            char c = ki.KeyChar;
+            if (c >= '0' && c <= '9')
+                digit = c;
+            else if (ki.Key >= ConsoleKey.NumPad0 && ki.Key <= ConsoleKey.NumPad9)
+                digit = (char)('0' + (ki.Key - ConsoleKey.NumPad0));
+
+            if (digit is not char d || sb.Length >= MaxGoldDigitInputLength)
+                continue;
+
+            sb.Append(d);
+            console.Write(d.ToString());
+        }
+    }
+
+    private static bool IsAllAsciiDigits(string s)
+    {
+        foreach (char c in s)
+        {
+            if (c < '0' || c > '9')
+                return false;
+        }
+
+        return true;
     }
 
     private void PrintHelp()
@@ -1355,8 +1537,8 @@ public class App(
         });
         items.Add(new MenuItem
         {
-            Text = "(D)ebug",
-            Key = 'd',
+            Text = "De(B)ug",
+            Key = 'b',
             Action = () => RunDebugScreen(state),
         });
         items.Add(new MenuItem
