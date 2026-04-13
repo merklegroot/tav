@@ -14,7 +14,9 @@ public static class Program
         const int screenHeight = 450;
 
         Raylib.InitWindow(screenWidth, screenHeight, "TavRay");
+        Raylib.SetExitKey(KeyboardKey.KEY_NULL);
         Raylib.SetTargetFPS(60);
+        Raylib.PollInputEvents();
         try
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -40,8 +42,10 @@ public static class Program
                 int w = Raylib.GetScreenWidth();
                 int h = Raylib.GetScreenHeight();
                 var content = new Rectangle(16, 16, Math.Max(1, w - 32), Math.Max(1, h - 32));
-                rayConsole.PumpFrame(content);
+                rayConsole.DrawPresentedFrame(content);
                 Raylib.EndDrawing();
+
+                rayConsole.CollectInputAfterPresent();
             }
 
             appTask.GetAwaiter().GetResult();
