@@ -4,6 +4,17 @@ using Tav;
 
 namespace TavRay;
 
+/// <summary>
+/// Raylib-backed implementation of <see cref="IConsoleWrapper"/>. The goal is the same contract as
+/// <see cref="ConsoleWrapper"/>—the rest of the game keeps driving the adventure through writes, reads, and
+/// terminal width—while output is ultimately shown inside a Raylib window so the experience looks and feels
+/// like a classic console app even though there is no real terminal.
+/// </summary>
+/// <remarks>
+/// Members are still being wired to drawing and input; until then, output methods are no-ops and input may
+/// block or stub. The host runs the game loop off the main thread so the process can keep presenting frames
+/// on the thread that owns the Raylib window.
+/// </remarks>
 public class RayConsoleWrapper : IConsoleWrapper
 {
     public bool IsOutputRedirected => false;
