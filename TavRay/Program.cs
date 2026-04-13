@@ -36,7 +36,7 @@ public static class Program
                 }
 
                 Raylib.BeginDrawing();
-                Raylib.ClearBackground(Color.RAYWHITE);
+                Raylib.ClearBackground(Color.BLACK);
                 int w = Raylib.GetScreenWidth();
                 int h = Raylib.GetScreenHeight();
                 var content = new Rectangle(16, 16, Math.Max(1, w - 32), Math.Max(1, h - 32));

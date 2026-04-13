@@ -7,7 +7,7 @@ namespace TavRay;
 /// <summary>Parses common ANSI SGR sequences and draws text with Raylib's default font.</summary>
 internal static class AnsiConsoleRenderer
 {
-    private static readonly Color DefaultFg = new((byte)25, (byte)25, (byte)25, (byte)255);
+    private static readonly Color DefaultFg = new((byte)220, (byte)220, (byte)220, (byte)255);
 
     /// <summary>Draws a multi-line snapshot with margins; clips to the given area.</summary>
     public static void DrawScreen(string surface, Font font, Rectangle contentArea)
