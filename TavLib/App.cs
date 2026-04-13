@@ -2120,6 +2120,9 @@ public class App(
             terminal.Muted($"You scrape up {goldFound} gold among the debris."),
             terminal.Muted($"You gain {xpGain} experience."),
         };
+        if (levelUpLines.Count > 0)
+            victoryLeft.Add("");
+
         int levelUpWrap = AdventureLayout.LeftColumnWidth;
         foreach (string line in levelUpLines)
         {
@@ -2130,6 +2133,7 @@ public class App(
         if (_random.NextDouble() < 0.35)
         {
             state.Inventory.Add(KnownManipulativeIds.Apple);
+            victoryLeft.Add("");
             victoryLeft.Add(terminal.Ok("The monster has dropped an apple."));
         }
 
