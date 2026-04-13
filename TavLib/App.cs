@@ -468,6 +468,32 @@ public class App(
         console.WriteLine();
     }
 
+    /// <summary>Same keyed <c>(n)</c> row style as <see cref="WriteInventoryListLine"/> (no equip column), plus muted separator and gold price.</summary>
+    private void WriteNumberedListLineWithPrice(int slotNumber, string displayName, char hotkey, int priceGold)
+    {
+        string menuText = $"({slotNumber}) {displayName}";
+        if (!terminal.UseAnsi)
+        {
+            console.WriteLine($"{menuText} — {priceGold} gold");
+            return;
+        }
+
+        char ku = char.ToUpperInvariant(hotkey);
+        string needle = $"({ku})";
+        int i = menuText.IndexOf(needle, StringComparison.Ordinal);
+        if (i < 0)
+        {
+            console.WriteLine($"{menuText} — {priceGold} gold");
+            return;
+        }
+
+        console.Write(terminal.Muted(menuText[..i]));
+        console.Write(terminal.MenuParenKey(ku));
+        console.Write(terminal.Muted(menuText[(i + needle.Length)..]));
+        console.Write(terminal.Muted(" — "));
+        console.WriteLine(terminal.Gold($"{priceGold} gold"));
+    }
+
     private void RunInventoryScreen(GameState state)
     {
         string? listFeedback = null;
@@ -824,7 +850,11 @@ public class App(
         }
     }
 
-    /// <summary>Returns 0-based inventory index to act on, or null to leave inventory.</summary>
+    /// <summary>
+    /// Numbered list pick: interactive keys <c>1</c>–<c>n</c> (no Enter) or Esc to cancel; redirected lines with
+    /// <c>1</c>–<c>n</c> or <c>esc</c>. Returns 0-based index, or <see langword="null"/> to back out. Used for inventory,
+    /// ground, shop buy/sell, and similar lists (see README “List picking and backing out”).
+    /// </summary>
     private int? ReadInventoryItemIndex(int itemCount)
     {
         if (itemCount <= 0)
@@ -1236,34 +1266,24 @@ public class App(
             for (int i = 0; i < stock.Count; i++)
             {
                 int num = i + 1;
+                char key = (char)('0' + num);
                 ManipulativeDefinition d = stock[i];
                 int price = d.ShopBuyGold!.Value;
-                console.WriteLine(
-                    terminal.Muted($"{num}) ")
-                    + manipulativeDescriber.GetDisplayName(d.Id)
-                    + terminal.Muted(" — ")
-                    + terminal.Gold($"{price} gold"));
+                WriteNumberedListLineWithPrice(
+                    num,
+                    manipulativeDescriber.GetDisplayName(d.Id),
+                    key,
+                    price);
             }
 
             console.WriteLine();
-            console.WriteLine(
-                terminal.Muted(
-                    $"Pick an item (1–{stock.Count}), then Enter. Blank line or Esc returns to the shop."));
-            console.WriteLine();
+            console.WriteLine(terminal.EscBackHint());
 
-            (ShopListPick pickKind, int pickIndex) = TryReadShopListPick(stock.Count);
-            if (pickKind == ShopListPick.Cancel)
+            int? pickIndex = ReadInventoryItemIndex(stock.Count);
+            if (pickIndex is null)
                 return;
 
-            if (pickKind == ShopListPick.Invalid)
-            {
-                console.WriteLine();
-                console.WriteLine(terminal.Warn($"Enter a number from 1 to {stock.Count}, or leave blank / esc to go back."));
-                PauseForContinue();
-                continue;
-            }
-
-            ManipulativeDefinition chosen = stock[pickIndex];
+            ManipulativeDefinition chosen = stock[pickIndex.Value];
             int cost = chosen.ShopBuyGold!.Value;
             if (state.Gold < cost)
             {
@@ -1319,32 +1339,22 @@ public class App(
             {
                 (int invIdx, string id, int price) = sellRows[r];
                 int num = r + 1;
-                console.WriteLine(
-                    terminal.Muted($"{num}) ")
-                    + manipulativeDescriber.GetDisplayName(id)
-                    + terminal.Muted(" — ")
-                    + terminal.Gold($"{price} gold"));
+                char key = (char)('0' + num);
+                WriteNumberedListLineWithPrice(
+                    num,
+                    manipulativeDescriber.GetDisplayName(id),
+                    key,
+                    price);
             }
 
             console.WriteLine();
-            console.WriteLine(
-                terminal.Muted(
-                    $"Pick a stack (1–{sellRows.Count}), then Enter. Blank line or Esc returns to the shop."));
-            console.WriteLine();
+            console.WriteLine(terminal.EscBackHint());
 
-            (ShopListPick sellPickKind, int sellPickIndex) = TryReadShopListPick(sellRows.Count);
-            if (sellPickKind == ShopListPick.Cancel)
+            int? sellPickIndex = ReadInventoryItemIndex(sellRows.Count);
+            if (sellPickIndex is null)
                 return;
 
-            if (sellPickKind == ShopListPick.Invalid)
-            {
-                console.WriteLine();
-                console.WriteLine(terminal.Warn($"Enter a number from 1 to {sellRows.Count}, or leave blank / esc to go back."));
-                PauseForContinue();
-                continue;
-            }
-
-            (int inventoryIndex, string itemId, int sellPrice) = sellRows[sellPickIndex];
+            (int inventoryIndex, string itemId, int sellPrice) = sellRows[sellPickIndex.Value];
             state.Inventory.RemoveAt(inventoryIndex);
             state.Gold += sellPrice;
             ClearConsole();
@@ -1355,34 +1365,6 @@ public class App(
                     $"You sell the {manipulativeDescriber.GetDisplayName(itemId)} for {sellPrice} gold."));
             PauseForContinue();
         }
-    }
-
-    private enum ShopListPick
-    {
-        Cancel,
-        Invalid,
-        Picked,
-    }
-
-    private (ShopListPick Kind, int ZeroBasedIndex) TryReadShopListPick(int itemCount)
-    {
-        if (itemCount <= 0)
-            return (ShopListPick.Cancel, 0);
-
-        string? line = console.ReadLine();
-        if (line is null)
-            return (ShopListPick.Cancel, 0);
-
-        string trimmed = line.Trim();
-        if (trimmed.Length == 0 ||
-            string.Equals(trimmed, "esc", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(trimmed, "escape", StringComparison.OrdinalIgnoreCase))
-            return (ShopListPick.Cancel, 0);
-
-        if (int.TryParse(trimmed, out int num) && num >= 1 && num <= itemCount)
-            return (ShopListPick.Picked, num - 1);
-
-        return (ShopListPick.Invalid, 0);
     }
 
     private void RunDebugScreen(GameState state)

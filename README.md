@@ -43,6 +43,22 @@ When that's not enough, it can be split into three lines.
 
 Unicode versions of the old extended ascii characters can be used to represent doors.
 
+## List picking and backing out (important)
+
+Many sub-screens show a **numbered list** (inventory slots, ground items, shop stock, etc.). Follow this pattern everywhere unless there is a strong reason not to:
+
+- **Interactive terminal**
+  - The user chooses by pressing a **single digit key** `1` … `n` matching the list (no **Enter**).
+  - Other keys are ignored until a valid choice or **Esc**.
+  - **Esc** returns to the previous screen. Show the same footer as elsewhere: **`(ESC) Back`** via `EscBackHint()` on its own line above the read loop.
+- **Redirected stdin** (automation / tests)
+  - Send a line with an integer from **1** to **n**, or `esc` / `escape` (case-insensitive) to cancel.
+  - Blank lines are ignored (user should use **Esc** on a real terminal; do not document “blank line to cancel” for these lists).
+
+Implementation: reuse **`ReadInventoryItemIndex`** (or the same rules) for any new numbered list.
+
+**Row appearance** should match the inventory list: a muted line with a highlighted **`(n)`** hotkey (same rules as `WriteInventoryListLine`). Shop buy/sell rows add a muted ` — ` and a **gold**-styled price after the item name (`WriteNumberedListLineWithPrice`).
+
 ## Movement
 
 On the main adventure screen, move between rooms with **WASD** (W north, A west, S south, D east). **N**, **E**, and **S** also move in those directions; **west** is **A** only so **W** stays unambiguous as north.
