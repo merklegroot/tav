@@ -1123,6 +1123,268 @@ public class App(
         PauseForContinue();
     }
 
+    private void RunShopScreen(GameState state)
+    {
+        if (!state.CurrentRoom.AllowShop)
+            return;
+
+        while (true)
+        {
+            ClearConsole();
+            WriteFullWidthTitleBar("== Shop ==", state);
+            console.WriteLine();
+            console.WriteLine(terminal.Muted("The trader taps the scale and waits."));
+            console.WriteLine();
+            terminal.WriteMenuLine("(P)urchase", 'p');
+            terminal.WriteMenuLine("(S)ell", 's');
+            console.WriteLine();
+            console.WriteLine(terminal.EscBackHint());
+
+            switch (ReadShopHubAction())
+            {
+                case ShopHubAction.Back:
+                    return;
+                case ShopHubAction.Purchase:
+                    RunShopBuy(state);
+                    break;
+                case ShopHubAction.Sell:
+                    RunShopSell(state);
+                    break;
+            }
+        }
+    }
+
+    private enum ShopHubAction
+    {
+        Back,
+        Purchase,
+        Sell,
+    }
+
+    private ShopHubAction ReadShopHubAction()
+    {
+        if (console.IsInputRedirected)
+        {
+            while (true)
+            {
+                var line = console.ReadLine();
+                if (line is null)
+                    return ShopHubAction.Back;
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                string t = line.Trim().ToLowerInvariant();
+                if (t is "esc" or "escape")
+                    return ShopHubAction.Back;
+                if (t is "p" or "purchase" or "buy")
+                    return ShopHubAction.Purchase;
+                if (t is "s" or "sell")
+                    return ShopHubAction.Sell;
+            }
+        }
+
+        while (true)
+        {
+            var key = console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Escape)
+                return ShopHubAction.Back;
+            char c = char.ToLowerInvariant(key.KeyChar);
+            if (c == 'p')
+                return ShopHubAction.Purchase;
+            if (c == 's')
+                return ShopHubAction.Sell;
+        }
+    }
+
+    private static int? ShopSellPrice(ManipulativeDefinition? def)
+    {
+        if (def is null)
+            return null;
+        if (def.ShopSellGold is int tagged && tagged > 0)
+            return tagged;
+        if (def.ShopBuyGold is int buy && buy > 0)
+            return Math.Max(1, buy / 2);
+        return null;
+    }
+
+    private List<ManipulativeDefinition> GetShopBuyStock()
+    {
+        return manipulativeStore
+            .ListAll()
+            .Where(d => d.ShopBuyGold is int p && p > 0)
+            .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private void RunShopBuy(GameState state)
+    {
+        while (true)
+        {
+            List<ManipulativeDefinition> stock = GetShopBuyStock();
+            ClearConsole();
+            WriteFullWidthTitleBar("== Shop — Buy ==", state);
+            console.WriteLine();
+
+            if (stock.Count == 0)
+            {
+                console.WriteLine(terminal.Muted("The shelves are bare — nothing is for sale today."));
+                console.WriteLine();
+                PauseForContinue();
+                return;
+            }
+
+            for (int i = 0; i < stock.Count; i++)
+            {
+                int num = i + 1;
+                ManipulativeDefinition d = stock[i];
+                int price = d.ShopBuyGold!.Value;
+                console.WriteLine(
+                    terminal.Muted($"{num}) ")
+                    + manipulativeDescriber.GetDisplayName(d.Id)
+                    + terminal.Muted(" — ")
+                    + terminal.Gold($"{price} gold"));
+            }
+
+            console.WriteLine();
+            console.WriteLine(
+                terminal.Muted(
+                    $"Pick an item (1–{stock.Count}), then Enter. Blank line or Esc returns to the shop."));
+            console.WriteLine();
+
+            (ShopListPick pickKind, int pickIndex) = TryReadShopListPick(stock.Count);
+            if (pickKind == ShopListPick.Cancel)
+                return;
+
+            if (pickKind == ShopListPick.Invalid)
+            {
+                console.WriteLine();
+                console.WriteLine(terminal.Warn($"Enter a number from 1 to {stock.Count}, or leave blank / esc to go back."));
+                PauseForContinue();
+                continue;
+            }
+
+            ManipulativeDefinition chosen = stock[pickIndex];
+            int cost = chosen.ShopBuyGold!.Value;
+            if (state.Gold < cost)
+            {
+                console.WriteLine();
+                console.WriteLine(terminal.Warn("You cannot afford that."));
+                PauseForContinue();
+                continue;
+            }
+
+            state.Gold -= cost;
+            state.Inventory.Add(chosen.Id);
+            ClearConsole();
+            WriteFullWidthTitleBar("== Shop — Buy ==", state);
+            console.WriteLine();
+            console.WriteLine(
+                terminal.Ok(
+                    $"You pay {cost} gold for the {manipulativeDescriber.GetDisplayName(chosen.Id)}."));
+            PauseForContinue();
+        }
+    }
+
+    private void RunShopSell(GameState state)
+    {
+        while (true)
+        {
+            var sellRows = new List<(int InventoryIndex, string Id, int Price)>();
+            for (int i = 0; i < state.Inventory.Count; i++)
+            {
+                string id = state.Inventory[i];
+                if (IsInventoryItemEquipped(state, id))
+                    continue;
+
+                ManipulativeDefinition? def = manipulativeStore.Get(id);
+                int? price = ShopSellPrice(def);
+                if (price is int p && p > 0)
+                    sellRows.Add((i, id, p));
+            }
+
+            ClearConsole();
+            WriteFullWidthTitleBar("== Shop — Sell ==", state);
+            console.WriteLine();
+
+            if (sellRows.Count == 0)
+            {
+                console.WriteLine(
+                    terminal.Muted("You have nothing unequipped that the trader wants to buy."));
+                console.WriteLine();
+                PauseForContinue();
+                return;
+            }
+
+            for (int r = 0; r < sellRows.Count; r++)
+            {
+                (int invIdx, string id, int price) = sellRows[r];
+                int num = r + 1;
+                console.WriteLine(
+                    terminal.Muted($"{num}) ")
+                    + manipulativeDescriber.GetDisplayName(id)
+                    + terminal.Muted(" — ")
+                    + terminal.Gold($"{price} gold"));
+            }
+
+            console.WriteLine();
+            console.WriteLine(
+                terminal.Muted(
+                    $"Pick a stack (1–{sellRows.Count}), then Enter. Blank line or Esc returns to the shop."));
+            console.WriteLine();
+
+            (ShopListPick sellPickKind, int sellPickIndex) = TryReadShopListPick(sellRows.Count);
+            if (sellPickKind == ShopListPick.Cancel)
+                return;
+
+            if (sellPickKind == ShopListPick.Invalid)
+            {
+                console.WriteLine();
+                console.WriteLine(terminal.Warn($"Enter a number from 1 to {sellRows.Count}, or leave blank / esc to go back."));
+                PauseForContinue();
+                continue;
+            }
+
+            (int inventoryIndex, string itemId, int sellPrice) = sellRows[sellPickIndex];
+            state.Inventory.RemoveAt(inventoryIndex);
+            state.Gold += sellPrice;
+            ClearConsole();
+            WriteFullWidthTitleBar("== Shop — Sell ==", state);
+            console.WriteLine();
+            console.WriteLine(
+                terminal.Ok(
+                    $"You sell the {manipulativeDescriber.GetDisplayName(itemId)} for {sellPrice} gold."));
+            PauseForContinue();
+        }
+    }
+
+    private enum ShopListPick
+    {
+        Cancel,
+        Invalid,
+        Picked,
+    }
+
+    private (ShopListPick Kind, int ZeroBasedIndex) TryReadShopListPick(int itemCount)
+    {
+        if (itemCount <= 0)
+            return (ShopListPick.Cancel, 0);
+
+        string? line = console.ReadLine();
+        if (line is null)
+            return (ShopListPick.Cancel, 0);
+
+        string trimmed = line.Trim();
+        if (trimmed.Length == 0 ||
+            string.Equals(trimmed, "esc", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "escape", StringComparison.OrdinalIgnoreCase))
+            return (ShopListPick.Cancel, 0);
+
+        if (int.TryParse(trimmed, out int num) && num >= 1 && num <= itemCount)
+            return (ShopListPick.Picked, num - 1);
+
+        return (ShopListPick.Invalid, 0);
+    }
+
     private void RunDebugScreen(GameState state)
     {
         while (true)
@@ -1532,6 +1794,17 @@ public class App(
                 Text = "(R)est at the inn",
                 Key = 'r',
                 Action = () => RunSleepAtInn(state),
+                BlankLineAfter = true,
+            });
+        }
+
+        if (state.CurrentRoom.AllowShop)
+        {
+            items.Add(new MenuItem
+            {
+                Text = "(T)rade at the shop",
+                Key = 't',
+                Action = () => RunShopScreen(state),
                 BlankLineAfter = true,
             });
         }

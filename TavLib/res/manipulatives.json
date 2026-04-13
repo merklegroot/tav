@@ -6,12 +6,16 @@
     "consumeEffects": {
       "healthRestored": 6
     },
-    "image": "apple"
+    "image": "apple",
+    "shopBuyGold": 4,
+    "shopSellGold": 2
   },
   {
     "id": "torch",
     "name": "Torch",
-    "image": "torch"
+    "image": "torch",
+    "shopBuyGold": 8,
+    "shopSellGold": 3
   },
   {
     "id": "crown",
@@ -26,20 +30,26 @@
     "name": "Axe",
     "isEquippableWeapon": true,
     "attackBonus": 3,
-    "image": "axe"
+    "image": "axe",
+    "shopBuyGold": 55,
+    "shopSellGold": 25
   },
   {
     "id": "helmet",
     "name": "Helmet",
     "isEquippableHelmet": true,
     "armor": 2,
-    "image": "helmet"
+    "image": "helmet",
+    "shopBuyGold": 45,
+    "shopSellGold": 20
   },
   {
     "id": "chain_mail",
     "name": "Chain mail",
     "isEquippableBodyArmor": true,
     "armor": 3,
-    "image": "chain_mail"
+    "image": "chain_mail",
+    "shopBuyGold": 120,
+    "shopSellGold": 50
   }
 ]

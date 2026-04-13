@@ -3,27 +3,34 @@ namespace Tav.Store;
 public interface IManipulativeStore
 {
     ManipulativeDefinition? Get(string manipulativeId);
+
+    /// <summary>All definitions in JSON order (for shop stock and similar).</summary>
+    IReadOnlyList<ManipulativeDefinition> ListAll();
 }
 
 public class ManipulativeStore : IManipulativeStore
 {
-    private readonly Lazy<Dictionary<string, ManipulativeDefinition>> _byIdLower = new(Load);
+    private static readonly Lazy<(Dictionary<string, ManipulativeDefinition> ById, IReadOnlyList<ManipulativeDefinition> All)> Data =
+        new(LoadAll);
 
     public ManipulativeDefinition? Get(string manipulativeId)
     {
         if (string.IsNullOrEmpty(manipulativeId))
             return null;
-        return _byIdLower.Value.TryGetValue(manipulativeId.ToLowerInvariant(), out var def)
+        return Data.Value.ById.TryGetValue(manipulativeId.ToLowerInvariant(), out var def)
             ? def
             : null;
     }
 
-    private static Dictionary<string, ManipulativeDefinition> Load()
+    public IReadOnlyList<ManipulativeDefinition> ListAll() => Data.Value.All;
+
+    private static (Dictionary<string, ManipulativeDefinition>, IReadOnlyList<ManipulativeDefinition>) LoadAll()
     {
         var list = EmbeddedJsonResource.DeserializeList<ManipulativeDefinition>(
             "manipulatives.json",
             "res/manipulatives.json");
-        return list.ToDictionary(d => d.Id.ToLowerInvariant(), StringComparer.Ordinal);
+        var dict = list.ToDictionary(d => d.Id.ToLowerInvariant(), StringComparer.Ordinal);
+        return (dict, list);
     }
 }
 
@@ -44,6 +51,12 @@ public record ManipulativeDefinition
 
     /// <summary>If set, embedded art is loaded from <c>res/items/{image}.ans</c> (monster portraits use <c>res/monsters/</c>).</summary>
     public string? Image { get; init; }
+
+    /// <summary>Gold to buy one from a shop that stocks this item; unset means not sold.</summary>
+    public int? ShopBuyGold { get; init; }
+
+    /// <summary>Gold the shop pays per item when you sell; unset means not bought back (unless derived from buy price later).</summary>
+    public int? ShopSellGold { get; init; }
 }
 
 public record ConsumeEffects

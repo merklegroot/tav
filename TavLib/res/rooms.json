@@ -30,6 +30,7 @@
     "id": "shop",
     "name": "Roadside Shop",
     "description": "A lean-to of patched canvas and plank counters faces the road. Jars of nails, twine, and dried herbs crowd the shelves; a brass scale swings slightly whenever the door rope slaps the frame.",
+    "allowShop": true,
     "encounterMonsterIds": [],
     "exits": {
       "n": "inn"

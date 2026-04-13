@@ -18,5 +18,8 @@ public record Room
     /// <summary>When true, the main menu offers rest here (e.g. an inn) that refills HP to max.</summary>
     public bool AllowSleep { get; init; }
 
+    /// <summary>When true, the main menu opens buy/sell trade here.</summary>
+    public bool AllowShop { get; init; }
+
     public bool IsInitialRoom { get; init; }
 }
