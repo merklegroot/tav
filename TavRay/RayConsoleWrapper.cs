@@ -142,8 +142,7 @@ public class RayConsoleWrapper : IConsoleWrapper
         lock (_ioLock)
             surface = _presented;
 
-        Font font = Raylib.GetFontDefault();
-        AnsiConsoleRenderer.DrawScreen(surface, font, contentArea);
+        AnsiConsoleRenderer.DrawScreen(surface, RayMonoFont.Font, contentArea);
     }
 
     private void AppendWithClearReset(string value)

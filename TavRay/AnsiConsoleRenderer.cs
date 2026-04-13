@@ -4,7 +4,7 @@ using Raylib_cs;
 
 namespace TavRay;
 
-/// <summary>Parses common ANSI SGR sequences and draws text with Raylib's default font.</summary>
+/// <summary>Parses common ANSI SGR sequences and draws text with the font supplied by <see cref="RayMonoFont"/>.</summary>
 internal static class AnsiConsoleRenderer
 {
     private static readonly Color DefaultFg = new((byte)220, (byte)220, (byte)220, (byte)255);

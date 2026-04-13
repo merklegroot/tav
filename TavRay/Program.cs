@@ -17,6 +17,7 @@ public static class Program
         Raylib.SetExitKey(KeyboardKey.KEY_NULL);
         Raylib.SetTargetFPS(60);
         Raylib.PollInputEvents();
+        RayMonoFont.Load();
         try
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -52,6 +53,7 @@ public static class Program
         }
         finally
         {
+            RayMonoFont.Unload();
             Raylib.CloseWindow();
         }
     }

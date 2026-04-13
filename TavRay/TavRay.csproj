@@ -15,4 +15,9 @@
   <ItemGroup>
     <ProjectReference Include="..\TavLib\TavLib.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Fonts\RobotoMono.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fonts\RobotoMono-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fonts\ATTRIBUTION.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
