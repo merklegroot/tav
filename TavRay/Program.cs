@@ -21,7 +21,24 @@ public static class Program
 
             using IHost host = builder.Build();
             using IServiceScope scope = host.Services.CreateScope();
-            scope.ServiceProvider.GetRequiredService<IApp>().Run();
+            IApp app = scope.ServiceProvider.GetRequiredService<IApp>();
+
+            Task appTask = Task.Run(() => app.Run());
+
+            while (!appTask.IsCompleted)
+            {
+                if (Raylib.WindowShouldClose())
+                {
+                    Raylib.CloseWindow();
+                    Environment.Exit(0);
+                }
+
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.RAYWHITE);
+                Raylib.EndDrawing();
+            }
+
+            appTask.GetAwaiter().GetResult();
         }
         finally
         {
