@@ -15,5 +15,8 @@ public record Room
     /// <summary>Monster ids that can spawn when the player fights in this room; pick one at random each encounter.</summary>
     public List<string>? EncounterMonsterIds { get; init; }
 
+    /// <summary>When true, the main menu offers rest here (e.g. an inn) that refills HP to max.</summary>
+    public bool AllowSleep { get; init; }
+
     public bool IsInitialRoom { get; init; }
 }

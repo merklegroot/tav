@@ -1103,6 +1103,26 @@ public class App(
         console.WriteLine(terminal.Muted("  Armor 0 — no reduction from this piece."));
     }
 
+    private void RunSleepAtInn(GameState state)
+    {
+        if (!state.CurrentRoom.AllowSleep)
+            return;
+
+        ClearConsole();
+        WriteFullWidthTitleBar("== Inn ==", state);
+        console.WriteLine();
+        console.WriteLine(
+            terminal.Muted(
+                "A warm cot by the hearth, a wool blanket — the innkeeper lets you rest with no charge, for now."));
+        console.WriteLine();
+        state.HitPoints = state.MaxHitPoints;
+        ClearConsole();
+        WriteFullWidthTitleBar("== Inn ==", state);
+        console.WriteLine();
+        console.WriteLine(terminal.Ok($"You wake rested. HP {state.HitPoints}/{state.MaxHitPoints}."));
+        PauseForContinue();
+    }
+
     private void RunDebugScreen(GameState state)
     {
         while (true)
@@ -1502,6 +1522,17 @@ public class App(
                 Text = $"(G)round - {groundList}",
                 Key = 'g',
                 Action = () => RunPickUpScreen(state),
+            });
+        }
+
+        if (state.CurrentRoom.AllowSleep)
+        {
+            items.Add(new MenuItem
+            {
+                Text = "(R)est at the inn",
+                Key = 'r',
+                Action = () => RunSleepAtInn(state),
+                BlankLineAfter = true,
             });
         }
 
