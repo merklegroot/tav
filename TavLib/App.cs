@@ -2120,8 +2120,12 @@ public class App(
             terminal.Muted($"You scrape up {goldFound} gold among the debris."),
             terminal.Muted($"You gain {xpGain} experience."),
         };
+        int levelUpWrap = AdventureLayout.LeftColumnWidth;
         foreach (string line in levelUpLines)
-            victoryLeft.Add(line);
+        {
+            foreach (string w in AdventureLayout.WrapText(terminal.StripAnsi(line), levelUpWrap))
+                victoryLeft.Add(terminal.Ok(w));
+        }
 
         if (_random.NextDouble() < 0.35)
         {
