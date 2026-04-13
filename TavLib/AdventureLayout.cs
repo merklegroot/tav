@@ -206,7 +206,12 @@ public static class AdventureLayout
         }
 
         for (; i < menuItems.Count; i++)
+        {
+            if (menuItems[i].Key == 'x')
+                lines.Add("");
             lines.Add(FormatMenuLine(t, menuItems[i].Text, menuItems[i].Key, leftColWidth));
+        }
+
         return lines;
     }
 
