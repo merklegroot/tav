@@ -11,6 +11,15 @@
     "shopSellGold": 2
   },
   {
+    "id": "knife",
+    "name": "Knife",
+    "isEquippableWeapon": true,
+    "attackBonus": 1,
+    "image": "knife",
+    "shopBuyGold": 10,
+    "shopSellGold": 5
+  },  
+  {
     "id": "torch",
     "name": "Torch",
     "image": "torch",
