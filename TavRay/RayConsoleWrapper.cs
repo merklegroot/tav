@@ -1,26 +1,55 @@
+using System.Threading;
+using Raylib_cs;
 using Tav;
 
 namespace TavRay;
 
 public class RayConsoleWrapper : IConsoleWrapper
 {
-    public bool IsOutputRedirected => throw new NotImplementedException();
+    public bool IsOutputRedirected => false;
 
-    public bool IsInputRedirected => throw new NotImplementedException();
+    public bool IsInputRedirected => false;
 
-    public int WindowWidth => throw new NotImplementedException();
+    public int WindowWidth
+    {
+        get
+        {
+            if (Raylib.IsWindowReady())
+            {
+                int w = Raylib.GetScreenWidth();
+                if (w > 0)
+                    return w;
+            }
 
-    public void SetCursorVisible(bool visible) => throw new NotImplementedException();
+            return AdventureLayout.ScreenWidth + 1;
+        }
+    }
 
-    public void Write(string? value) => throw new NotImplementedException();
+    public void SetCursorVisible(bool visible)
+    {
+    }
 
-    public void WriteLine(string? value) => throw new NotImplementedException();
+    public void Write(string? value)
+    {
+    }
 
-    public void WriteLine() => throw new NotImplementedException();
+    public void WriteLine(string? value)
+    {
+    }
 
-    public string? ReadLine() => throw new NotImplementedException();
+    public void WriteLine()
+    {
+    }
 
-    public ConsoleKeyInfo ReadKey(bool intercept) => throw new NotImplementedException();
+    public string? ReadLine() => null;
 
-    public void FlushOutput() => throw new NotImplementedException();
+    public ConsoleKeyInfo ReadKey(bool intercept)
+    {
+        Thread.Sleep(Timeout.Infinite);
+        return default;
+    }
+
+    public void FlushOutput()
+    {
+    }
 }
