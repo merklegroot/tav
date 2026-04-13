@@ -6,13 +6,23 @@
     "encounterMonsterIds": ["rot_hound", "bone_gnawer", "cellar_rat"],
     "exits": {
       "n": "cobble_approach",
-      "e": "courtyard"
+      "e": "courtyard",
+      "w": "inn"
     },
     "groundItems": [
       { "id": "apple", "quantity": 1 },
       "axe"
     ],
     "isInitialRoom": true
+  },
+  {
+    "id": "inn",
+    "name": "Roadside Inn",
+    "description": "A timber-framed lodge sits just off the approach, shutters glowing amber. The smell of stew and woodsmoke spills into the yard; a bench by the door is worn smooth from many travelers pausing here before the gate.",
+    "encounterMonsterIds": [],
+    "exits": {
+      "e": "castle_entrance"
+    }
   },
   {
     "id": "cobble_approach",
