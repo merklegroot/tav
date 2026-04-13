@@ -99,7 +99,17 @@ public class RayConsoleWrapper : IConsoleWrapper
         lock (_keyLock)
         {
             while (_keys.Count == 0)
+            {
+                // Direct console.Write paths (e.g. inventory) never call FlushOutput; the real terminal
+                // shows writes immediately. Mirror that by publishing the buffer before we block for input.
+                lock (_ioLock)
+                    _presented = _buffer.ToString();
+
                 Monitor.Wait(_keyLock);
+            }
+
+            lock (_ioLock)
+                _presented = _buffer.ToString();
 
             return _keys.Dequeue();
         }
