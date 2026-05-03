@@ -10,7 +10,7 @@ public static class GameRegistry
     public static IServiceCollection RegisterConsole(this IServiceCollection collection)
     {
         return collection
-            .AddSingleton<IConsoleWrapper, ConsoleWrapper>()
+            .AddSingleton<IConsoleWrapper, SpectreConsoleWrapper>()
             .RegisterGame();
     }
 }
